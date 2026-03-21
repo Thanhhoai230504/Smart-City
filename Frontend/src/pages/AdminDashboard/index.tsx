@@ -67,28 +67,17 @@ const AdminDashboard: React.FC = () => {
     })();
   }, []);
 
-  // District classification from coordinates
+  // District classification from location string (goong.io address)
   const districtData = useMemo(() => {
-    const districts: Record<string, number> = {
-      'Hải Châu': 0, 'Thanh Khê': 0, 'Sơn Trà': 0,
-      'Ngũ Hành Sơn': 0, 'Liên Chiểu': 0, 'Cẩm Lệ': 0, 'Hòa Vang': 0, 'Khác': 0,
-    };
-    const districtBounds: { name: string; latMin: number; latMax: number; lngMin: number; lngMax: number }[] = [
-      { name: 'Hải Châu', latMin: 16.040, latMax: 16.080, lngMin: 108.200, lngMax: 108.235 },
-      { name: 'Thanh Khê', latMin: 16.055, latMax: 16.095, lngMin: 108.170, lngMax: 108.200 },
-      { name: 'Sơn Trà', latMin: 16.080, latMax: 16.140, lngMin: 108.220, lngMax: 108.340 },
-      { name: 'Ngũ Hành Sơn', latMin: 15.975, latMax: 16.040, lngMin: 108.235, lngMax: 108.305 },
-      { name: 'Liên Chiểu', latMin: 16.055, latMax: 16.120, lngMin: 108.110, lngMax: 108.170 },
-      { name: 'Cẩm Lệ', latMin: 15.990, latMax: 16.040, lngMin: 108.190, lngMax: 108.235 },
-      { name: 'Hòa Vang', latMin: 15.900, latMax: 16.055, lngMin: 107.950, lngMax: 108.190 },
-    ];
+    const DISTRICT_NAMES = ['Hải Châu', 'Thanh Khê', 'Sơn Trà', 'Ngũ Hành Sơn', 'Liên Chiểu', 'Cẩm Lệ', 'Hòa Vang'];
+    const districts: Record<string, number> = {};
+    DISTRICT_NAMES.forEach((d) => { districts[d] = 0; });
+    districts['Khác'] = 0;
 
     allIssues.forEach((issue) => {
-      const matched = districtBounds.find((d) =>
-        issue.latitude >= d.latMin && issue.latitude <= d.latMax &&
-        issue.longitude >= d.lngMin && issue.longitude <= d.lngMax
-      );
-      districts[matched ? matched.name : 'Khác']++;
+      const loc = issue.location || '';
+      const matched = DISTRICT_NAMES.find((d) => loc.includes(d));
+      districts[matched || 'Khác']++;
     });
 
     return Object.entries(districts)
