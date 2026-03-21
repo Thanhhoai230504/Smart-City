@@ -26,3 +26,6 @@ npm-debug.log*
 
 # Agent config
 .agent/
+
+# Docs
+docs/
