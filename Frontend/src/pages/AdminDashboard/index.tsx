@@ -37,8 +37,6 @@ const AdminDashboard: React.FC = () => {
   const [allIssues, setAllIssues] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (currentUser?.role !== 'admin') return <Navigate to="/" replace />;
 
   const refreshStats = useCallback(async () => {
     try {
@@ -49,6 +47,7 @@ const AdminDashboard: React.FC = () => {
 
   // ── Load dashboard data ──
   useEffect(() => {
+    if (!isAuthenticated || !currentUser || currentUser.role !== 'admin') return;
     (async () => {
       setLoading(true);
       try {
@@ -65,7 +64,7 @@ const AdminDashboard: React.FC = () => {
         if (i.status === 'fulfilled') setAllIssues(i.value.data.data.issues || []);
       } finally { setLoading(false); }
     })();
-  }, []);
+  }, [isAuthenticated, currentUser]);
 
   // District classification from location string (goong.io address)
   const districtData = useMemo(() => {
@@ -85,6 +84,18 @@ const AdminDashboard: React.FC = () => {
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count);
   }, [allIssues]);
+
+  // Auth guards (AFTER all hooks)
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!currentUser) return (
+    <Box sx={{ maxWidth: 1400, mx: 'auto', p: 3 }}>
+      <Skeleton variant="text" width={200} height={40} />
+      <Grid container spacing={2.5} mt={1}>
+        {[1, 2, 3, 4].map(i => <Grid item xs={6} md={3} key={i}><Skeleton variant="rounded" height={120} /></Grid>)}
+      </Grid>
+    </Box>
+  );
+  if (currentUser.role !== 'admin') return <Navigate to="/" replace />;
 
   if (loading) {
     return (

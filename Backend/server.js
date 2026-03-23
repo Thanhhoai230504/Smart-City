@@ -49,8 +49,8 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Rate limiting
-const authLimiter = rateLimit({
+// Rate limiting - strict for login/register, relaxed for profile/refresh
+const authStrictLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
   message: { success: false, message: 'Too many requests, please try again later.' }
@@ -79,7 +79,9 @@ app.get('/', (req, res) => {
   });
 });
 
-app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/auth', generalLimiter, authRoutes);
+app.use('/api/auth/login', authStrictLimiter);
+app.use('/api/auth/register', authStrictLimiter);
 app.use('/api/issues', generalLimiter, issueRoutes);
 app.use('/api/places', generalLimiter, placeRoutes);
 app.use('/api/environment', generalLimiter, environmentRoutes);
