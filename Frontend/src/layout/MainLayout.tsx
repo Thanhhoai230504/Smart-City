@@ -1,17 +1,24 @@
 import React from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { Box } from '@mui/material';
 import Header from './Header';
 import Footer from './Footer';
 
-const MainLayout: React.FC = () => (
-  <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-    <Header />
-    <Box component="main" sx={{ flexGrow: 1 }}>
-      <Outlet />
+const HIDE_FOOTER_ROUTES = ['/map'];
+
+const MainLayout: React.FC = () => {
+  const { pathname } = useLocation();
+  const showFooter = !HIDE_FOOTER_ROUTES.includes(pathname);
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <Header />
+      <Box component="main" sx={{ flexGrow: 1 }}>
+        <Outlet />
+      </Box>
+      {showFooter && <Footer />}
     </Box>
-    <Footer />
-  </Box>
-);
+  );
+};
 
 export default MainLayout;

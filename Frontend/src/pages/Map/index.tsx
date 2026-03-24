@@ -125,9 +125,9 @@ const MapPage: React.FC = () => {
     return result;
   }, [places, placeFilter, searchText, radiusKm]);
 
-  // Filtered issues (exclude resolved)
+  // Filtered issues (chỉ hiện reported + processing)
   const filteredIssues = useMemo(() => {
-    let result = issues.filter((i) => i.status !== 'resolved');
+    let result = issues.filter((i) => ['reported', 'processing'].includes(i.status));
 
     if (searchText.trim()) {
       const q = searchText.toLowerCase();

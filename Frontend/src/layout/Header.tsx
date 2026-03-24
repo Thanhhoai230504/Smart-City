@@ -7,6 +7,7 @@ import {
   AppBar, Toolbar, Typography, Button, Box, IconButton, Drawer,
   List, ListItem, ListItemButton, ListItemIcon, ListItemText,
   Avatar, Menu, MenuItem, Divider, useMediaQuery, useTheme, Badge,
+  Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material';
 import {
   Menu as MenuIcon, Map as MapIcon, ReportProblem, Home, ListAlt,
@@ -31,8 +32,10 @@ const Header: React.FC = () => {
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [logoutOpen, setLogoutOpen] = useState(false);
 
   const handleLogout = async () => {
+    setLogoutOpen(false);
     setAnchorEl(null);
     await dispatch(logoutThunk());
     navigate('/');
@@ -118,7 +121,7 @@ const Header: React.FC = () => {
                 <MenuItem onClick={() => { setAnchorEl(null); navigate('/profile'); }}><ListItemIcon><Person fontSize="small" /></ListItemIcon>Hồ sơ</MenuItem>
                 <MenuItem onClick={() => { setAnchorEl(null); navigate('/my-issues'); }}><ListItemIcon><ListAlt fontSize="small" /></ListItemIcon>Sự cố của tôi</MenuItem>
                 <Divider sx={{ borderColor: 'rgba(255,255,255,0.06)' }} />
-                <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}><ListItemIcon><Logout fontSize="small" sx={{ color: 'error.main' }} /></ListItemIcon>Đăng xuất</MenuItem>
+                <MenuItem onClick={() => { setAnchorEl(null); setLogoutOpen(true); }} sx={{ color: 'error.main' }}><ListItemIcon><Logout fontSize="small" sx={{ color: 'error.main' }} /></ListItemIcon>Đăng xuất</MenuItem>
               </Menu>
             </Box>
           ) : (
@@ -168,6 +171,19 @@ const Header: React.FC = () => {
           )}
         </List>
       </Drawer>
+
+      {/* Logout confirmation dialog */}
+      <Dialog open={logoutOpen} onClose={() => setLogoutOpen(false)}
+        PaperProps={{ sx: { bgcolor: '#1F2937', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', minWidth: 320 } }}>
+        <DialogTitle sx={{ pb: 1 }}>⚠️ Xác nhận đăng xuất</DialogTitle>
+        <DialogContent>
+          <Typography color="text.secondary">Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?</Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setLogoutOpen(false)} sx={{ color: 'text.secondary' }}>Hủy</Button>
+          <Button onClick={handleLogout} variant="contained" color="error">Đăng xuất</Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 };
