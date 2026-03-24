@@ -7,24 +7,36 @@ import { RootState } from '../store/store';
 export const useSocket = (onEvent?: (event: string, data: any) => void) => {
   const socketRef = useRef<Socket | null>(null);
   const { user, isAuthenticated } = useSelector((s: RootState) => s.auth);
+  const onEventRef = useRef(onEvent);
+  onEventRef.current = onEvent;
 
   useEffect(() => {
-    const socket = io(SOCKET_URL, { withCredentials: true, transports: ['websocket', 'polling'] });
+    if (!isAuthenticated) return;
+
+    const socket = io(SOCKET_URL, {
+      withCredentials: true,
+      transports: ['websocket', 'polling'],
+      reconnectionDelay: 3000,
+      reconnectionAttempts: 5,
+    });
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      if (isAuthenticated && user) {
+      if (user) {
         socket.emit('join', { role: user.role, userId: user._id });
       }
     });
 
-    if (onEvent) {
-      socket.on('issue:created', (data) => onEvent('issue:created', data));
-      socket.on('issue:updated', (data) => onEvent('issue:updated', data));
-      socket.on('issue:resolved', (data) => onEvent('issue:resolved', data));
+    if (onEventRef.current) {
+      socket.on('issue:created', (data) => onEventRef.current?.('issue:created', data));
+      socket.on('issue:updated', (data) => onEventRef.current?.('issue:updated', data));
+      socket.on('issue:resolved', (data) => onEventRef.current?.('issue:resolved', data));
     }
 
-    return () => { socket.disconnect(); };
+    return () => {
+      socket.removeAllListeners();
+      socket.disconnect();
+    };
   }, [isAuthenticated, user?._id]);
 
   const emit = useCallback((event: string, data: any) => {

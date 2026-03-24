@@ -56,7 +56,12 @@ const IssuesPage: React.FC = () => {
             </Grid>
           ))
         ) : issues.length === 0 ? (
-          <Grid item xs={12}><Typography textAlign="center" color="text.secondary" py={6}>Không tìm thấy sự cố nào</Typography></Grid>
+          <Grid item xs={12}>
+            <Box textAlign="center" py={8}>
+              <Typography fontSize="3rem" mb={1}>🔍</Typography>
+              <Typography color="text.secondary">Không tìm thấy sự cố nào phù hợp với bộ lọc</Typography>
+            </Box>
+          </Grid>
         ) : (
           issues.map((issue) => {
             const cat = CATEGORY_MAP[issue.category] || CATEGORY_MAP.other;
@@ -69,7 +74,7 @@ const IssuesPage: React.FC = () => {
                     '&:hover': { transform: 'translateY(-4px)', borderColor: `${cat.color}40`, boxShadow: `0 8px 30px ${cat.color}15` },
                   }}>
                   {issue.imageUrl && (
-                    <CardMedia component="img" height={160} image={issue.imageUrl.startsWith('http') ? issue.imageUrl : `http://localhost:5000${issue.imageUrl}`}
+                    <CardMedia component="img" height={160} image={issue.imageUrl}
                       alt={issue.title} sx={{ objectFit: 'cover' }} />
                   )}
                   {!issue.imageUrl && (

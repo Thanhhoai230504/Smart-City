@@ -199,6 +199,39 @@ const getMyIssues = async ({ userId, status, page = 1, limit = 10 }) => {
     }
   };
 };
+const deleteMyIssue = async (issueId, userId) => {
+  const issue = await Issue.findById(issueId);
+  if (!issue) throw ApiError.notFound('Issue not found.');
+
+  if (issue.userId.toString() !== userId.toString()) {
+    throw ApiError.forbidden('You can only delete your own issues.');
+  }
+  if (issue.status !== 'reported') {
+    throw ApiError.badRequest('Only issues with status "reported" can be deleted.');
+  }
+
+  await Issue.findByIdAndDelete(issueId);
+  return issue;
+};
+
+const updateMyIssue = async (issueId, userId, { title, description }) => {
+  const issue = await Issue.findById(issueId);
+  if (!issue) throw ApiError.notFound('Issue not found.');
+
+  if (issue.userId.toString() !== userId.toString()) {
+    throw ApiError.forbidden('You can only edit your own issues.');
+  }
+  if (issue.status !== 'reported') {
+    throw ApiError.badRequest('Only issues with status "reported" can be edited.');
+  }
+
+  if (title) issue.title = title.trim();
+  if (description) issue.description = description.trim();
+  await issue.save();
+  await issue.populate('userId', 'name email');
+
+  return issue;
+};
 
 module.exports = {
   getIssues,
@@ -206,5 +239,7 @@ module.exports = {
   createIssue,
   updateIssueStatus,
   deleteIssue,
-  getMyIssues
+  getMyIssues,
+  deleteMyIssue,
+  updateMyIssue
 };

@@ -58,37 +58,66 @@ const ExportButton: React.FC = () => {
     setExporting(true);
     try {
       const issues = await fetchAllIssues();
-      const { default: jsPDF } = await import('jspdf');
-      const autoTable = (await import('jspdf-autotable')).default;
+      const now = new Date();
+      const dateStr = `ngày ${now.getDate()} tháng ${now.getMonth() + 1} năm ${now.getFullYear()}`;
 
-      const doc = new jsPDF({ orientation: 'landscape' });
+      const tableRows = issues.map((issue: any, idx: number) => `
+        <tr>
+          <td style="text-align:center">${idx + 1}</td>
+          <td>${issue.title || ''}</td>
+          <td>${CATEGORY_MAP[issue.category]?.label || issue.category}</td>
+          <td>${STATUS_MAP[issue.status]?.label || issue.status}</td>
+          <td>${issue.location || ''}</td>
+          <td>${typeof issue.userId === 'object' ? issue.userId.name : 'N/A'}</td>
+          <td style="text-align:center">${new Date(issue.createdAt).toLocaleDateString('vi-VN')}</td>
+        </tr>`).join('');
 
-      doc.setFontSize(16);
-      doc.text('BAO CAO SU CO DO THI - DA NANG', 14, 15);
-      doc.setFontSize(10);
-      doc.text(`Ngay xuat: ${new Date().toLocaleDateString('vi-VN')}`, 14, 22);
-      doc.text(`Tong so su co: ${issues.length}`, 14, 28);
+      const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Báo cáo sự cố đô thị</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Roboto', 'Times New Roman', serif; color: #1a1a1a; padding: 30px; }
+  .header { text-align: center; margin-bottom: 20px; }
+  .header h2 { font-size: 18px; text-transform: uppercase; letter-spacing: 1px; }
+  .header p { font-size: 12px; color: #555; margin-top: 4px; }
+  .header hr { border: none; border-top: 2px solid #6C63FF; margin: 10px 100px 0; }
+  .meta { display: flex; justify-content: space-between; margin: 15px 0; font-size: 12px; color: #555; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
+  th { background: #6C63FF; color: white; padding: 8px 6px; text-align: left; font-weight: 600; }
+  td { padding: 6px; border: 1px solid #ddd; }
+  tr:nth-child(even) { background: #f8f9fa; }
+  .footer { text-align: center; font-size: 9px; color: #999; margin-top: 30px; border-top: 1px solid #eee; padding-top: 8px; }
+  @media print { body { padding: 15px; } .no-print { display: none; } }
+</style></head><body>
+  <div class="no-print" style="text-align:center;margin-bottom:15px">
+    <button onclick="window.print()" style="padding:10px 30px;font-size:14px;background:#6C63FF;color:white;border:none;border-radius:8px;cursor:pointer">🖨️ In / Lưu PDF</button>
+  </div>
+  <div class="header">
+    <h2>Báo cáo sự cố đô thị — Đà Nẵng</h2>
+    <p>Hệ thống Giám sát Đô thị Thông minh</p>
+    <hr/>
+  </div>
+  <div class="meta">
+    <span>Tổng số sự cố: <strong>${issues.length}</strong></span>
+    <span>Ngày xuất: ${dateStr}</span>
+  </div>
+  <table>
+    <thead><tr>
+      <th style="width:40px">STT</th><th>Tiêu đề</th><th style="width:100px">Danh mục</th>
+      <th style="width:90px">Trạng thái</th><th>Vị trí</th>
+      <th style="width:110px">Người báo cáo</th><th style="width:80px">Ngày</th>
+    </tr></thead>
+    <tbody>${tableRows}</tbody>
+  </table>
+  <div class="footer">Tài liệu được tạo tự động bởi Hệ thống Giám sát Đô thị Thông minh Đà Nẵng</div>
+</body></html>`;
 
-      const tableData = issues.map((issue: any, idx: number) => [
-        idx + 1,
-        issue.title?.substring(0, 40) || '',
-        CATEGORY_MAP[issue.category]?.label || issue.category,
-        STATUS_MAP[issue.status]?.label || issue.status,
-        issue.location?.substring(0, 30) || '',
-        typeof issue.userId === 'object' ? issue.userId.name : 'N/A',
-        new Date(issue.createdAt).toLocaleDateString('vi-VN'),
-      ]);
-
-      autoTable(doc, {
-        startY: 34,
-        head: [['STT', 'Tieu de', 'Danh muc', 'Trang thai', 'Vi tri', 'Nguoi bao cao', 'Ngay']],
-        body: tableData,
-        styles: { fontSize: 8, cellPadding: 2 },
-        headStyles: { fillColor: [108, 99, 255], textColor: 255, fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [245, 245, 250] },
-      });
-
-      doc.save(`BaoCao_SuCo_${new Date().toISOString().slice(0, 10)}.pdf`);
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(html);
+        printWindow.document.close();
+      }
     } catch (err) {
       console.error('Export PDF failed:', err);
     }

@@ -67,6 +67,18 @@ const getPlaceDetail = async (placeId: string): Promise<{ lat: number; lng: numb
   };
 };
 
+// Reverse Geocode: get address from lat/lng
+const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
+  const url = `https://rsapi.goong.io/Geocode?latlng=${lat},${lng}&api_key=${GOONG_API_KEY}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Reverse geocode failed');
+  const data = await res.json();
+  if (data.status === 'OK' && data.results?.length > 0) {
+    return data.results[0].formatted_address;
+  }
+  return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+};
+
 // ── Map sub-components ──
 
 // Fly to a position when it changes
@@ -109,6 +121,7 @@ const ReportIssuePage: React.FC = () => {
   const [flyTarget, setFlyTarget] = useState<{ lat: number; lng: number } | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchBoxRef = useRef<HTMLDivElement>(null);
+  const [gettingLocation, setGettingLocation] = useState(false);
 
   // ── Close dropdown when clicking outside ──
   useEffect(() => {
@@ -184,10 +197,49 @@ const ReportIssuePage: React.FC = () => {
   }, []);
 
   // ── Click on map to adjust ──
-  const handleLocationSelect = useCallback((latitude: number, longitude: number) => {
+  const handleLocationSelect = useCallback(async (latitude: number, longitude: number) => {
     setLat(latitude);
     setLng(longitude);
     setFlyTarget(null);
+    // Reverse geocode khi click trên bản đồ
+    try {
+      const address = await reverseGeocode(latitude, longitude);
+      setLocation(address);
+    } catch { /* keep current location text */ }
+  }, []);
+
+  // ── Lấy vị trí hiện tại bằng GPS ──
+  const handleGetCurrentLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      setError('Trình duyệt không hỗ trợ định vị GPS');
+      return;
+    }
+    setGettingLocation(true);
+    setError('');
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        setLat(latitude);
+        setLng(longitude);
+        setFlyTarget({ lat: latitude, lng: longitude });
+        try {
+          const address = await reverseGeocode(latitude, longitude);
+          setLocation(address);
+        } catch {
+          setLocation(`${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+        }
+        setGettingLocation(false);
+      },
+      (err) => {
+        setGettingLocation(false);
+        if (err.code === err.PERMISSION_DENIED) {
+          setError('Bạn đã từ chối quyền truy cập vị trí. Hãy cho phép trong cài đặt trình duyệt.');
+        } else {
+          setError('Không thể lấy vị trí. Vui lòng thử lại hoặc nhập địa chỉ thủ công.');
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   }, []);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -277,8 +329,24 @@ const ReportIssuePage: React.FC = () => {
                       </InputAdornment>
                     ),
                   }}
-                  helperText="Nhập địa chỉ (có thể gồm số nhà) — gợi ý sẽ tự động hiện ra"
+                  helperText="Nhập địa chỉ hoặc nhấn nút GPS để lấy vị trí hiện tại"
                 />
+
+                {/* ── Nút lấy vị trí hiện tại ── */}
+                <Button
+                  variant="outlined" size="small"
+                  startIcon={gettingLocation ? <CircularProgress size={16} /> : <MyLocation />}
+                  onClick={handleGetCurrentLocation}
+                  disabled={gettingLocation}
+                  sx={{
+                    mt: 1, textTransform: 'none', fontSize: '0.8rem',
+                    borderColor: 'rgba(59,130,246,0.3)', color: '#3B82F6',
+                    borderRadius: '8px',
+                    '&:hover': { borderColor: '#3B82F6', bgcolor: 'rgba(59,130,246,0.06)' },
+                  }}
+                >
+                  {gettingLocation ? 'Đang lấy vị trí...' : '📍 Lấy vị trí hiện tại của tôi'}
+                </Button>
 
                 {/* ── Suggestions Dropdown ── */}
                 {showSuggestions && suggestions.length > 0 && (

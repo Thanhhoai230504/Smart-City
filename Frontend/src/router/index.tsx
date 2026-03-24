@@ -15,6 +15,7 @@ import ProfilePage from '../pages/Profile';
 import LoginPage from '../pages/Login';
 import RegisterPage from '../pages/Register';
 import AdminDashboard from '../pages/AdminDashboard';
+import NotFoundPage from '../pages/NotFound';
 
 const AppRouter: React.FC = () => {
   return (
@@ -32,6 +33,9 @@ const AppRouter: React.FC = () => {
         <Route path="/my-issues" element={<ProtectedRoute><MyIssuesPage /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+
+        {/* 404 */}
+        <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>
   );

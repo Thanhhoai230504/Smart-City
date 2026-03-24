@@ -9,7 +9,9 @@ const {
   createIssue,
   updateIssueStatus,
   deleteIssue,
-  getMyIssues
+  getMyIssues,
+  deleteMyIssue,
+  updateMyIssue
 } = require('../controllers/issueController');
 
 const router = express.Router();
@@ -33,7 +35,7 @@ router.post(
   createIssue
 );
 
-// @route   PATCH /api/issues/:id/status
+// @route   PATCH /api/issues/:id/status (admin only)
 router.patch(
   '/:id/status',
   authMiddleware,
@@ -43,7 +45,13 @@ router.patch(
   updateIssueStatus
 );
 
-// @route   DELETE /api/issues/:id
+// @route   PUT /api/issues/:id/my — user edit own issue
+router.put('/:id/my', authMiddleware, updateMyIssue);
+
+// @route   DELETE /api/issues/:id/my — user delete own issue
+router.delete('/:id/my', authMiddleware, deleteMyIssue);
+
+// @route   DELETE /api/issues/:id (admin only)
 router.delete('/:id', authMiddleware, adminMiddleware, deleteIssue);
 
 module.exports = router;

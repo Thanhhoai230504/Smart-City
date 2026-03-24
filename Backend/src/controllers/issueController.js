@@ -62,4 +62,22 @@ const getMyIssues = async (req, res, next) => {
   }
 };
 
-module.exports = { getIssues, getIssueById, createIssue, updateIssueStatus, deleteIssue, getMyIssues };
+const deleteMyIssue = async (req, res, next) => {
+  try {
+    await issueService.deleteMyIssue(req.params.id, req.user.id);
+    res.json({ success: true, message: 'Issue deleted successfully.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updateMyIssue = async (req, res, next) => {
+  try {
+    const issue = await issueService.updateMyIssue(req.params.id, req.user.id, req.body);
+    res.json({ success: true, message: 'Issue updated.', data: { issue } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { getIssues, getIssueById, createIssue, updateIssueStatus, deleteIssue, getMyIssues, deleteMyIssue, updateMyIssue };

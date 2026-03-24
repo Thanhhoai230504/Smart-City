@@ -15,9 +15,15 @@ export const issueApi = {
   getMyIssues: (params?: Record<string, string | number>) =>
     axiosClient.get('/issues/my', { params }),
 
-  updateIssueStatus: (id: string, status: string) =>
-    axiosClient.patch(`/issues/${id}/status`, { status }),
+  updateIssueStatus: (id: string, status: string, note?: string) =>
+    axiosClient.patch(`/issues/${id}/status`, { status, note }),
 
   deleteIssue: (id: string) =>
     axiosClient.delete(`/issues/${id}`),
+
+  deleteMyIssue: (id: string) =>
+    axiosClient.delete(`/issues/${id}/my`),
+
+  updateMyIssue: (id: string, data: { title?: string; description?: string }) =>
+    axiosClient.put(`/issues/${id}/my`, data),
 };
