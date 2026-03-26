@@ -14,10 +14,17 @@ export interface DashboardStats {
   issuesTrend: { date: string; count: number }[];
 }
 
+export interface TrafficRoad {
+  name: string; currentSpeed: number; freeFlowSpeed: number; level: string;
+  lat?: number; lon?: number;
+}
+
 export interface TrafficStats {
-  totalRoads: number; averageSpeed: number; congestionIndex: number;
+  totalRoads: number; averageSpeed: number; averageFreeFlowSpeed?: number; congestionIndex: number;
   summary: Record<string, number>;
-  worstRoads: { name: string; currentSpeed: number; freeFlowSpeed: number; level: string }[];
+  worstRoads: TrafficRoad[];
+  bestRoads?: TrafficRoad[];
+  roads?: TrafficRoad[];
 }
 
 export interface EnvData {

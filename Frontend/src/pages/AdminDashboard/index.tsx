@@ -25,6 +25,7 @@ import IssueManagement from './IssueManagement';
 import UserManagement from './UserManagement';
 import PlaceManagement from './PlaceManagement';
 import EnvironmentHistoryChart from './EnvironmentHistoryChart';
+import TrafficDashboard from './TrafficDashboard';
 import ExportButton from './ExportButton';
 
 // ═══════════════ MAIN COMPONENT ═══════════════
@@ -182,7 +183,7 @@ const AdminDashboard: React.FC = () => {
         </Grid>
 
         {/* BAR CHART */}
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12} md={12}>
           <GlassCard>
             <Typography fontWeight={600} mb={2}>📊 Phân loại sự cố</Typography>
             <ResponsiveContainer width="100%" height={260}>
@@ -199,39 +200,11 @@ const AdminDashboard: React.FC = () => {
           </GlassCard>
         </Grid>
 
-        {/* TRAFFIC */}
-        <Grid item xs={12} md={6}>
-          <GlassCard>
-            <Typography fontWeight={600} mb={2}>🚗 Giao thông Đà Nẵng</Typography>
-            {traffic ? (<>
-              <Stack direction="row" spacing={2} mb={2}>
-                <Box sx={{ flex: 1, textAlign: 'center' }}>
-                  <Typography variant="h3" fontWeight={800} sx={{ color: cColor }}>{traffic.congestionIndex}%</Typography>
-                  <Typography variant="caption" color="text.secondary">Chỉ số tắc nghẽn</Typography>
-                </Box>
-                <Box sx={{ flex: 1 }}>
-                  <Stack spacing={0.5}>
-                    {Object.entries(traffic.summary).map(([l, c]) => (
-                      <Stack key={l} direction="row" alignItems="center" spacing={1}>
-                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: TRAFFIC_LEVEL_COLORS[l] }} />
-                        <Typography variant="caption" sx={{ flex: 1 }}>{TRAFFIC_LEVEL_LABELS[l]}</Typography>
-                        <Typography variant="caption" fontWeight={600}>{c} đường</Typography>
-                      </Stack>
-                    ))}
-                  </Stack>
-                </Box>
-              </Stack>
-              <Typography variant="caption" fontWeight={600} color="text.secondary" mb={1} display="block">🔴 Top đường kẹt nhất</Typography>
-              <Stack spacing={0.5}>
-                {traffic.worstRoads.slice(0, 4).map((r, i) => (
-                  <Stack key={i} direction="row" alignItems="center" justifyContent="space-between" sx={{ py: 0.5, px: 1, borderRadius: '8px', bgcolor: 'rgba(255,255,255,0.03)' }}>
-                    <Typography variant="caption">{r.name}</Typography>
-                    <Chip size="small" label={`${r.currentSpeed}/${r.freeFlowSpeed} km/h`} sx={{ height: 20, fontSize: '0.65rem', bgcolor: TRAFFIC_LEVEL_COLORS[r.level], color: '#fff' }} />
-                  </Stack>
-                ))}
-              </Stack>
-            </>) : <Typography variant="body2" color="text.secondary">Đang tải...</Typography>}
-          </GlassCard>
+        {/* TRAFFIC DASHBOARD */}
+        <Grid item xs={12}>
+          {traffic ? <TrafficDashboard traffic={traffic} /> : (
+            <GlassCard><Typography color="text.secondary">Đang tải dữ liệu giao thông...</Typography></GlassCard>
+          )}
         </Grid>
 
         {/* ═══ ISSUE MANAGEMENT ═══ */}
@@ -259,7 +232,7 @@ const AdminDashboard: React.FC = () => {
           <Grid item xs={12} md={6}>
             <GlassCard>
               <Typography fontWeight={600} mb={2}>🏙️ Sự cố theo quận</Typography>
-              <ResponsiveContainer width="100%" height={280}>
+              <ResponsiveContainer width="100%" height={395}>
                 <BarChart data={districtData} layout="vertical" margin={{ left: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                   <XAxis type="number" tick={{ fill: '#9CA3AF', fontSize: 11 }} allowDecimals={false} />
