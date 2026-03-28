@@ -7,7 +7,7 @@ import {
   Skeleton, Pagination, FormControl, InputLabel, SelectChangeEvent,
   Dialog, DialogTitle, DialogContent, DialogActions, Button, Snackbar, Alert,
 } from '@mui/material';
-import { Delete, Visibility } from '@mui/icons-material';
+import { Delete, Visibility, ThumbUp } from '@mui/icons-material';
 import {
   GlassCard, IssueItem, STATUS_COLORS, STATUS_LABELS, CATEGORY_LABELS,
   cellSx, headCellSx,
@@ -25,19 +25,20 @@ const IssueManagement: React.FC<Props> = ({ onDataChange }) => {
   const [loading, setLoading] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [snack, setSnack] = useState<{ open: boolean; msg: string; severity: 'success' | 'error' }>({ open: false, msg: '', severity: 'success' });
+  const [sortBy, setSortBy] = useState('-createdAt');
 
   const loadIssues = useCallback(async (page = 1, status = '') => {
     setLoading(true);
     try {
-      const params: Record<string, string | number> = { page, limit: 6, sort: '-createdAt' };
+      const params: Record<string, string | number> = { page, limit: 6, sort: sortBy };
       if (status) params.status = status;
       const { data } = await issueApi.getIssues(params);
       setIssues(data.data.issues);
       setPag(data.data.pagination);
     } catch { } finally { setLoading(false); }
-  }, []);
+  }, [sortBy]);
 
-  useEffect(() => { loadIssues(1, filter); }, [filter, loadIssues]);
+  useEffect(() => { loadIssues(1, filter); }, [filter, sortBy, loadIssues]);
 
   const handleStatusChange = async (id: string, status: string) => {
     try {
@@ -75,6 +76,15 @@ const IssueManagement: React.FC<Props> = ({ onDataChange }) => {
               <MenuItem value="rejected">🔴 Từ chối</MenuItem>
             </Select>
           </FormControl>
+          <FormControl size="small" sx={{ minWidth: 150 }}>
+            <InputLabel sx={{ color: 'text.secondary' }}>Sắp xếp</InputLabel>
+            <Select value={sortBy} label="Sắp xếp" onChange={(e: SelectChangeEvent) => setSortBy(e.target.value)}
+              sx={{ borderRadius: '10px', '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.1)' } }}>
+              <MenuItem value="-createdAt">🕐 Mới nhất</MenuItem>
+              <MenuItem value="createdAt">🕐 Cũ nhất</MenuItem>
+              <MenuItem value="-voteCount">🔥 Ủng hộ nhiều nhất</MenuItem>
+            </Select>
+          </FormControl>
           <Chip label={`${pag.total} sự cố`} sx={{ bgcolor: 'rgba(108,99,255,0.15)', color: '#A5B4FC', fontWeight: 600 }} />
         </Stack>
       </Stack>
@@ -82,15 +92,15 @@ const IssueManagement: React.FC<Props> = ({ onDataChange }) => {
       <TableContainer>
         <Table size="small">
           <TableHead><TableRow>
-            {['Tiêu đề', 'Người báo cáo', 'Loại', 'Trạng thái', 'Thời gian', 'Thao tác'].map(h => (
+            {['Tiêu đề', 'Người báo cáo', 'Loại', '👍 Ủng hộ', 'Trạng thái', 'Thời gian', 'Thao tác'].map(h => (
               <TableCell key={h} sx={headCellSx}>{h}</TableCell>
             ))}
           </TableRow></TableHead>
           <TableBody>
             {loading ? [...Array(4)].map((_, i) => (
-              <TableRow key={i}>{[...Array(6)].map((_, j) => <TableCell key={j} sx={cellSx}><Skeleton sx={{ bgcolor: 'rgba(255,255,255,0.05)' }} /></TableCell>)}</TableRow>
+              <TableRow key={i}>{[...Array(7)].map((_, j) => <TableCell key={j} sx={cellSx}><Skeleton sx={{ bgcolor: 'rgba(255,255,255,0.05)' }} /></TableCell>)}</TableRow>
             )) : issues.length === 0 ? (
-              <TableRow><TableCell colSpan={6} sx={{ ...cellSx, textAlign: 'center', py: 3 }}>
+              <TableRow><TableCell colSpan={7} sx={{ ...cellSx, textAlign: 'center', py: 3 }}>
                 <Typography color="text.secondary">Không có sự cố</Typography>
               </TableCell></TableRow>
             ) : issues.map(issue => (
@@ -105,6 +115,15 @@ const IssueManagement: React.FC<Props> = ({ onDataChange }) => {
                 <TableCell sx={cellSx}>
                   <Chip size="small" label={CATEGORY_LABELS[issue.category] || issue.category}
                     sx={{ height: 22, fontSize: '0.7rem', bgcolor: 'rgba(108,99,255,0.15)', color: '#A5B4FC' }} />
+                </TableCell>
+                <TableCell sx={cellSx}>
+                  <Stack direction="row" alignItems="center" spacing={0.5}>
+                    <ThumbUp sx={{ fontSize: 14, color: (issue as any).voteCount > 0 ? '#F59E0B' : 'text.disabled' }} />
+                    <Typography variant="body2" fontWeight={(issue as any).voteCount > 0 ? 700 : 400}
+                      color={(issue as any).voteCount > 0 ? '#F59E0B' : 'text.secondary'}>
+                      {(issue as any).voteCount || 0}
+                    </Typography>
+                  </Stack>
                 </TableCell>
                 <TableCell sx={cellSx}>
                   <Select size="small" value={issue.status}

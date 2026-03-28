@@ -26,4 +26,7 @@ export const issueApi = {
 
   updateMyIssue: (id: string, data: { title?: string; description?: string }) =>
     axiosClient.put(`/issues/${id}/my`, data),
+
+  toggleVote: (id: string) =>
+    axiosClient.post(`/issues/${id}/vote`),
 };

@@ -64,6 +64,14 @@ const issueSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  votes: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  voteCount: {
+    type: Number,
+    default: 0
+  },
   statusHistory: [{
     status: { type: String, enum: ['reported', 'processing', 'resolved', 'rejected'] },
     changedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

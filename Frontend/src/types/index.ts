@@ -54,6 +54,8 @@ export interface Issue {
   adminId: { _id: string; name: string; email: string } | null;
   resolvedAt: string | null;
   statusHistory?: StatusHistoryEntry[];
+  votes?: string[];
+  voteCount?: number;
   createdAt: string;
   updatedAt: string;
 }

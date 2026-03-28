@@ -13,6 +13,7 @@ const connectDB = require('./src/config/db');
 const { initSocket } = require('./src/config/socket');
 const errorHandler = require('./src/middleware/errorHandler');
 const { startEnvironmentCron } = require('./src/jobs/environmentCron');
+const { startReportCron } = require('./src/jobs/reportCron');
 
 // Import routes
 const authRoutes = require('./src/routes/auth');
@@ -25,6 +26,9 @@ const userRoutes = require('./src/routes/users');
 const dashboardRoutes = require('./src/routes/dashboard');
 const commentRoutes = require('./src/routes/comments');
 const notificationRoutes = require('./src/routes/notifications');
+const aiRoutes = require('./src/routes/ai');
+const chatbotRoutes = require('./src/routes/chatbot');
+const reportRoutes = require('./src/routes/reports');
 
 // Initialize Express app
 const app = express();
@@ -90,6 +94,9 @@ app.use('/api/users', generalLimiter, userRoutes);
 app.use('/api/dashboard', generalLimiter, dashboardRoutes);
 app.use('/api/issues/:issueId/comments', generalLimiter, commentRoutes);
 app.use('/api/notifications', generalLimiter, notificationRoutes);
+app.use('/api/ai', generalLimiter, aiRoutes);
+app.use('/api/chatbot', generalLimiter, chatbotRoutes);
+app.use('/api/reports', generalLimiter, reportRoutes);
 
 // ============ ERROR HANDLING ============
 
@@ -112,6 +119,7 @@ const PORT = process.env.PORT || 5000;
 connectDB().then(() => {
   // Start cron jobs after DB is connected
   startEnvironmentCron();
+  startReportCron();
 
   server.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);

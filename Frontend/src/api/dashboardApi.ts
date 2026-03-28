@@ -6,4 +6,10 @@ export const dashboardApi = {
 
   getTrafficStats: () =>
     axiosClient.get('/traffic/stats'),
+
+  previewReport: (type: 'weekly' | 'monthly') =>
+    axiosClient.get(`/reports/preview/${type}`),
+
+  sendReport: (type: 'weekly' | 'monthly') =>
+    axiosClient.post('/reports/send', { type }),
 };

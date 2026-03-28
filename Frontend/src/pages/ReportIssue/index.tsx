@@ -10,7 +10,7 @@ import {
 } from '@mui/material';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { Send, CloudUpload, LocationOn, Search, MyLocation, Close } from '@mui/icons-material';
+import { Send, CloudUpload, LocationOn, Search, MyLocation, Close, SmartToy } from '@mui/icons-material';
 import { CATEGORY_MAP, DA_NANG_CENTER, DEFAULT_ZOOM } from '../../utils/constants';
 
 // ── Goong API helpers ──
@@ -113,6 +113,10 @@ const ReportIssuePage: React.FC = () => {
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+
+  // AI classify
+  const [aiClassifying, setAiClassifying] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState<{ category: string; confidence: number; description: string } | null>(null);
 
   // Goong autocomplete state
   const [suggestions, setSuggestions] = useState<GoongPrediction[]>([]);
@@ -242,12 +246,26 @@ const ReportIssuePage: React.FC = () => {
     );
   }, []);
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) { setError('Ảnh tối đa 5MB'); return; }
       setImage(file);
       setPreview(URL.createObjectURL(file));
+
+      // AI classify
+      setAiClassifying(true);
+      setAiSuggestion(null);
+      try {
+        const { aiApi } = await import('../../api/aiApi');
+        const { data } = await aiApi.classifyImage(file);
+        const result = data.data;
+        setAiSuggestion(result);
+        if (result.confidence >= 0.5 && !category) {
+          setCategory(result.category);
+        }
+      } catch { /* silent */ }
+      setAiClassifying(false);
     }
   };
 
@@ -400,6 +418,21 @@ const ReportIssuePage: React.FC = () => {
                 </Button>
                 {preview && (
                   <Box component="img" src={preview} alt="Preview" sx={{ mt: 2, width: '100%', maxHeight: 200, objectFit: 'cover', borderRadius: 2 }} />
+                )}
+                {aiClassifying && (
+                  <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 1 }}>
+                    <CircularProgress size={16} />
+                    <Typography variant="caption" color="text.secondary">🧠 AI đang phân tích ảnh...</Typography>
+                  </Stack>
+                )}
+                {aiSuggestion && !aiClassifying && (
+                  <Chip
+                    icon={<SmartToy sx={{ fontSize: 16 }} />}
+                    label={`AI gợi ý: ${CATEGORY_MAP[aiSuggestion.category]?.label || aiSuggestion.category} (${Math.round(aiSuggestion.confidence * 100)}%) — ${aiSuggestion.description}`}
+                    size="small"
+                    onDelete={() => setAiSuggestion(null)}
+                    sx={{ mt: 1, bgcolor: 'rgba(108,99,255,0.15)', color: '#A5B4FC', border: '1px solid rgba(108,99,255,0.3)', maxWidth: '100%', height: 'auto', '& .MuiChip-label': { whiteSpace: 'normal', py: 0.5 } }}
+                  />
                 )}
               </Box>
 

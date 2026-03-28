@@ -6,11 +6,11 @@ import { dashboardApi } from '../../api/dashboardApi';
 import { environmentApi } from '../../api/environmentApi';
 import { issueApi } from '../../api/issueApi';
 import {
-  Box, Grid, Typography, Chip, Stack, Skeleton,
+  Box, Grid, Typography, Chip, Stack, Skeleton, Button, CircularProgress,
 } from '@mui/material';
 import {
   BugReport, Today, CalendarMonth, People, Place as PlaceIcon, Speed,
-  Thermostat, WaterDrop,
+  Thermostat, WaterDrop, Email, ThumbUp,
 } from '@mui/icons-material';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
@@ -37,6 +37,7 @@ const AdminDashboard: React.FC = () => {
   const [envData, setEnvData] = useState<EnvData[]>([]);
   const [allIssues, setAllIssues] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sendingReport, setSendingReport] = useState(false);
 
 
   const refreshStats = useCallback(async () => {
@@ -126,6 +127,19 @@ const AdminDashboard: React.FC = () => {
         </Box>
         <Stack direction="row" spacing={1} alignItems="center">
           <ExportButton />
+          <Button size="small" variant="outlined" startIcon={sendingReport ? <CircularProgress size={14} /> : <Email />}
+            disabled={sendingReport}
+            onClick={async () => {
+              setSendingReport(true);
+              try {
+                await dashboardApi.sendReport('weekly');
+                alert('Đã gửi báo cáo tuần đến email admin!');
+              } catch { alert('Gửi thất bại'); }
+              setSendingReport(false);
+            }}
+            sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 600 }}>
+            {sendingReport ? 'Đang gửi...' : 'Gửi báo cáo'}
+          </Button>
           <Chip label={new Date().toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             sx={{ bgcolor: 'rgba(108,99,255,0.1)', color: 'primary.light', fontWeight: 500 }} />
         </Stack>
@@ -212,6 +226,38 @@ const AdminDashboard: React.FC = () => {
           <IssueManagement onDataChange={refreshStats} />
         </Grid>
 
+        {/* TOP VOTED ISSUES */}
+        {allIssues.some(i => (i.voteCount || 0) > 0) && (
+          <Grid item xs={12}>
+            <GlassCard>
+              <Typography fontWeight={600} mb={2}>🔥 Sự cố quan trọng nhất (theo vote)</Typography>
+              <Stack spacing={1}>
+                {allIssues
+                  .filter(i => (i.voteCount || 0) > 0)
+                  .sort((a, b) => (b.voteCount || 0) - (a.voteCount || 0))
+                  .slice(0, 5)
+                  .map((issue, i) => (
+                    <Stack key={issue._id} direction="row" alignItems="center" spacing={2}
+                      sx={{ p: 1.5, borderRadius: '10px', bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                      <Typography fontWeight={700} color="primary.main" fontSize={18} sx={{ minWidth: 28 }}>
+                        #{i + 1}
+                      </Typography>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography fontWeight={600} fontSize={14}>{issue.title}</Typography>
+                        <Typography variant="caption" color="text.secondary">{issue.location}</Typography>
+                      </Box>
+                      <Stack direction="row" alignItems="center" spacing={0.5}>
+                        <ThumbUp sx={{ fontSize: 16, color: '#F59E0B' }} />
+                        <Typography fontWeight={700} color="#F59E0B">{issue.voteCount || 0}</Typography>
+                      </Stack>
+                      <Chip label={STATUS_LABELS[issue.status] || issue.status} size="small"
+                        sx={{ bgcolor: `${STATUS_COLORS[issue.status]}20`, color: STATUS_COLORS[issue.status], fontWeight: 600, fontSize: '0.7rem' }} />
+                    </Stack>
+                  ))}
+              </Stack>
+            </GlassCard>
+          </Grid>
+        )}
         {/* ═══ USER MANAGEMENT ═══ */}
         <Grid item xs={12}>
           <UserManagement onDataChange={refreshStats} />
@@ -267,6 +313,8 @@ const AdminDashboard: React.FC = () => {
             </Grid>
           </GlassCard>
         </Grid>
+
+
       </Grid>
     </Box>
   );

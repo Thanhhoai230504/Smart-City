@@ -59,7 +59,7 @@ const Header: React.FC = () => {
               fontSize: '1.2rem', fontWeight: 800,
             }}>🏙️</Box>
             <Typography variant="h6" sx={{ fontWeight: 700, display: { xs: 'none', sm: 'block' }, background: 'linear-gradient(135deg, #6C63FF, #00D9A6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              Smart City
+              Smart City Đà Nẵng
             </Typography>
           </Box>
 
@@ -138,7 +138,7 @@ const Header: React.FC = () => {
         PaperProps={{ sx: { width: 280, bgcolor: 'background.paper' } }}>
         <Box sx={{ p: 2 }}>
           <Typography variant="h6" fontWeight={700} sx={{ background: 'linear-gradient(135deg, #6C63FF, #00D9A6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-            🏙️ Smart City
+            🏙️ Smart City Đà Nẵng
           </Typography>
         </Box>
         <Divider sx={{ borderColor: 'rgba(255,255,255,0.06)' }} />

@@ -8,7 +8,7 @@ import {
   Chip, Stack, TextField, MenuItem, Pagination as MuiPagination,
   InputAdornment, Skeleton,
 } from '@mui/material';
-import { Search, LocationOn } from '@mui/icons-material';
+import { Search, LocationOn, ThumbUp } from '@mui/icons-material';
 import { CATEGORY_MAP, STATUS_MAP } from '../../utils/constants';
 import { timeAgo } from '../../utils/helpers';
 
@@ -19,14 +19,15 @@ const IssuesPage: React.FC = () => {
 
   const [status, setStatus] = useState('');
   const [category, setCategory] = useState('');
+  const [sortBy, setSortBy] = useState('-createdAt');
   const [page, setPage] = useState(1);
 
   useEffect(() => {
-    const params: Record<string, string | number> = { page, limit: 9 };
+    const params: Record<string, string | number> = { page, limit: 9, sort: sortBy };
     if (status) params.status = status;
     if (category) params.category = category;
     dispatch(fetchIssues(params));
-  }, [dispatch, page, status, category]);
+  }, [dispatch, page, status, category, sortBy]);
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -44,6 +45,12 @@ const IssuesPage: React.FC = () => {
           size="small" sx={{ minWidth: 180 }}>
           <MenuItem value="">Tất cả</MenuItem>
           {Object.entries(CATEGORY_MAP).map(([k, v]) => <MenuItem key={k} value={k}>{v.icon} {v.label}</MenuItem>)}
+        </TextField>
+        <TextField select label="Sắp xếp" value={sortBy} onChange={(e) => { setSortBy(e.target.value); setPage(1); }}
+          size="small" sx={{ minWidth: 180 }}>
+          <MenuItem value="-createdAt">🕐 Mới nhất</MenuItem>
+          <MenuItem value="createdAt">🕐 Cũ nhất</MenuItem>
+          <MenuItem value="-voteCount">🔥 Ủng hộ nhiều nhất</MenuItem>
         </TextField>
       </Stack>
 
@@ -93,6 +100,18 @@ const IssuesPage: React.FC = () => {
                       <Typography variant="body2" color="text.secondary" noWrap>{issue.location}</Typography>
                     </Stack>
                     <Typography variant="caption" color="text.secondary">{timeAgo(issue.createdAt)}</Typography>
+                    {(issue.voteCount || 0) > 0 && (
+                      <Stack direction="row" alignItems="center" spacing={0.5} sx={{
+                        mt: 1, px: 1, py: 0.3, borderRadius: '8px',
+                        bgcolor: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)',
+                        width: 'fit-content',
+                      }}>
+                        <ThumbUp sx={{ fontSize: 13, color: '#F59E0B' }} />
+                        <Typography variant="caption" fontWeight={700} color="#F59E0B">
+                          {issue.voteCount} người ủng hộ
+                        </Typography>
+                      </Stack>
+                    )}
                   </CardContent>
                 </Card>
               </Grid>

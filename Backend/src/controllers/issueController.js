@@ -1,4 +1,5 @@
 const issueService = require('../services/issueService');
+const Issue = require('../models/Issue');
 
 const getIssues = async (req, res, next) => {
   try {
@@ -80,4 +81,21 @@ const updateMyIssue = async (req, res, next) => {
   }
 };
 
-module.exports = { getIssues, getIssueById, createIssue, updateIssueStatus, deleteIssue, getMyIssues, deleteMyIssue, updateMyIssue };
+const toggleVote = async (req, res, next) => {
+  try {
+    const issue = await Issue.findById(req.params.id);
+    if (!issue) return res.status(404).json({ success: false, message: 'Issue not found' });
+    const userId = req.user.id;
+    const idx = issue.votes.indexOf(userId);
+    if (idx > -1) {
+      issue.votes.splice(idx, 1);
+    } else {
+      issue.votes.push(userId);
+    }
+    issue.voteCount = issue.votes.length;
+    await issue.save();
+    res.json({ success: true, data: { voted: idx === -1, voteCount: issue.voteCount } });
+  } catch (error) { next(error); }
+};
+
+module.exports = { getIssues, getIssueById, createIssue, updateIssueStatus, deleteIssue, getMyIssues, deleteMyIssue, updateMyIssue, toggleVote };

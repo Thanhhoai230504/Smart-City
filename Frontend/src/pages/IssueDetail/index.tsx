@@ -8,7 +8,7 @@ import { issueApi } from '../../api/issueApi';
 import {
   Box, Container, Typography, Chip, Card, CardContent, Stack, Button,
   Grid, Divider, Avatar, TextField, Stepper, Step, StepLabel, StepConnector,
-  MenuItem, Select, FormControl, InputLabel, SelectChangeEvent,
+  MenuItem, Select, FormControl, InputLabel, SelectChangeEvent, IconButton,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
@@ -16,7 +16,8 @@ import * as L from 'leaflet';
 import {
   ArrowBack, LocationOn, Person, CalendarMonth, Send,
   FiberManualRecord, CheckCircle, Pending, Cancel,
-  Phone, Email, Description,
+  Phone, Email, Description, ThumbUp, ThumbUpOffAlt,
+  Share, Facebook, ContentCopy, Link as LinkIcon,
 } from '@mui/icons-material';
 import { CATEGORY_MAP, STATUS_MAP } from '../../utils/constants';
 import { formatDate } from '../../utils/helpers';
@@ -78,10 +79,22 @@ const IssueDetailPage: React.FC = () => {
   const [statusNote, setStatusNote] = useState('');
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
+  // Vote
+  const [voteCount, setVoteCount] = useState(0);
+  const [hasVoted, setHasVoted] = useState(false);
+  const [voting, setVoting] = useState(false);
+
   useEffect(() => {
     if (id) dispatch(fetchIssueById(id));
     return () => { dispatch(clearCurrentIssue()); };
   }, [dispatch, id]);
+
+  useEffect(() => {
+    if (issue) {
+      setVoteCount(issue.voteCount || 0);
+      setHasVoted(user ? (issue.votes || []).includes(user._id) : false);
+    }
+  }, [issue, user]);
 
   const loadComments = useCallback(async () => {
     if (!id) return;
@@ -119,6 +132,32 @@ const IssueDetailPage: React.FC = () => {
     setUpdatingStatus(false);
   };
 
+  const handleVote = async () => {
+    if (!isAuthenticated || !id || voting) return;
+    setVoting(true);
+    try {
+      const { data } = await issueApi.toggleVote(id);
+      setVoteCount(data.data.voteCount);
+      setHasVoted(data.data.voted);
+    } catch { /* ignore */ }
+    setVoting(false);
+  };
+
+  const shareUrl = window.location.href;
+  const shareTitle = issue ? `Sự cố: ${issue.title}` : '';
+  const handleShare = (platform: string) => {
+    const urls: Record<string, string> = {
+      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
+      zalo: `https://zalo.me/share?url=${encodeURIComponent(shareUrl)}`,
+    };
+    if (platform === 'copy') {
+      navigator.clipboard.writeText(shareUrl);
+      toast.success('Đã sao chép liên kết!');
+      return;
+    }
+    window.open(urls[platform], '_blank', 'width=600,height=400');
+  };
+
   if (loading || !issue) return <LoadingSpinner />;
 
   const cat = CATEGORY_MAP[issue.category] || CATEGORY_MAP.other;
@@ -140,7 +179,35 @@ const IssueDetailPage: React.FC = () => {
             <Chip label={st.label} sx={{ bgcolor: `${st.color}20`, color: st.color, fontWeight: 600 }} />
           </Stack>
 
-          <Typography variant="h4" fontWeight={700} mb={2}>{issue.title}</Typography>
+          <Typography variant="h4" fontWeight={700} mb={1}>{issue.title}</Typography>
+
+          {/* Vote + Share */}
+          <Stack direction="row" alignItems="center" spacing={1.5} mb={2} flexWrap="wrap">
+            <Button
+              variant={hasVoted ? 'contained' : 'outlined'}
+              size="small"
+              startIcon={hasVoted ? <ThumbUp /> : <ThumbUpOffAlt />}
+              onClick={handleVote}
+              disabled={voting || !isAuthenticated}
+              sx={{
+                borderRadius: '20px', textTransform: 'none', fontWeight: 600,
+                ...(hasVoted && { bgcolor: '#6C63FF', '&:hover': { bgcolor: '#5A52D5' } }),
+              }}
+            >
+              {voteCount} Ủng hộ
+            </Button>
+            <Button size="small" startIcon={<Facebook />} onClick={() => handleShare('facebook')}
+              sx={{ borderRadius: '20px', textTransform: 'none', color: '#1877F2', border: '1px solid rgba(24,119,242,0.3)' }}>
+              Facebook
+            </Button>
+            <Button size="small" onClick={() => handleShare('zalo')}
+              sx={{ borderRadius: '20px', textTransform: 'none', color: '#0068FF', border: '1px solid rgba(0,104,255,0.3)' }}>
+              Zalo
+            </Button>
+            <IconButton size="small" onClick={() => handleShare('copy')} sx={{ color: 'text.secondary' }}>
+              <ContentCopy fontSize="small" />
+            </IconButton>
+          </Stack>
 
           <Stack spacing={1.5} mb={3}>
             <Stack direction="row" spacing={1} alignItems="center">
