@@ -1,4 +1,5 @@
 const express = require('express');
+const passport = require('passport');
 const validate = require('../middleware/validate');
 const { authMiddleware } = require('../middleware/auth');
 const { registerValidator, loginValidator } = require('../validators/authValidator');
@@ -9,7 +10,8 @@ const {
   logout,
   getProfile,
   updateProfile,
-  changePassword
+  changePassword,
+  googleCallback
 } = require('../controllers/authController');
 
 const router = express.Router();
@@ -34,5 +36,19 @@ router.patch('/profile', authMiddleware, updateProfile);
 
 // @route   PATCH /api/auth/change-password
 router.patch('/change-password', authMiddleware, changePassword);
+
+// ============ GOOGLE OAUTH ============
+
+// @route   GET /api/auth/google
+router.get('/google', passport.authenticate('google', {
+  scope: ['profile', 'email'],
+  session: false,
+}));
+
+// @route   GET /api/auth/google/callback
+router.get('/google/callback',
+  passport.authenticate('google', { session: false, failureRedirect: '/login' }),
+  googleCallback
+);
 
 module.exports = router;

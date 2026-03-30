@@ -18,14 +18,26 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: [true, 'Password is required'],
     minlength: [6, 'Password must be at least 6 characters'],
-    select: false // Don't return password by default in queries
+    select: false
   },
   role: {
     type: String,
     enum: ['user', 'admin'],
     default: 'user'
+  },
+  provider: {
+    type: String,
+    enum: ['local', 'google'],
+    default: 'local'
+  },
+  providerId: {
+    type: String,
+    default: null
+  },
+  avatar: {
+    type: String,
+    default: null
   },
   refreshToken: {
     type: String,
@@ -36,20 +48,29 @@ const userSchema = new mongoose.Schema({
     default: true
   }
 }, {
-  timestamps: true // Automatically adds createdAt and updatedAt
+  timestamps: true
 });
 
-// Hash password before saving
+// Hash password before saving (only for local accounts)
 userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
+  if (!this.isModified('password') || !this.password) return next();
   
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
   next();
 });
 
+// Validate password is required for local accounts
+userSchema.pre('validate', function(next) {
+  if (this.provider === 'local' && this.isNew && !this.password) {
+    this.invalidate('password', 'Password is required for local accounts');
+  }
+  next();
+});
+
 // Compare password method
 userSchema.methods.comparePassword = async function(candidatePassword) {
+  if (!this.password) return false;
   return await bcrypt.compare(candidatePassword, this.password);
 };
 

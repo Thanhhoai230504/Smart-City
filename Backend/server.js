@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const dotenv = require('dotenv');
+const passport = require('passport');
 
 // Load environment variables
 dotenv.config();
@@ -72,6 +73,10 @@ app.use(express.urlencoded({ extended: true }));
 
 // Cookie parser
 app.use(cookieParser());
+
+// Passport (Google OAuth)
+require('./src/config/passport');
+app.use(passport.initialize());
 
 // ============ ROUTES ============
 

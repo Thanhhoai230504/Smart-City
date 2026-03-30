@@ -52,7 +52,7 @@ const ChatbotWidget: React.FC = () => {
         <IconButton
           onClick={() => setIsOpen(true)}
           sx={{
-            position: 'fixed', bottom: 24, right: 24, zIndex: 1300,
+            position: 'fixed', bottom: 75, right: 24, zIndex: 1300,
             width: 56, height: 56,
             background: 'linear-gradient(135deg, #6C63FF, #3B82F6)',
             color: '#fff', boxShadow: '0 4px 20px rgba(108,99,255,0.4)',
@@ -141,9 +141,11 @@ const ChatbotWidget: React.FC = () => {
               {QUICK_ACTIONS.map((qa, i) => (
                 <Chip key={i} label={qa.label} size="small"
                   onClick={() => sendMessage(qa.msg)}
-                  sx={{ fontSize: '0.7rem', bgcolor: 'rgba(108,99,255,0.1)', color: '#A5B4FC',
+                  sx={{
+                    fontSize: '0.7rem', bgcolor: 'rgba(108,99,255,0.1)', color: '#A5B4FC',
                     border: '1px solid rgba(108,99,255,0.2)', cursor: 'pointer',
-                    '&:hover': { bgcolor: 'rgba(108,99,255,0.2)' } }} />
+                    '&:hover': { bgcolor: 'rgba(108,99,255,0.2)' }
+                  }} />
               ))}
             </Stack>
           )}

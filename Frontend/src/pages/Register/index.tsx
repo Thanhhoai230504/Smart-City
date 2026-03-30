@@ -5,9 +5,11 @@ import { AppDispatch, RootState } from '../../store/store';
 import { registerThunk, clearError } from '../../store/slices/authSlice';
 import {
   Box, Container, Card, CardContent, Typography, TextField, Button,
-  Alert, InputAdornment, IconButton, CircularProgress, Link,
+  Alert, InputAdornment, IconButton, CircularProgress, Link, Divider,
 } from '@mui/material';
 import { Person, Email, Lock, Visibility, VisibilityOff, PersonAdd } from '@mui/icons-material';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const RegisterPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -37,6 +39,11 @@ const RegisterPage: React.FC = () => {
     }
   };
 
+  const handleGoogleRegister = () => {
+    const backendUrl = API_URL.replace('/api', '');
+    window.location.href = `${backendUrl}/api/auth/google`;
+  };
+
   return (
     <Box sx={{
       minHeight: 'calc(100vh - 70px)', display: 'flex', alignItems: 'center',
@@ -59,6 +66,28 @@ const RegisterPage: React.FC = () => {
             </Box>
 
             {(error || localError) && <Alert severity="error" sx={{ mb: 3 }} onClose={() => { dispatch(clearError()); setLocalError(''); }}>{error || localError}</Alert>}
+
+            {/* Google Register Button */}
+            <Button
+              fullWidth variant="outlined" size="large"
+              onClick={handleGoogleRegister}
+              sx={{
+                py: 1.4, mb: 3, borderRadius: '12px', textTransform: 'none',
+                borderColor: 'rgba(255,255,255,0.15)', color: '#fff', fontWeight: 600,
+                fontSize: '0.95rem',
+                '&:hover': { borderColor: 'rgba(255,255,255,0.3)', bgcolor: 'rgba(255,255,255,0.05)' },
+              }}
+              startIcon={
+                <Box component="img" src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+                  sx={{ width: 20, height: 20 }} />
+              }
+            >
+              Đăng ký với Google
+            </Button>
+
+            <Divider sx={{ mb: 3, '&::before, &::after': { borderColor: 'rgba(255,255,255,0.1)' } }}>
+              <Typography variant="caption" color="text.secondary" px={1}>hoặc đăng ký bằng email</Typography>
+            </Divider>
 
             <Box component="form" onSubmit={handleSubmit}>
               <TextField fullWidth label="Họ và tên" value={name} onChange={(e) => setName(e.target.value)}

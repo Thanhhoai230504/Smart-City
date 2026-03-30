@@ -123,6 +123,25 @@ const changePassword = async (userId, { currentPassword, newPassword }) => {
   await user.save();
 };
 
+const generateTokensForUser = async (user) => {
+  const accessToken = generateAccessToken(user);
+  const refreshToken = generateRefreshToken(user);
+  await User.findByIdAndUpdate(user._id, { refreshToken });
+
+  return {
+    accessToken,
+    refreshToken,
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      provider: user.provider,
+      avatar: user.avatar,
+    },
+  };
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -130,5 +149,6 @@ module.exports = {
   logoutUser,
   getProfile,
   updateProfile,
-  changePassword
+  changePassword,
+  generateTokensForUser,
 };

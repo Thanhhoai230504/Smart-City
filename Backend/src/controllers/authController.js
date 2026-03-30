@@ -85,4 +85,23 @@ const changePassword = async (req, res, next) => {
   }
 };
 
-module.exports = { register, login, refresh, logout, getProfile, updateProfile, changePassword };
+const googleCallback = async (req, res) => {
+  try {
+    const result = await authService.generateTokensForUser(req.user);
+
+    res.cookie('refreshToken', result.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+    res.redirect(`${clientUrl}/auth/callback?token=${result.accessToken}`);
+  } catch (error) {
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+    res.redirect(`${clientUrl}/login?error=oauth_failed`);
+  }
+};
+
+module.exports = { register, login, refresh, logout, getProfile, updateProfile, changePassword, googleCallback };

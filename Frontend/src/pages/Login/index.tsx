@@ -1,22 +1,27 @@
 import React, { useState } from 'react';
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { useNavigate, Link as RouterLink, useSearchParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../../store/store';
 import { loginThunk, clearError } from '../../store/slices/authSlice';
 import {
   Box, Container, Card, CardContent, Typography, TextField, Button,
-  Alert, InputAdornment, IconButton, CircularProgress, Link,
+  Alert, InputAdornment, IconButton, CircularProgress, Link, Divider,
 } from '@mui/material';
 import { Email, Lock, Visibility, VisibilityOff, Login as LoginIcon } from '@mui/icons-material';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const LoginPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { loading, error } = useSelector((s: RootState) => s.auth);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
+
+  const oauthError = searchParams.get('error');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,6 +30,11 @@ const LoginPage: React.FC = () => {
     if (loginThunk.fulfilled.match(result)) {
       navigate('/');
     }
+  };
+
+  const handleGoogleLogin = () => {
+    const backendUrl = API_URL.replace('/api', '');
+    window.location.href = `${backendUrl}/api/auth/google`;
   };
 
   return (
@@ -48,7 +58,33 @@ const LoginPage: React.FC = () => {
               <Typography color="text.secondary" mt={1}>Chào mừng bạn trở lại Smart City</Typography>
             </Box>
 
-            {error && <Alert severity="error" sx={{ mb: 3 }} onClose={() => dispatch(clearError())}>{error}</Alert>}
+            {(error || oauthError) && (
+              <Alert severity="error" sx={{ mb: 3 }} onClose={() => dispatch(clearError())}>
+                {error || 'Đăng nhập bằng Google thất bại. Vui lòng thử lại.'}
+              </Alert>
+            )}
+
+            {/* Google Login Button */}
+            <Button
+              fullWidth variant="outlined" size="large"
+              onClick={handleGoogleLogin}
+              sx={{
+                py: 1.4, mb: 3, borderRadius: '12px', textTransform: 'none',
+                borderColor: 'rgba(255,255,255,0.15)', color: '#fff', fontWeight: 600,
+                fontSize: '0.95rem',
+                '&:hover': { borderColor: 'rgba(255,255,255,0.3)', bgcolor: 'rgba(255,255,255,0.05)' },
+              }}
+              startIcon={
+                <Box component="img" src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+                  sx={{ width: 20, height: 20 }} />
+              }
+            >
+              Đăng nhập với Google
+            </Button>
+
+            <Divider sx={{ mb: 3, '&::before, &::after': { borderColor: 'rgba(255,255,255,0.1)' } }}>
+              <Typography variant="caption" color="text.secondary" px={1}>hoặc đăng nhập bằng email</Typography>
+            </Divider>
 
             <Box component="form" onSubmit={handleSubmit}>
               <TextField fullWidth label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
