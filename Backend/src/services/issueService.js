@@ -4,11 +4,31 @@ const User = require('../models/User');
 const ApiError = require('../utils/apiError');
 const { getIO } = require('../config/socket');
 const cloudinary = require('../config/cloudinary');
+const { sendEmail } = require('./emailService');
+const { buildStatusChangeEmail, buildRatingRequestEmail } = require('../utils/emailTemplates');
 
-const getIssues = async ({ status, category, page = 1, limit = 10, sort = '-createdAt' }) => {
+const getIssues = async ({ status, category, search, district, dateFrom, dateTo, page = 1, limit = 10, sort = '-createdAt' }) => {
   const filter = {};
   if (status) filter.status = status;
   if (category) filter.category = category;
+  if (search) {
+    filter.$or = [
+      { title: { $regex: search, $options: 'i' } },
+      { description: { $regex: search, $options: 'i' } },
+    ];
+  }
+  if (district) {
+    filter.location = { $regex: district, $options: 'i' };
+  }
+  if (dateFrom || dateTo) {
+    filter.createdAt = {};
+    if (dateFrom) filter.createdAt.$gte = new Date(dateFrom);
+    if (dateTo) {
+      const end = new Date(dateTo);
+      end.setHours(23, 59, 59, 999);
+      filter.createdAt.$lte = end;
+    }
+  }
 
   const pageNum = parseInt(page);
   const limitNum = parseInt(limit);
@@ -160,6 +180,37 @@ const updateIssueStatus = async (issueId, { status, note, adminUser }) => {
     }
   } catch (socketError) {
     console.warn('Socket/Notification error:', socketError.message);
+  }
+
+  // Gửi email thông báo cho người báo cáo
+  try {
+    const reporterId = issue.userId._id || issue.userId;
+    const reporterUser = await User.findById(reporterId).select('email name');
+    if (reporterUser?.email) {
+      const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+      const emailHtml = buildStatusChangeEmail({
+        userName: reporterUser.name,
+        issueTitle: issue.title,
+        newStatus: status,
+        note: note || '',
+        issueId: issue._id,
+        clientUrl,
+      });
+      sendEmail(reporterUser.email, `Sự cố "${issue.title}" — ${statusLabels[status] || status}`, emailHtml);
+
+      // Gửi thêm email mời đánh giá nếu đã xử lý xong
+      if (status === 'resolved') {
+        const ratingHtml = buildRatingRequestEmail({
+          userName: reporterUser.name,
+          issueTitle: issue.title,
+          issueId: issue._id,
+          clientUrl,
+        });
+        sendEmail(reporterUser.email, `⭐ Đánh giá chất lượng xử lý: "${issue.title}"`, ratingHtml);
+      }
+    }
+  } catch (emailErr) {
+    console.warn('Email notification error:', emailErr.message);
   }
 
   return issue;

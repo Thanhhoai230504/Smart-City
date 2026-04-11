@@ -9,6 +9,7 @@ import {
   Box, Container, Typography, Chip, Card, CardContent, Stack, Button,
   Grid, Divider, Avatar, TextField, Stepper, Step, StepLabel, StepConnector,
   MenuItem, Select, FormControl, InputLabel, SelectChangeEvent, IconButton,
+  Rating,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
@@ -18,6 +19,7 @@ import {
   FiberManualRecord, CheckCircle, Pending, Cancel,
   Phone, Email, Description, ThumbUp, ThumbUpOffAlt,
   Share, Facebook, ContentCopy, Link as LinkIcon,
+  Star,
 } from '@mui/icons-material';
 import { CATEGORY_MAP, STATUS_MAP } from '../../utils/constants';
 import { formatDate } from '../../utils/helpers';
@@ -83,6 +85,11 @@ const IssueDetailPage: React.FC = () => {
   const [voteCount, setVoteCount] = useState(0);
   const [hasVoted, setHasVoted] = useState(false);
   const [voting, setVoting] = useState(false);
+
+  // Rating
+  const [ratingScore, setRatingScore] = useState<number | null>(null);
+  const [ratingComment, setRatingComment] = useState('');
+  const [submittingRating, setSubmittingRating] = useState(false);
 
   useEffect(() => {
     if (id) dispatch(fetchIssueById(id));
@@ -165,6 +172,24 @@ const IssueDetailPage: React.FC = () => {
   const reporter = typeof issue.userId === 'object' ? issue.userId : null;
   const isAdmin = user?.role === 'admin';
   const canChangeStatus = isAdmin && !['resolved', 'rejected'].includes(issue.status);
+  const isOwner = user && reporter && user._id === reporter._id;
+  const canRate = isOwner && issue.status === 'resolved' && !issue.rating?.score;
+  const hasRated = !!issue.rating?.score;
+
+  const handleRating = async () => {
+    if (!ratingScore || !id || submittingRating) return;
+    setSubmittingRating(true);
+    try {
+      await issueApi.rateIssue(id, { score: ratingScore, comment: ratingComment.trim() || undefined });
+      toast.success('Đánh giá thành công! Cảm ơn bạn.');
+      dispatch(fetchIssueById(id));
+      setRatingScore(null);
+      setRatingComment('');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Đánh giá thất bại');
+    }
+    setSubmittingRating(false);
+  };
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -538,11 +563,87 @@ const IssueDetailPage: React.FC = () => {
           )}
 
           {issue.adminId && typeof issue.adminId === 'object' && (
-            <Card sx={{ bgcolor: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)' }}>
+            <Card sx={{ mb: 3, bgcolor: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)' }}>
               <CardContent>
                 <Typography fontWeight={600} color="success.main" mb={0.5}>Xử lý bởi Admin</Typography>
                 <Typography variant="body2" color="text.secondary">{issue.adminId.name} ({issue.adminId.email})</Typography>
                 {issue.resolvedAt && <Typography variant="body2" color="text.secondary" mt={0.5}>Hoàn thành: {formatDate(issue.resolvedAt)}</Typography>}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* RATING - Form đánh giá cho owner khi resolved & chưa rate */}
+          {canRate && (
+            <Card sx={{ mb: 3, bgcolor: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)' }}>
+              <CardContent>
+                <Typography fontWeight={600} color="#F59E0B" mb={1.5}>
+                  ⭐ Đánh giá chất lượng xử lý
+                </Typography>
+                <Typography variant="body2" color="text.secondary" mb={2}>
+                  Sự cố của bạn đã được xử lý! Hãy đánh giá chất lượng phục vụ.
+                </Typography>
+                <Box display="flex" justifyContent="center" mb={2}>
+                  <Rating
+                    value={ratingScore}
+                    onChange={(_, v) => setRatingScore(v)}
+                    size="large"
+                    sx={{
+                      '& .MuiRating-iconFilled': { color: '#F59E0B' },
+                      '& .MuiRating-iconHover': { color: '#FBBF24' },
+                      fontSize: '2.5rem',
+                    }}
+                  />
+                </Box>
+                {ratingScore && (
+                  <Typography variant="body2" textAlign="center" mb={2} color="#FBBF24" fontWeight={600}>
+                    {ratingScore === 1 ? 'Rất không hài lòng' : ratingScore === 2 ? 'Không hài lòng' : ratingScore === 3 ? 'Bình thường' : ratingScore === 4 ? 'Hài lòng' : 'Rất hài lòng'}
+                  </Typography>
+                )}
+                <TextField
+                  fullWidth size="small" label="Nhận xét (tùy chọn)" multiline rows={2}
+                  placeholder="Chia sẻ trải nghiệm của bạn..."
+                  value={ratingComment} onChange={(e) => setRatingComment(e.target.value)}
+                  sx={{ mb: 2, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+                />
+                <Button
+                  fullWidth variant="contained" disabled={!ratingScore || submittingRating}
+                  onClick={handleRating}
+                  sx={{
+                    borderRadius: '10px', py: 1,
+                    background: 'linear-gradient(135deg, #F59E0B, #D97706)',
+                    '&:hover': { background: 'linear-gradient(135deg, #FBBF24, #F59E0B)' },
+                  }}
+                >
+                  {submittingRating ? 'Đang gửi...' : '⭐ Gửi đánh giá'}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* RATING - Hiển thị đánh giá đã có (read-only) */}
+          {hasRated && (
+            <Card sx={{ mb: 3, bgcolor: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)' }}>
+              <CardContent>
+                <Typography fontWeight={600} color="#F59E0B" mb={1}>
+                  ⭐ Đánh giá chất lượng xử lý
+                </Typography>
+                <Box display="flex" alignItems="center" gap={1} mb={1}>
+                  <Rating value={issue.rating?.score || 0} readOnly
+                    sx={{ '& .MuiRating-iconFilled': { color: '#F59E0B' } }} />
+                  <Typography variant="body2" fontWeight={600} color="#FBBF24">
+                    {issue.rating?.score}/5
+                  </Typography>
+                </Box>
+                {issue.rating?.comment && (
+                  <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                    "{issue.rating.comment}"
+                  </Typography>
+                )}
+                {issue.rating?.ratedAt && (
+                  <Typography variant="caption" color="text.secondary" mt={0.5} display="block">
+                    Đánh giá lúc {formatDate(issue.rating.ratedAt)}
+                  </Typography>
+                )}
               </CardContent>
             </Card>
           )}

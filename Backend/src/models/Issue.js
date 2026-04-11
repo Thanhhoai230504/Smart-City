@@ -82,7 +82,12 @@ const issueSchema = new mongoose.Schema({
     changedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     changedAt: { type: Date, default: Date.now },
     note: { type: String, default: '' }
-  }]
+  }],
+  rating: {
+    score: { type: Number, min: 1, max: 5, default: null },
+    comment: { type: String, trim: true, maxlength: 500, default: null },
+    ratedAt: { type: Date, default: null }
+  }
 }, {
   timestamps: true
 });

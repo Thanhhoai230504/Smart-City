@@ -57,6 +57,11 @@ export interface Issue {
   statusHistory?: StatusHistoryEntry[];
   votes?: string[];
   voteCount?: number;
+  rating?: {
+    score: number | null;
+    comment: string | null;
+    ratedAt: string | null;
+  };
   createdAt: string;
   updatedAt: string;
 }

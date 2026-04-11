@@ -1,4 +1,5 @@
 const issueService = require('../services/issueService');
+const ratingService = require('../services/ratingService');
 const Issue = require('../models/Issue');
 
 const getIssues = async (req, res, next) => {
@@ -98,4 +99,13 @@ const toggleVote = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
-module.exports = { getIssues, getIssueById, createIssue, updateIssueStatus, deleteIssue, getMyIssues, deleteMyIssue, updateMyIssue, toggleVote };
+const rateIssue = async (req, res, next) => {
+  try {
+    const issue = await ratingService.rateIssue(req.params.id, req.user.id, req.body);
+    res.json({ success: true, message: 'Đánh giá thành công!', data: { issue } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { getIssues, getIssueById, createIssue, updateIssueStatus, deleteIssue, getMyIssues, deleteMyIssue, updateMyIssue, toggleVote, rateIssue };

@@ -12,7 +12,8 @@ const {
   getMyIssues,
   deleteMyIssue,
   updateMyIssue,
-  toggleVote
+  toggleVote,
+  rateIssue
 } = require('../controllers/issueController');
 
 const router = express.Router();
@@ -57,5 +58,8 @@ router.delete('/:id', authMiddleware, adminMiddleware, deleteIssue);
 
 // @route   POST /api/issues/:id/vote
 router.post('/:id/vote', authMiddleware, toggleVote);
+
+// @route   POST /api/issues/:id/rate
+router.post('/:id/rate', authMiddleware, rateIssue);
 
 module.exports = router;

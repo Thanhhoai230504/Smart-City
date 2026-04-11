@@ -29,4 +29,7 @@ export const issueApi = {
 
   toggleVote: (id: string) =>
     axiosClient.post(`/issues/${id}/vote`),
+
+  rateIssue: (id: string, data: { score: number; comment?: string }) =>
+    axiosClient.post(`/issues/${id}/rate`, data),
 };
