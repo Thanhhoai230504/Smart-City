@@ -176,19 +176,20 @@ const IssuesPage: React.FC = () => {
       />
 
       {/* Basic filters row */}
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} mb={1} alignItems="center" flexWrap="wrap">
+      <Stack direction="row" spacing={1.5} mb={1} alignItems="center" flexWrap="wrap" useFlexGap
+        sx={{ '& > *': { minWidth: { xs: 'calc(50% - 6px)', sm: 'auto' } } }}>
         <TextField select label="Trạng thái" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}
-          size="small" sx={{ minWidth: 160 }}>
+          size="small" sx={{ flex: { xs: 1, sm: 'none' }, minWidth: { sm: 150 } }}>
           <MenuItem value="">Tất cả</MenuItem>
           {Object.entries(STATUS_MAP).map(([k, v]) => <MenuItem key={k} value={k}>{v.label}</MenuItem>)}
         </TextField>
         <TextField select label="Danh mục" value={category} onChange={(e) => { setCategory(e.target.value); setPage(1); }}
-          size="small" sx={{ minWidth: 180 }}>
+          size="small" sx={{ flex: { xs: 1, sm: 'none' }, minWidth: { sm: 170 } }}>
           <MenuItem value="">Tất cả</MenuItem>
           {Object.entries(CATEGORY_MAP).map(([k, v]) => <MenuItem key={k} value={k}>{v.icon} {v.label}</MenuItem>)}
         </TextField>
         <TextField select label="Sắp xếp" value={sortBy} onChange={(e) => { setSortBy(e.target.value); setPage(1); }}
-          size="small" sx={{ minWidth: 180 }}>
+          size="small" sx={{ flex: { xs: 1, sm: 'none' }, minWidth: { sm: 170 } }}>
           <MenuItem value="-createdAt">🕐 Mới nhất</MenuItem>
           <MenuItem value="createdAt">🕐 Cũ nhất</MenuItem>
           <MenuItem value="-voteCount">🔥 Ủng hộ nhiều nhất</MenuItem>
@@ -200,6 +201,7 @@ const IssuesPage: React.FC = () => {
           onClick={() => setShowAdvanced(!showAdvanced)}
           sx={{
             textTransform: 'none', borderRadius: '10px', px: 2,
+            flex: { xs: 1, sm: 'none' },
             color: hasAdvancedFilters ? '#3B82F6' : 'text.secondary',
             border: '1px solid',
             borderColor: hasAdvancedFilters ? 'rgba(59,130,246,0.4)' : 'rgba(255,255,255,0.12)',
@@ -211,8 +213,8 @@ const IssuesPage: React.FC = () => {
 
         {hasAnyFilter && (
           <Button size="small" onClick={handleClearAll}
-            sx={{ textTransform: 'none', color: '#EF4444', fontSize: '0.8rem' }}>
-            ✕ Xóa tất cả bộ lọc
+            sx={{ textTransform: 'none', color: '#EF4444', fontSize: '0.8rem', flex: { xs: 1, sm: 'none' } }}>
+            ✕ Xóa bộ lọc
           </Button>
         )}
       </Stack>
