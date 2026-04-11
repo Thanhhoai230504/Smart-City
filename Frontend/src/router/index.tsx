@@ -16,6 +16,7 @@ import LoginPage from '../pages/Login';
 import RegisterPage from '../pages/Register';
 import AdminDashboard from '../pages/AdminDashboard';
 import AuthCallbackPage from '../pages/AuthCallback';
+import StatisticsPage from '../pages/Statistics';
 import NotFoundPage from '../pages/NotFound';
 
 const AppRouter: React.FC = () => {
@@ -29,6 +30,7 @@ const AppRouter: React.FC = () => {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
+        <Route path="/statistics" element={<StatisticsPage />} />
 
         {/* Protected routes */}
         <Route path="/report" element={<ProtectedRoute><ReportIssuePage /></ProtectedRoute>} />

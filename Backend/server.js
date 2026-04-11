@@ -30,6 +30,7 @@ const notificationRoutes = require('./src/routes/notifications');
 const aiRoutes = require('./src/routes/ai');
 const chatbotRoutes = require('./src/routes/chatbot');
 const reportRoutes = require('./src/routes/reports');
+const statisticsRoutes = require('./src/routes/statistics');
 
 // Initialize Express app
 const app = express();
@@ -102,6 +103,7 @@ app.use('/api/notifications', generalLimiter, notificationRoutes);
 app.use('/api/ai', generalLimiter, aiRoutes);
 app.use('/api/chatbot', generalLimiter, chatbotRoutes);
 app.use('/api/reports', generalLimiter, reportRoutes);
+app.use('/api/statistics', generalLimiter, statisticsRoutes);
 
 // ============ ERROR HANDLING ============
 

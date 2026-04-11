@@ -12,6 +12,7 @@ import {
 import {
   Menu as MenuIcon, Map as MapIcon, ReportProblem, Home, ListAlt,
   Login, PersonAdd, Person, Logout, Add, NotificationsActive, Dashboard,
+  BarChart as BarChartIcon,
 } from '@mui/icons-material';
 
 import NotificationCenter from '../components/NotificationCenter';
@@ -20,6 +21,7 @@ const NAV_ITEMS = [
   { label: 'Trang chủ', path: '/', icon: <Home /> },
   { label: 'Bản đồ', path: '/map', icon: <MapIcon /> },
   { label: 'Sự cố', path: '/issues', icon: <ReportProblem /> },
+  { label: 'Thống kê', path: '/statistics', icon: <BarChartIcon /> },
 ];
 
 const Header: React.FC = () => {

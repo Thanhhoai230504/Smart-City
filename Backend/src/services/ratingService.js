@@ -5,8 +5,8 @@ const rateIssue = async (issueId, userId, { score, comment }) => {
   const issue = await Issue.findById(issueId);
   if (!issue) throw ApiError.notFound('Sự cố không tồn tại');
 
-  const reporterId = issue.userId.toString();
-  if (reporterId !== userId) {
+  const reporterId = issue.userId._id.toString();
+  if (reporterId !== userId.toString()) {
     throw ApiError.forbidden('Chỉ người báo cáo mới có thể đánh giá sự cố này');
   }
 
