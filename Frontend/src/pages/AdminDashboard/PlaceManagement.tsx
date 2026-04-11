@@ -234,7 +234,16 @@ const PlaceManagement: React.FC<Props> = ({ onDataChange }) => {
           </TableRow></TableHead>
           <TableBody>
             {loading ? [...Array(3)].map((_, i) => (
-              <TableRow key={i}>{[...Array(6)].map((_, j) => <TableCell key={j} sx={cellSx}><Skeleton sx={{ bgcolor: 'rgba(255,255,255,0.05)' }} /></TableCell>)}</TableRow>
+              <TableRow key={i} sx={{ '@keyframes shimmer': { '0%': { backgroundPosition: '-400px 0' }, '100%': { backgroundPosition: '400px 0' } }, '@keyframes fadeIn': { from: { opacity: 0, transform: 'translateY(4px)' }, to: { opacity: 1, transform: 'translateY(0)' } }, animation: `fadeIn 0.4s ease-out ${i * 0.08}s both` }}>
+                {[...Array(6)].map((_, j) => (
+                  <TableCell key={j} sx={cellSx}>
+                    <Skeleton variant="rounded"
+                      height={j === 1 ? 22 : 14}
+                      width={j === 0 ? '80%' : j === 2 ? '70%' : j === 3 ? '55%' : '45%'}
+                      sx={{ bgcolor: 'transparent', background: 'linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.08) 40%, rgba(255,255,255,0.03) 80%)', backgroundSize: '800px 100%', animation: `shimmer 1.8s ease-in-out infinite`, animationDelay: `${j * 0.1}s`, borderRadius: j === 1 ? '10px' : '6px' }} />
+                  </TableCell>
+                ))}
+              </TableRow>
             )) : pagedPlaces.length === 0 ? (
               <TableRow><TableCell colSpan={6} sx={{ ...cellSx, textAlign: 'center', py: 3 }}>
                 <Typography color="text.secondary">Chưa có địa điểm</Typography>

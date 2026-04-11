@@ -80,7 +80,23 @@ const UserManagement: React.FC<Props> = ({ onDataChange }) => {
           </TableRow></TableHead>
           <TableBody>
             {loading ? [...Array(4)].map((_, i) => (
-              <TableRow key={i}>{[...Array(8)].map((_, j) => <TableCell key={j} sx={cellSx}><Skeleton sx={{ bgcolor: 'rgba(255,255,255,0.05)' }} /></TableCell>)}</TableRow>
+              <TableRow key={i} sx={{ '@keyframes shimmer': { '0%': { backgroundPosition: '-400px 0' }, '100%': { backgroundPosition: '400px 0' } }, '@keyframes fadeIn': { from: { opacity: 0, transform: 'translateY(4px)' }, to: { opacity: 1, transform: 'translateY(0)' } }, animation: `fadeIn 0.4s ease-out ${i * 0.08}s both` }}>
+                {[...Array(8)].map((_, j) => (
+                  <TableCell key={j} sx={cellSx}>
+                    {j === 0 ? (
+                      <Stack direction="row" alignItems="center" spacing={1}>
+                        <Skeleton variant="circular" width={30} height={30} sx={{ bgcolor: 'rgba(255,255,255,0.06)' }} />
+                        <Skeleton variant="rounded" height={14} width={80} sx={{ bgcolor: 'transparent', background: 'linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.08) 40%, rgba(255,255,255,0.03) 80%)', backgroundSize: '800px 100%', animation: `shimmer 1.8s ease-in-out infinite`, animationDelay: `${i * 0.1}s`, borderRadius: '6px' }} />
+                      </Stack>
+                    ) : (
+                      <Skeleton variant="rounded"
+                        height={j === 2 || j === 3 || j === 5 ? 22 : 14}
+                        width={j === 1 ? '75%' : j === 4 ? 35 : j === 6 ? '65%' : '50%'}
+                        sx={{ bgcolor: 'transparent', background: 'linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.08) 40%, rgba(255,255,255,0.03) 80%)', backgroundSize: '800px 100%', animation: `shimmer 1.8s ease-in-out infinite`, animationDelay: `${j * 0.1}s`, borderRadius: j === 2 || j === 3 || j === 5 ? '10px' : '6px' }} />
+                    )}
+                  </TableCell>
+                ))}
+              </TableRow>
             )) : users.map(u => (
               <TableRow key={u._id} hover sx={{ '&:hover': { bgcolor: 'rgba(108,99,255,0.04)' }, opacity: u.isActive ? 1 : 0.5 }}>
                 <TableCell sx={cellSx}>

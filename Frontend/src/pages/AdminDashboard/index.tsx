@@ -27,6 +27,7 @@ import PlaceManagement from './PlaceManagement';
 import EnvironmentHistoryChart from './EnvironmentHistoryChart';
 import TrafficDashboard from './TrafficDashboard';
 import ExportButton from './ExportButton';
+import DashboardLoading from './DashboardLoading';
 
 // ═══════════════ MAIN COMPONENT ═══════════════
 const AdminDashboard: React.FC = () => {
@@ -89,27 +90,10 @@ const AdminDashboard: React.FC = () => {
 
   // Auth guards (AFTER all hooks)
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (!currentUser) return (
-    <Box sx={{ maxWidth: 1400, mx: 'auto', p: 3 }}>
-      <Skeleton variant="text" width={200} height={40} />
-      <Grid container spacing={2.5} mt={1}>
-        {[1, 2, 3, 4].map(i => <Grid item xs={6} md={3} key={i}><Skeleton variant="rounded" height={120} /></Grid>)}
-      </Grid>
-    </Box>
-  );
+  if (!currentUser) return <DashboardLoading />;
   if (currentUser.role !== 'admin') return <Navigate to="/" replace />;
 
-  if (loading) {
-    return (
-      <Box sx={{ maxWidth: 1400, mx: 'auto', p: 3 }}>
-        <Typography variant="h5" fontWeight={700} mb={3}>📊 Admin Dashboard</Typography>
-        <Grid container spacing={2.5}>
-          {[...Array(6)].map((_, i) => <Grid item xs={6} md={4} lg={2} key={i}><Skeleton variant="rounded" height={100} sx={{ borderRadius: '16px', bgcolor: 'rgba(255,255,255,0.05)' }} /></Grid>)}
-          {[...Array(4)].map((_, i) => <Grid item xs={12} md={6} key={`c${i}`}><Skeleton variant="rounded" height={300} sx={{ borderRadius: '16px', bgcolor: 'rgba(255,255,255,0.05)' }} /></Grid>)}
-        </Grid>
-      </Box>
-    );
-  }
+  if (loading) return <DashboardLoading />;
 
   // Prepare chart data
   const pieData = stats ? Object.entries(stats.issuesByStatus).map(([k, v]) => ({ name: STATUS_LABELS[k] || k, value: v, color: STATUS_COLORS[k] })) : [];

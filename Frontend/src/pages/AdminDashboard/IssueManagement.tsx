@@ -98,7 +98,15 @@ const IssueManagement: React.FC<Props> = ({ onDataChange }) => {
           </TableRow></TableHead>
           <TableBody>
             {loading ? [...Array(4)].map((_, i) => (
-              <TableRow key={i}>{[...Array(7)].map((_, j) => <TableCell key={j} sx={cellSx}><Skeleton sx={{ bgcolor: 'rgba(255,255,255,0.05)' }} /></TableCell>)}</TableRow>
+              <TableRow key={i} sx={{ '@keyframes shimmer': { '0%': { backgroundPosition: '-400px 0' }, '100%': { backgroundPosition: '400px 0' } }, '@keyframes fadeIn': { from: { opacity: 0, transform: 'translateY(4px)' }, to: { opacity: 1, transform: 'translateY(0)' } }, animation: `fadeIn 0.4s ease-out ${i * 0.08}s both` }}>
+                {[...Array(7)].map((_, j) => (
+                  <TableCell key={j} sx={cellSx}>
+                    <Skeleton variant="rounded" height={j === 0 ? 32 : j === 2 || j === 4 ? 22 : 14}
+                      width={j === 0 ? '85%' : j === 1 ? '60%' : j === 5 ? '70%' : '50%'}
+                      sx={{ bgcolor: 'transparent', background: 'linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.08) 40%, rgba(255,255,255,0.03) 80%)', backgroundSize: '800px 100%', animation: `shimmer 1.8s ease-in-out infinite`, animationDelay: `${j * 0.1}s`, borderRadius: j === 2 || j === 4 ? '10px' : '6px' }} />
+                  </TableCell>
+                ))}
+              </TableRow>
             )) : issues.length === 0 ? (
               <TableRow><TableCell colSpan={7} sx={{ ...cellSx, textAlign: 'center', py: 3 }}>
                 <Typography color="text.secondary">Không có sự cố</Typography>
