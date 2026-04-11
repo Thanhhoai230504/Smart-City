@@ -109,6 +109,29 @@ const createIssue = async ({ title, description, category, location, latitude, l
         message: `New issue reported: ${issue.title}`,
         issue
       });
+
+      // Notify district watchers
+      const DA_NANG_DISTRICTS = ['Hải Châu', 'Thanh Khê', 'Sơn Trà', 'Ngũ Hành Sơn', 'Liên Chiểu', 'Cẩm Lệ', 'Hòa Vang', 'Hoàng Sa'];
+      const issueDistrict = DA_NANG_DISTRICTS.find(d => issue.location.includes(d));
+
+      if (issueDistrict) {
+        const watchers = await User.find({
+          watchedDistricts: issueDistrict,
+          _id: { $ne: user.id },
+          isActive: true,
+        }).select('_id');
+
+        for (const watcher of watchers) {
+          const watchNotif = await Notification.create({
+            userId: watcher._id,
+            type: 'area_alert',
+            title: '📍 Sự cố mới trong khu vực theo dõi',
+            message: `Sự cố "${issue.title}" tại ${issue.location}`,
+            issueId: issue._id,
+          });
+          io.to(`user_${watcher._id}`).emit('notification:new', watchNotif);
+        }
+      }
     } catch (socketError) {
       console.warn('Socket.io/Notification error:', socketError.message);
     }

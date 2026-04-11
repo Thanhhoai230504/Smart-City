@@ -6,6 +6,7 @@ export interface User {
   email: string;
   role: 'user' | 'admin';
   isActive: boolean;
+  watchedDistricts?: string[];
   createdAt: string;
   updatedAt: string;
 }

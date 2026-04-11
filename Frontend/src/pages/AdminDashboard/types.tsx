@@ -41,6 +41,8 @@ export interface IssueItem {
 export interface UserItem {
   _id: string; name: string; email: string; role: string;
   isActive: boolean; createdAt: string;
+  issueCount?: number;
+  topBadge?: { id: string; label: string; icon: string; threshold: number } | null;
 }
 
 export interface PlaceItem {

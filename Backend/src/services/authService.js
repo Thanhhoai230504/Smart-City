@@ -92,9 +92,22 @@ const getProfile = async (userId) => {
   return user;
 };
 
-const updateProfile = async (userId, { name }) => {
+const DA_NANG_DISTRICTS = [
+  'Hải Châu', 'Thanh Khê', 'Sơn Trà', 'Ngũ Hành Sơn',
+  'Liên Chiểu', 'Cẩm Lệ', 'Hòa Vang', 'Hoàng Sa',
+];
+
+const updateProfile = async (userId, { name, watchedDistricts }) => {
   const updateData = {};
   if (name && name.trim()) updateData.name = name.trim();
+
+  if (watchedDistricts !== undefined) {
+    if (!Array.isArray(watchedDistricts)) {
+      throw ApiError.badRequest('watchedDistricts must be an array');
+    }
+    const valid = watchedDistricts.filter(d => DA_NANG_DISTRICTS.includes(d));
+    updateData.watchedDistricts = valid;
+  }
 
   if (Object.keys(updateData).length === 0) {
     throw ApiError.badRequest('Nothing to update');

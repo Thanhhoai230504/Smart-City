@@ -4,15 +4,16 @@ import { AppDispatch, RootState } from '../../store/store';
 import { getProfileThunk } from '../../store/slices/authSlice';
 import { issueApi } from '../../api/issueApi';
 import { authApi } from '../../api/authApi';
+import { badgeApi } from '../../api/badgeApi';
 import { toast } from 'react-toastify';
 import {
   Container, Typography, Card, CardContent, Avatar, Box, Stack,
   Chip, Divider, TextField, Button, Grid, Dialog, DialogTitle,
-  DialogContent, DialogActions,
+  DialogContent, DialogActions, LinearProgress, Tooltip,
 } from '@mui/material';
 import {
   Email, CalendarMonth, VerifiedUser, Shield, Edit, Lock,
-  BugReport, CheckCircle, Pending,
+  BugReport, CheckCircle, Pending, EmojiEvents, LocationOn,
 } from '@mui/icons-material';
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RTooltip,
@@ -49,15 +50,29 @@ const ProfilePage: React.FC = () => {
   const [changingPw, setChangingPw] = useState(false);
 
   const [myIssues, setMyIssues] = useState<Issue[]>([]);
+  const [badgeData, setBadgeData] = useState<any>(null);
+  const [watchedDistricts, setWatchedDistricts] = useState<string[]>([]);
+  const [savingDistricts, setSavingDistricts] = useState(false);
 
   useEffect(() => { dispatch(getProfileThunk()); }, [dispatch]);
-  useEffect(() => { if (user) setEditName(user.name); }, [user]);
+  useEffect(() => {
+    if (user) {
+      setEditName(user.name);
+      setWatchedDistricts(user.watchedDistricts || []);
+    }
+  }, [user]);
 
   useEffect(() => {
     (async () => {
       try {
         const { data } = await issueApi.getMyIssues({ limit: 100 });
         setMyIssues(data.data.issues);
+      } catch { /* ignore */ }
+    })();
+    (async () => {
+      try {
+        const { data } = await badgeApi.getMyBadges();
+        setBadgeData(data.data);
       } catch { /* ignore */ }
     })();
   }, []);
@@ -240,6 +255,125 @@ const ProfilePage: React.FC = () => {
                     ))}
                   </Stack>
                 </>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Badges Card */}
+        {badgeData && (
+          <Grid item xs={12}>
+            <Card sx={{ p: { xs: 2, md: 3 } }}>
+              <CardContent>
+                <Stack direction="row" alignItems="center" spacing={1} mb={2}>
+                  <EmojiEvents sx={{ color: '#F59E0B' }} />
+                  <Typography variant="h6" fontWeight={700}>Huy hiệu đóng góp</Typography>
+                  <Chip size="small" label={`${badgeData.badges.length}/${badgeData.allBadges.length}`}
+                    sx={{ bgcolor: 'rgba(245,158,11,0.12)', color: '#FBBF24', fontWeight: 600 }} />
+                </Stack>
+
+                <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap mb={2}>
+                  {badgeData.allBadges.map((b: any) => (
+                    <Tooltip key={b.id} title={`${b.description} (≥ ${b.threshold} báo cáo)`}>
+                      <Box sx={{
+                        textAlign: 'center', p: 1.5, borderRadius: '14px', minWidth: 90,
+                        bgcolor: b.earned ? 'rgba(245,158,11,0.08)' : 'rgba(255,255,255,0.03)',
+                        border: `1px solid ${b.earned ? 'rgba(245,158,11,0.25)' : 'rgba(255,255,255,0.06)'}`,
+                        opacity: b.earned ? 1 : 0.4,
+                        transition: 'all 0.3s',
+                        '&:hover': { transform: b.earned ? 'scale(1.05)' : 'none' },
+                      }}>
+                        <Typography fontSize="2rem">{b.icon}</Typography>
+                        <Typography variant="caption" fontWeight={b.earned ? 600 : 400}
+                          color={b.earned ? '#FBBF24' : 'text.secondary'}>
+                          {b.label}
+                        </Typography>
+                      </Box>
+                    </Tooltip>
+                  ))}
+                </Stack>
+
+                {badgeData.nextBadge && (
+                  <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <Stack direction="row" justifyContent="space-between" mb={0.5}>
+                      <Typography variant="body2" color="text.secondary">
+                        Tiếp theo: {badgeData.nextBadge.icon} {badgeData.nextBadge.label}
+                      </Typography>
+                      <Typography variant="body2" fontWeight={600} color="#FBBF24">
+                        {badgeData.issueCount}/{badgeData.nextBadge.threshold}
+                      </Typography>
+                    </Stack>
+                    <LinearProgress
+                      variant="determinate"
+                      value={(badgeData.issueCount / badgeData.nextBadge.threshold) * 100}
+                      sx={{
+                        height: 8, borderRadius: 4, bgcolor: 'rgba(255,255,255,0.06)',
+                        '& .MuiLinearProgress-bar': { borderRadius: 4, background: 'linear-gradient(90deg, #F59E0B, #FBBF24)' },
+                      }}
+                    />
+                    <Typography variant="caption" color="text.secondary" mt={0.5}>
+                      Còn {badgeData.nextBadge.remaining} báo cáo nữa
+                    </Typography>
+                  </Box>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
+
+        {/* Watched Districts Card */}
+        <Grid item xs={12}>
+          <Card sx={{ p: { xs: 2, md: 3 } }}>
+            <CardContent>
+              <Stack direction="row" alignItems="center" spacing={1} mb={1}>
+                <LocationOn sx={{ color: '#3B82F6' }} />
+                <Typography variant="h6" fontWeight={700}>Theo dõi khu vực</Typography>
+              </Stack>
+              <Typography variant="body2" color="text.secondary" mb={2}>
+                Chọn quận/huyện bạn muốn theo dõi. Khi có sự cố mới tại khu vực đó, bạn sẽ nhận thông báo.
+              </Typography>
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                {['Hải Châu', 'Thanh Khê', 'Sơn Trà', 'Ngũ Hành Sơn', 'Liên Chiểu', 'Cẩm Lệ', 'Hòa Vang', 'Hoàng Sa'].map(d => {
+                  const active = watchedDistricts.includes(d);
+                  return (
+                    <Chip
+                      key={d}
+                      label={d}
+                      icon={<LocationOn sx={{ fontSize: 16 }} />}
+                      onClick={async () => {
+                        const next = active
+                          ? watchedDistricts.filter(x => x !== d)
+                          : [...watchedDistricts, d];
+                        setWatchedDistricts(next);
+                        setSavingDistricts(true);
+                        try {
+                          await authApi.updateProfile({ watchedDistricts: next });
+                          dispatch(getProfileThunk());
+                        } catch { /* ignore */ }
+                        setSavingDistricts(false);
+                      }}
+                      sx={{
+                        fontWeight: active ? 600 : 400,
+                        bgcolor: active ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.04)',
+                        color: active ? '#60A5FA' : 'text.secondary',
+                        border: `1px solid ${active ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.08)'}`,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        '&:hover': { bgcolor: active ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.08)' },
+                      }}
+                    />
+                  );
+                })}
+              </Stack>
+              {savingDistricts && (
+                <Typography variant="caption" color="primary.main" mt={1}>
+                  Đang lưu...
+                </Typography>
+              )}
+              {watchedDistricts.length > 0 && !savingDistricts && (
+                <Typography variant="caption" color="text.secondary" mt={1} display="block">
+                  🔔 Đang theo dõi {watchedDistricts.length} khu vực
+                </Typography>
               )}
             </CardContent>
           </Card>

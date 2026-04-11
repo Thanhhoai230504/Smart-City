@@ -31,6 +31,7 @@ const aiRoutes = require('./src/routes/ai');
 const chatbotRoutes = require('./src/routes/chatbot');
 const reportRoutes = require('./src/routes/reports');
 const statisticsRoutes = require('./src/routes/statistics');
+const badgeRoutes = require('./src/routes/badges');
 
 // Initialize Express app
 const app = express();
@@ -104,6 +105,7 @@ app.use('/api/ai', generalLimiter, aiRoutes);
 app.use('/api/chatbot', generalLimiter, chatbotRoutes);
 app.use('/api/reports', generalLimiter, reportRoutes);
 app.use('/api/statistics', generalLimiter, statisticsRoutes);
+app.use('/api/badges', generalLimiter, badgeRoutes);
 
 // ============ ERROR HANDLING ============
 

@@ -8,7 +8,7 @@ import {
   Skeleton, Pagination, FormControl, InputLabel, SelectChangeEvent,
   Snackbar, Alert,
 } from '@mui/material';
-import { AdminPanelSettings, PersonOff, PersonOutline } from '@mui/icons-material';
+import { AdminPanelSettings, PersonOff, PersonOutline, BugReport, EmojiEvents } from '@mui/icons-material';
 import { GlassCard, UserItem, cellSx, headCellSx } from './types';
 
 interface Props {
@@ -74,13 +74,13 @@ const UserManagement: React.FC<Props> = ({ onDataChange }) => {
       <TableContainer>
         <Table size="small">
           <TableHead><TableRow>
-            {['Tên', 'Email', 'Vai trò', 'Trạng thái', 'Ngày tạo', 'Thao tác'].map(h => (
+            {['Tên', 'Email', 'Vai trò', 'Trạng thái', 'Báo cáo', 'Huy hiệu', 'Ngày tạo', 'Thao tác'].map(h => (
               <TableCell key={h} sx={headCellSx}>{h}</TableCell>
             ))}
           </TableRow></TableHead>
           <TableBody>
             {loading ? [...Array(4)].map((_, i) => (
-              <TableRow key={i}>{[...Array(6)].map((_, j) => <TableCell key={j} sx={cellSx}><Skeleton sx={{ bgcolor: 'rgba(255,255,255,0.05)' }} /></TableCell>)}</TableRow>
+              <TableRow key={i}>{[...Array(8)].map((_, j) => <TableCell key={j} sx={cellSx}><Skeleton sx={{ bgcolor: 'rgba(255,255,255,0.05)' }} /></TableCell>)}</TableRow>
             )) : users.map(u => (
               <TableRow key={u._id} hover sx={{ '&:hover': { bgcolor: 'rgba(108,99,255,0.04)' }, opacity: u.isActive ? 1 : 0.5 }}>
                 <TableCell sx={cellSx}>
@@ -113,6 +113,25 @@ const UserManagement: React.FC<Props> = ({ onDataChange }) => {
                 <TableCell sx={cellSx}>
                   <Chip size="small" label={u.isActive ? 'Hoạt động' : 'Bị khoá'}
                     sx={{ height: 22, fontSize: '0.7rem', bgcolor: u.isActive ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', color: u.isActive ? '#10B981' : '#EF4444' }} />
+                </TableCell>
+                <TableCell sx={cellSx}>
+                  <Stack direction="row" alignItems="center" spacing={0.5}>
+                    <BugReport sx={{ fontSize: 14, color: '#F59E0B' }} />
+                    <Typography variant="body2" fontWeight={600}>{u.issueCount || 0}</Typography>
+                  </Stack>
+                </TableCell>
+                <TableCell sx={cellSx}>
+                  {u.topBadge ? (
+                    <Tooltip title={`${u.topBadge.label} (≥ ${u.topBadge.threshold} báo cáo)`}>
+                      <Chip size="small"
+                        icon={<span style={{ fontSize: 14 }}>{u.topBadge.icon}</span>}
+                        label={u.topBadge.label}
+                        sx={{ height: 24, fontSize: '0.7rem', fontWeight: 600, bgcolor: 'rgba(245,158,11,0.12)', color: '#FBBF24' }}
+                      />
+                    </Tooltip>
+                  ) : (
+                    <Typography variant="caption" color="text.secondary">—</Typography>
+                  )}
                 </TableCell>
                 <TableCell sx={{ ...cellSx, whiteSpace: 'nowrap' }}>
                   <Typography variant="caption" color="text.secondary">{new Date(u.createdAt).toLocaleDateString('vi-VN')}</Typography>

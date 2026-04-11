@@ -3,12 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../../store/store';
 import { fetchIssues } from '../../store/slices/issueSlice';
+import { getProfileThunk } from '../../store/slices/authSlice';
+import { authApi } from '../../api/authApi';
 import {
   Box, Container, Typography, Grid, Card, CardContent, CardMedia,
   Chip, Stack, TextField, MenuItem, Pagination as MuiPagination,
   InputAdornment, Skeleton, Button, Collapse, IconButton,
 } from '@mui/material';
-import { Search, LocationOn, ThumbUp, FilterList, Close, CalendarMonth } from '@mui/icons-material';
+import {
+  Search, LocationOn, ThumbUp, FilterList, Close, CalendarMonth,
+  NotificationsActive,
+} from '@mui/icons-material';
 import { CATEGORY_MAP, STATUS_MAP } from '../../utils/constants';
 import { timeAgo } from '../../utils/helpers';
 
@@ -21,6 +26,10 @@ const IssuesPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
   const { issues, pagination, loading } = useSelector((s: RootState) => s.issues);
+  const { user, isAuthenticated } = useSelector((s: RootState) => s.auth);
+
+  const [watchedDistricts, setWatchedDistricts] = useState<string[]>([]);
+  const [savingWatch, setSavingWatch] = useState(false);
 
   const [status, setStatus] = useState('');
   const [category, setCategory] = useState('');
@@ -49,6 +58,24 @@ const IssuesPage: React.FC = () => {
   const hasAdvancedFilters = district || dateFrom || dateTo;
   const hasAnyFilter = status || category || search || hasAdvancedFilters;
 
+  useEffect(() => {
+    if (user) setWatchedDistricts(user.watchedDistricts || []);
+  }, [user]);
+
+  const toggleWatchDistrict = async (d: string) => {
+    if (!isAuthenticated) return;
+    const next = watchedDistricts.includes(d)
+      ? watchedDistricts.filter(x => x !== d)
+      : [...watchedDistricts, d];
+    setWatchedDistricts(next);
+    setSavingWatch(true);
+    try {
+      await authApi.updateProfile({ watchedDistricts: next });
+      dispatch(getProfileThunk());
+    } catch { /* ignore */ }
+    setSavingWatch(false);
+  };
+
   const handleClearAll = () => {
     setStatus(''); setCategory(''); setSortBy('-createdAt');
     setSearch(''); setSearchInput('');
@@ -71,6 +98,52 @@ const IssuesPage: React.FC = () => {
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Typography variant="h4" fontWeight={700} mb={1}>Sự cố đô thị</Typography>
       <Typography color="text.secondary" mb={3}>Danh sách các sự cố được báo cáo tại Đà Nẵng</Typography>
+
+      {/* District Watch Banner */}
+      {isAuthenticated && (
+        <Box sx={{
+          mb: 3, p: 2, borderRadius: '14px',
+          bgcolor: 'rgba(59,130,246,0.04)',
+          border: '1px solid rgba(59,130,246,0.12)',
+        }}>
+          <Stack direction="row" alignItems="center" spacing={1} mb={1}>
+            <NotificationsActive sx={{ fontSize: 18, color: '#3B82F6' }} />
+            <Typography variant="body2" fontWeight={600} color="#60A5FA">
+              Theo dõi khu vực
+            </Typography>
+            {savingWatch && (
+              <Typography variant="caption" color="primary.main">(đang lưu...)</Typography>
+            )}
+            {watchedDistricts.length > 0 && !savingWatch && (
+              <Chip size="small" label={`🔔 ${watchedDistricts.length} khu vực`}
+                sx={{ height: 20, fontSize: '0.65rem', bgcolor: 'rgba(59,130,246,0.12)', color: '#60A5FA' }} />
+            )}
+          </Stack>
+          <Typography variant="caption" color="text.secondary" display="block" mb={1.5}>
+            Chọn quận bạn quan tâm — nhận thông báo khi có sự cố mới tại khu vực đó
+          </Typography>
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            {DA_NANG_DISTRICTS.map(d => {
+              const active = watchedDistricts.includes(d);
+              return (
+                <Chip
+                  key={d} size="small" label={d}
+                  icon={<LocationOn sx={{ fontSize: 14 }} />}
+                  onClick={() => toggleWatchDistrict(d)}
+                  sx={{
+                    fontWeight: active ? 600 : 400, fontSize: '0.75rem',
+                    bgcolor: active ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.04)',
+                    color: active ? '#60A5FA' : 'text.secondary',
+                    border: `1px solid ${active ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.08)'}`,
+                    cursor: 'pointer', transition: 'all 0.2s',
+                    '&:hover': { bgcolor: active ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.08)' },
+                  }}
+                />
+              );
+            })}
+          </Stack>
+        </Box>
+      )}
 
       {/* Search bar */}
       <TextField

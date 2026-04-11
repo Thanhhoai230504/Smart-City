@@ -17,7 +17,7 @@ export const authApi = {
   getProfile: () =>
     axiosClient.get('/auth/profile'),
 
-  updateProfile: (data: { name?: string }) =>
+  updateProfile: (data: { name?: string; watchedDistricts?: string[] }) =>
     axiosClient.patch('/auth/profile', data),
 
   changePassword: (data: { currentPassword: string; newPassword: string }) =>

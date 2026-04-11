@@ -1,18 +1,22 @@
 jest.mock('../../src/models/User');
+jest.mock('../../src/models/Issue');
 
 const User = require('../../src/models/User');
+const Issue = require('../../src/models/Issue');
 const userService = require('../../src/services/userService');
 
 describe('UserService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Default mock for Issue.aggregate (returns empty counts)
+    Issue.aggregate = jest.fn().mockResolvedValue([]);
   });
 
   describe('getUsers()', () => {
     it('should return paginated users with default params', async () => {
       const mockUsers = [
-        { _id: '1', name: 'User 1', role: 'user' },
-        { _id: '2', name: 'User 2', role: 'admin' },
+        { _id: '1', name: 'User 1', role: 'user', toJSON: function() { return { _id: this._id, name: this.name, role: this.role }; } },
+        { _id: '2', name: 'User 2', role: 'admin', toJSON: function() { return { _id: this._id, name: this.name, role: this.role }; } },
       ];
       User.find.mockReturnValue({
         sort: jest.fn().mockReturnValue({
@@ -26,6 +30,8 @@ describe('UserService', () => {
       const result = await userService.getUsers({ page: 1, limit: 10 });
 
       expect(result.users).toHaveLength(2);
+      expect(result.users[0].issueCount).toBe(0);
+      expect(result.users[0].topBadge).toBeNull();
       expect(result.pagination.total).toBe(2);
       expect(result.pagination.current).toBe(1);
     });

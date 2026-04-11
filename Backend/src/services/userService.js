@@ -1,5 +1,7 @@
 const User = require('../models/User');
+const Issue = require('../models/Issue');
 const ApiError = require('../utils/apiError');
+const { getBadgesForCount } = require('../utils/badgeConfig');
 
 const getUsers = async ({ role, isActive, page = 1, limit = 10 }) => {
   const filter = {};
@@ -15,8 +17,25 @@ const getUsers = async ({ role, isActive, page = 1, limit = 10 }) => {
     User.countDocuments(filter),
   ]);
 
+  // Aggregate issue counts per user
+  const userIds = users.map(u => u._id);
+  const issueCounts = await Issue.aggregate([
+    { $match: { userId: { $in: userIds } } },
+    { $group: { _id: '$userId', count: { $sum: 1 } } },
+  ]);
+  const countMap = {};
+  issueCounts.forEach(ic => { countMap[ic._id.toString()] = ic.count; });
+
+  const enrichedUsers = users.map(u => {
+    const userObj = u.toJSON();
+    const issueCount = countMap[u._id.toString()] || 0;
+    const badges = getBadgesForCount(issueCount);
+    const topBadge = badges.length > 0 ? badges[badges.length - 1] : null;
+    return { ...userObj, issueCount, topBadge };
+  });
+
   return {
-    users,
+    users: enrichedUsers,
     pagination: { current: pageNum, pages: Math.ceil(total / limitNum), total, limit: limitNum },
   };
 };
