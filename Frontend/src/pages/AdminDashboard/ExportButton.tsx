@@ -131,7 +131,7 @@ const ExportButton: React.FC = () => {
         startIcon={exporting ? <CircularProgress size={14} /> : <FileDownload />}
         onClick={(e) => setAnchorEl(e.currentTarget)}
         disabled={exporting}
-        sx={{ borderRadius: '10px', textTransform: 'none', fontSize: '0.8rem' }}
+        sx={{ borderRadius: '10px', textTransform: 'none', fontSize: '0.8rem', fontWeight: 600, height: 32 }}
       >
         Xuất báo cáo
       </Button>

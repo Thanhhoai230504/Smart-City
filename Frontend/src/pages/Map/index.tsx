@@ -245,6 +245,36 @@ const MapPage: React.FC = () => {
     setRouteLoading(false);
   }, [routeStartCoord, routeEndCoord]);
 
+  const [gpsLoading, setGpsLoading] = useState(false);
+
+  const handleUseMyLocation = useCallback(async () => {
+    if (!navigator.geolocation) return;
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setRouteStartCoord([latitude, longitude]);
+        // Reverse geocode via Goong
+        try {
+          const url = `https://rsapi.goong.io/Geocode?latlng=${latitude},${longitude}&api_key=${GOONG_API_KEY}`;
+          const res = await fetch(url);
+          const data = await res.json();
+          if (data.status === 'OK' && data.results?.length) {
+            setRouteStart(data.results[0].formatted_address);
+          } else {
+            setRouteStart(`${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
+          }
+        } catch {
+          setRouteStart(`${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
+        }
+        setStartSuggestions([]);
+        setGpsLoading(false);
+      },
+      () => { setGpsLoading(false); },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }, []);
+
   const clearRoute = () => {
     setRoutePath([]); setRouteInfo(null); setRouteStart(''); setRouteEnd('');
     setRouteStartCoord(null); setRouteEndCoord(null); setShowRouting(false);
@@ -424,7 +454,18 @@ const MapPage: React.FC = () => {
             <Box sx={{ position: 'relative' }}>
               <TextField size="small" placeholder="Điểm đi..." value={routeStart} fullWidth
                 onChange={(e) => handleStartChange(e.target.value)}
-                InputProps={{ startAdornment: <InputAdornment position="start"><Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#10B981' }} /></InputAdornment> }}
+                InputProps={{
+                  startAdornment: <InputAdornment position="start"><Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#10B981' }} /></InputAdornment>,
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton size="small" onClick={handleUseMyLocation} disabled={gpsLoading}
+                        sx={{ color: routeStartCoord ? '#10B981' : 'text.secondary', p: 0.5 }}
+                        title="Dùng vị trí hiện tại">
+                        {gpsLoading ? <CircularProgress size={16} /> : <MyLocation sx={{ fontSize: 18 }} />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
                 sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'rgba(255,255,255,0.05)', borderRadius: '10px', fontSize: '0.8rem' } }}
               />
               {startSuggestions.length > 0 && (

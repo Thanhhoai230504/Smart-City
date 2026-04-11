@@ -121,7 +121,7 @@ const AdminDashboard: React.FC = () => {
               } catch { alert('Gửi thất bại'); }
               setSendingReport(false);
             }}
-            sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 600 }}>
+            sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 600, fontSize: '0.8rem', height: 32 }}>
             {sendingReport ? 'Đang gửi...' : 'Gửi báo cáo'}
           </Button>
           <Chip label={new Date().toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}

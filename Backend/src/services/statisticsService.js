@@ -2,7 +2,7 @@ const Issue = require('../models/Issue');
 
 const DA_NANG_DISTRICTS = [
   'Hải Châu', 'Thanh Khê', 'Sơn Trà', 'Ngũ Hành Sơn',
-  'Liên Chiểu', 'Cẩm Lệ', 'Hòa Vang', 'Hoàng Sa',
+  'Liên Chiểu', 'Cẩm Lệ', 'Hòa Vang',
 ];
 
 const getPublicStatistics = async () => {
