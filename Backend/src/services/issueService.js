@@ -46,7 +46,7 @@ const getIssueById = async (id) => {
   return issue;
 };
 
-const createIssue = async ({ title, description, category, location, latitude, longitude, file, user }) => {
+const createIssue = async ({ title, description, category, location, latitude, longitude, phone, file, user }) => {
   let uploadedFileId = null;
 
   try {
@@ -57,6 +57,7 @@ const createIssue = async ({ title, description, category, location, latitude, l
 
     const issue = await Issue.create({
       title, description, category, location, latitude, longitude, imageUrl,
+      phone: phone || null,
       userId: user.id,
       statusHistory: [{
         status: 'reported',

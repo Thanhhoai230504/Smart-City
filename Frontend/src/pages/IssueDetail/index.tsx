@@ -220,6 +220,18 @@ const IssueDetailPage: React.FC = () => {
                 <Typography color="text.secondary">Báo cáo bởi: {reporter.name}</Typography>
               </Stack>
             )}
+            {issue.phone && (
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Phone sx={{ color: 'text.secondary', fontSize: 20 }} />
+                <Typography color="text.secondary">
+                  SĐT liên hệ:{' '}
+                  <Box component="a" href={`tel:${issue.phone}`}
+                    sx={{ color: '#10B981', textDecoration: 'none', fontWeight: 600, '&:hover': { textDecoration: 'underline' } }}>
+                    {issue.phone}
+                  </Box>
+                </Typography>
+              </Stack>
+            )}
             <Stack direction="row" spacing={1} alignItems="center">
               <CalendarMonth sx={{ color: 'text.secondary', fontSize: 20 }} />
               <Typography color="text.secondary">{formatDate(issue.createdAt)}</Typography>
@@ -477,7 +489,7 @@ const IssueDetailPage: React.FC = () => {
     <tr><td>Tọa độ</td><td>${issue.latitude.toFixed(6)}, ${issue.longitude.toFixed(6)}</td></tr>
     <tr><td>Mô tả</td><td>${issue.description || 'Không có'}</td></tr>
     <tr><td>Thời gian báo cáo</td><td>${formatDate(issue.createdAt)}</td></tr>
-    <tr><td>Người báo cáo</td><td>${reporter?.name || 'Người dân'}</td></tr>
+    <tr><td>Người báo cáo</td><td>${reporter?.name || 'Người dân'}${issue.phone ? ` — SĐT: ${issue.phone}` : ''}</td></tr>
   </table>
   <div class="body-text">
     Kính đề nghị quý đơn vị cử cán bộ kiểm tra và xử lý sự cố nói trên trong thời gian sớm nhất. Sau khi xử lý, vui lòng phản hồi kết quả về hệ thống hoặc liên hệ:

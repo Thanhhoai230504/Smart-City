@@ -20,7 +20,11 @@ const createIssueValidator = [
     .isFloat({ min: -90, max: 90 }).withMessage('Latitude must be between -90 and 90'),
   body('longitude')
     .notEmpty().withMessage('Longitude is required')
-    .isFloat({ min: -180, max: 180 }).withMessage('Longitude must be between -180 and 180')
+    .isFloat({ min: -180, max: 180 }).withMessage('Longitude must be between -180 and 180'),
+  body('phone')
+    .optional({ values: 'falsy' })
+    .trim()
+    .matches(/^(0|\+84)[0-9]{9,10}$/).withMessage('Số điện thoại không hợp lệ')
 ];
 
 const updateIssueStatusValidator = [

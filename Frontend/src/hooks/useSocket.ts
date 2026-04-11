@@ -28,6 +28,7 @@ export const useSocket = (onEvent?: (event: string, data: any) => void) => {
     });
 
     if (onEventRef.current) {
+      socket.on('notification:new', (data) => onEventRef.current?.('notification:new', data));
       socket.on('issue:created', (data) => onEventRef.current?.('issue:created', data));
       socket.on('issue:updated', (data) => onEventRef.current?.('issue:updated', data));
       socket.on('issue:resolved', (data) => onEventRef.current?.('issue:resolved', data));

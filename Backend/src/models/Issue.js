@@ -38,6 +38,11 @@ const issueSchema = new mongoose.Schema({
     min: [-180, 'Longitude must be between -180 and 180'],
     max: [180, 'Longitude must be between -180 and 180']
   },
+  phone: {
+    type: String,
+    trim: true,
+    default: null
+  },
   imageUrl: {
     type: String,
     default: null

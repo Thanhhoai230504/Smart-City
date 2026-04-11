@@ -49,6 +49,7 @@ export interface Issue {
   latitude: number;
   longitude: number;
   imageUrl: string | null;
+  phone: string | null;
   status: IssueStatus;
   userId: { _id: string; name: string; email: string } | string;
   adminId: { _id: string; name: string; email: string } | null;

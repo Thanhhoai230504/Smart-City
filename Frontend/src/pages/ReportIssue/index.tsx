@@ -10,7 +10,7 @@ import {
 } from '@mui/material';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { Send, CloudUpload, LocationOn, Search, MyLocation, Close, SmartToy } from '@mui/icons-material';
+import { Send, CloudUpload, LocationOn, Search, MyLocation, Close, SmartToy, Phone } from '@mui/icons-material';
 import { CATEGORY_MAP, DA_NANG_CENTER, DEFAULT_ZOOM } from '../../utils/constants';
 
 // ── Goong API helpers ──
@@ -111,6 +111,7 @@ const ReportIssuePage: React.FC = () => {
   const [lng, setLng] = useState<number | null>(null);
   const [image, setImage] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
@@ -282,6 +283,7 @@ const ReportIssuePage: React.FC = () => {
     formData.append('location', location);
     formData.append('latitude', String(lat));
     formData.append('longitude', String(lng));
+    if (phone.trim()) formData.append('phone', phone.trim());
     if (image) formData.append('image', image);
 
     const result = await dispatch(createIssue(formData));
@@ -405,6 +407,21 @@ const ReportIssuePage: React.FC = () => {
                   </Paper>
                 )}
               </Box>
+
+              <TextField
+                label="Số điện thoại liên hệ"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="VD: 0901234567"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Phone sx={{ color: 'text.secondary' }} />
+                    </InputAdornment>
+                  ),
+                }}
+                helperText="Không bắt buộc — giúp cơ quan chức năng liên hệ nhanh hơn"
+              />
 
               <TextField label="Mô tả chi tiết" value={description} onChange={(e) => setDescription(e.target.value)}
                 required multiline rows={4} placeholder="Mô tả tình trạng sự cố..." />
