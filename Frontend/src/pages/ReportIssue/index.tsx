@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../../store/store';
 import { createIssue } from '../../store/slices/issueSlice';
@@ -10,8 +10,9 @@ import {
 } from '@mui/material';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { Send, CloudUpload, LocationOn, Search, MyLocation, Close, SmartToy, Phone } from '@mui/icons-material';
+import { Send, CloudUpload, LocationOn, Search, MyLocation, Close, SmartToy, Phone, ThumbUp } from '@mui/icons-material';
 import { CATEGORY_MAP, DA_NANG_CENTER, DEFAULT_ZOOM } from '../../utils/constants';
+import { issueApi } from '../../api/issueApi';
 
 // ── Goong API helpers ──
 const GOONG_API_KEY = import.meta.env.VITE_GOONG_API_KEY;
@@ -128,6 +129,21 @@ const ReportIssuePage: React.FC = () => {
   const searchBoxRef = useRef<HTMLDivElement>(null);
   const [gettingLocation, setGettingLocation] = useState(false);
 
+  // Nearby duplicate detection
+  const [nearbyIssues, setNearbyIssues] = useState<any[]>([]);
+  const [nearbyLoading, setNearbyLoading] = useState(false);
+
+  const fetchNearbyIssues = useCallback(async (latitude: number, longitude: number) => {
+    setNearbyLoading(true);
+    try {
+      const { data } = await issueApi.getNearbyIssues(latitude, longitude, 300);
+      setNearbyIssues(data.data.issues || []);
+    } catch {
+      setNearbyIssues([]);
+    }
+    setNearbyLoading(false);
+  }, []);
+
   // ── Close dropdown when clicking outside ──
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -194,6 +210,7 @@ const ReportIssuePage: React.FC = () => {
       setLng(detail.lng);
       setLocation(prediction.description);
       setFlyTarget({ lat: detail.lat, lng: detail.lng });
+      fetchNearbyIssues(detail.lat, detail.lng);
     } catch {
       setError('Không lấy được toạ độ. Vui lòng thử lại hoặc click trên bản đồ.');
     } finally {
@@ -206,6 +223,7 @@ const ReportIssuePage: React.FC = () => {
     setLat(latitude);
     setLng(longitude);
     setFlyTarget(null);
+    fetchNearbyIssues(latitude, longitude);
     // Reverse geocode khi click trên bản đồ
     try {
       const address = await reverseGeocode(latitude, longitude);
@@ -227,6 +245,7 @@ const ReportIssuePage: React.FC = () => {
         setLat(latitude);
         setLng(longitude);
         setFlyTarget({ lat: latitude, lng: longitude });
+        fetchNearbyIssues(latitude, longitude);
         try {
           const address = await reverseGeocode(latitude, longitude);
           setLocation(address);
@@ -461,6 +480,57 @@ const ReportIssuePage: React.FC = () => {
                       {lat.toFixed(5)}, {lng.toFixed(5)}
                     </Typography>
                   </Box>
+                </Alert>
+              )}
+
+              {/* Nearby issues warning */}
+              {nearbyLoading && (
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <CircularProgress size={16} />
+                  <Typography variant="caption" color="text.secondary">Đang kiểm tra sự cố gần đó...</Typography>
+                </Stack>
+              )}
+              {!nearbyLoading && nearbyIssues.length > 0 && (
+                <Alert severity="warning" sx={{ '& .MuiAlert-message': { width: '100%' } }}>
+                  <Typography variant="body2" fontWeight={600} mb={1}>
+                    ⚠️ Có {nearbyIssues.length} sự cố đã được báo cáo gần vị trí này (bán kính 300m)
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" display="block" mb={1.5}>
+                    Nếu sự cố bạn gặp trùng với các báo cáo dưới đây, hãy nhấn 👍 Upvote để ưu tiên xử lý thay vì tạo báo cáo mới.
+                  </Typography>
+                  <Stack spacing={1}>
+                    {nearbyIssues.map((issue: any) => (
+                      <Paper key={issue._id} sx={{
+                        p: 1.5, bgcolor: 'rgba(255,255,255,0.03)',
+                        border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px',
+                      }}>
+                        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography variant="body2" fontWeight={600} noWrap>
+                              {CATEGORY_MAP[issue.category]?.icon} {issue.title}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" noWrap display="block">
+                              📍 {issue.location} · ~{issue.distance}m
+                            </Typography>
+                            <Stack direction="row" spacing={0.5} mt={0.5}>
+                              <Chip label={CATEGORY_MAP[issue.category]?.label || issue.category}
+                                size="small" sx={{ fontSize: '0.65rem', height: 20, bgcolor: 'rgba(108,99,255,0.15)' }} />
+                              <Chip label={`👍 ${issue.voteCount || 0}`}
+                                size="small" sx={{ fontSize: '0.65rem', height: 20, bgcolor: 'rgba(59,130,246,0.15)' }} />
+                            </Stack>
+                          </Box>
+                          <Button component={Link} to={`/issues/${issue._id}`} target="_blank"
+                            variant="outlined" size="small" startIcon={<ThumbUp sx={{ fontSize: 14 }} />}
+                            sx={{
+                              textTransform: 'none', fontSize: '0.7rem', borderRadius: '8px',
+                              minWidth: 'auto', whiteSpace: 'nowrap', flexShrink: 0,
+                            }}>
+                            Xem & Vote
+                          </Button>
+                        </Stack>
+                      </Paper>
+                    ))}
+                  </Stack>
                 </Alert>
               )}
 

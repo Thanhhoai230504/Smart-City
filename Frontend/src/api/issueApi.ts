@@ -32,4 +32,7 @@ export const issueApi = {
 
   rateIssue: (id: string, data: { score: number; comment?: string }) =>
     axiosClient.post(`/issues/${id}/rate`, data),
+
+  getNearbyIssues: (lat: number, lng: number, radius = 300) =>
+    axiosClient.get('/issues/nearby', { params: { lat, lng, radius } }),
 };

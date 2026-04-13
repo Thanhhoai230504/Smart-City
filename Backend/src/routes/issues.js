@@ -13,13 +13,17 @@ const {
   deleteMyIssue,
   updateMyIssue,
   toggleVote,
-  rateIssue
+  rateIssue,
+  getNearbyIssues
 } = require('../controllers/issueController');
 
 const router = express.Router();
 
 // @route   GET /api/issues
 router.get('/', getIssues);
+
+// @route   GET /api/issues/nearby?lat=...&lng=...&radius=300
+router.get('/nearby', getNearbyIssues);
 
 // @route   GET /api/issues/my (must be before /:id to avoid conflict)
 router.get('/my', authMiddleware, getMyIssues);

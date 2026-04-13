@@ -108,4 +108,15 @@ const rateIssue = async (req, res, next) => {
   }
 };
 
-module.exports = { getIssues, getIssueById, createIssue, updateIssueStatus, deleteIssue, getMyIssues, deleteMyIssue, updateMyIssue, toggleVote, rateIssue };
+const getNearbyIssues = async (req, res, next) => {
+  try {
+    const { lat, lng, radius = 300 } = req.query;
+    if (!lat || !lng) return res.status(400).json({ success: false, message: 'lat and lng are required' });
+    const issues = await issueService.getNearbyIssues(parseFloat(lat), parseFloat(lng), parseInt(radius));
+    res.json({ success: true, data: { issues } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { getIssues, getIssueById, createIssue, updateIssueStatus, deleteIssue, getMyIssues, deleteMyIssue, updateMyIssue, toggleVote, rateIssue, getNearbyIssues };

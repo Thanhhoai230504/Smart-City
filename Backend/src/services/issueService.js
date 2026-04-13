@@ -308,6 +308,53 @@ const updateMyIssue = async (issueId, userId, { title, description }) => {
   return issue;
 };
 
+/**
+ * Find nearby active issues (reported/processing) within a given radius.
+ * Uses Haversine formula via MongoDB aggregation.
+ * @param {number} lat - Latitude
+ * @param {number} lng - Longitude
+ * @param {number} radiusMeters - Radius in meters (default 300)
+ * @returns {Array} Up to 5 nearest issues
+ */
+const getNearbyIssues = async (lat, lng, radiusMeters = 300) => {
+  const R = 6371000; // Earth radius in meters
+  const radiusRad = radiusMeters / R;
+  const latRad = (lat * Math.PI) / 180;
+  const lngRad = (lng * Math.PI) / 180;
+
+  // Quick bounding box filter first, then precise Haversine
+  const latDelta = (radiusMeters / 111320); // ~111.32km per degree
+  const lngDelta = radiusMeters / (111320 * Math.cos(latRad));
+
+  const issues = await Issue.find({
+    status: { $in: ['reported', 'processing'] },
+    latitude: { $gte: lat - latDelta, $lte: lat + latDelta },
+    longitude: { $gte: lng - lngDelta, $lte: lng + lngDelta },
+  })
+    .select('title category status location latitude longitude voteCount imageUrl createdAt')
+    .populate('userId', 'name')
+    .sort('-voteCount -createdAt')
+    .lean();
+
+  // Precise Haversine distance filter
+  const results = issues
+    .map((issue) => {
+      const dLat = ((issue.latitude - lat) * Math.PI) / 180;
+      const dLng = ((issue.longitude - lng) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(latRad) * Math.cos((issue.latitude * Math.PI) / 180) *
+        Math.sin(dLng / 2) ** 2;
+      const distance = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return { ...issue, distance: Math.round(distance) };
+    })
+    .filter((i) => i.distance <= radiusMeters)
+    .sort((a, b) => a.distance - b.distance)
+    .slice(0, 5);
+
+  return results;
+};
+
 module.exports = {
   getIssues,
   getIssueById,
@@ -316,5 +363,6 @@ module.exports = {
   deleteIssue,
   getMyIssues,
   deleteMyIssue,
-  updateMyIssue
+  updateMyIssue,
+  getNearbyIssues
 };
