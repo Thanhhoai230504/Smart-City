@@ -46,7 +46,7 @@ const Header: React.FC = () => {
   return (
     <>
       <AppBar position="sticky" elevation={0}>
-        <Toolbar sx={{ maxWidth: 1400, width: '100%', mx: 'auto', px: { xs: 1, md: 3 } }}>
+        <Toolbar sx={{ maxWidth: 1400, width: '100%', mx: 'auto', px: { xs: 1, md: 3 }, overflow: 'hidden' }}>
           {isMobile && (
             <IconButton color="inherit" onClick={() => setDrawerOpen(true)} sx={{ mr: 1 }}>
               <MenuIcon />
@@ -127,9 +127,13 @@ const Header: React.FC = () => {
               </Menu>
             </Box>
           ) : (
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <Button component={RouterLink} to="/login" startIcon={<Login />} sx={{ color: 'text.secondary' }}>Đăng nhập</Button>
-              <Button component={RouterLink} to="/register" variant="contained" size="small" startIcon={<PersonAdd />}>Đăng ký</Button>
+            <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
+              <Button component={RouterLink} to="/login" startIcon={<Login />} sx={{ color: 'text.secondary', whiteSpace: 'nowrap', minWidth: 'auto', px: { xs: 1, sm: 2 }, '& .MuiButton-startIcon': { mr: { xs: 0, sm: 1 } } }}>
+                <Box sx={{ display: { xs: 'none', sm: 'inline' } }}>Đăng nhập</Box>
+              </Button>
+              <Button component={RouterLink} to="/register" variant="contained" size="small" startIcon={<PersonAdd />} sx={{ whiteSpace: 'nowrap', minWidth: 'auto', px: { xs: 1, sm: 2 }, '& .MuiButton-startIcon': { mr: { xs: 0, sm: 1 } } }}>
+                <Box sx={{ display: { xs: 'none', sm: 'inline' } }}>Đăng ký</Box>
+              </Button>
             </Box>
           )}
         </Toolbar>

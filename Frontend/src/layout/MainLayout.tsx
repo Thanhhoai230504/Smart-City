@@ -12,7 +12,7 @@ const MainLayout: React.FC = () => {
   const showFooter = !HIDE_FOOTER_ROUTES.includes(pathname);
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', overflowX: 'hidden', maxWidth: '100vw' }}>
       <Header />
       <Box component="main" sx={{ flexGrow: 1 }}>
         <Outlet />

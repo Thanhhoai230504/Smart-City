@@ -110,7 +110,7 @@ const NotificationCenter: React.FC = () => {
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
         PaperProps={{
           sx: {
-            width: 380, maxHeight: 480, mt: 1,
+            width: { xs: 'calc(100vw - 32px)', sm: 380 }, maxHeight: 480, mt: 1,
             bgcolor: 'background.paper', border: '1px solid rgba(255,255,255,0.08)',
             borderRadius: '16px', overflow: 'hidden',
           },

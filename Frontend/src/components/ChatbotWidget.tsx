@@ -52,7 +52,7 @@ const ChatbotWidget: React.FC = () => {
         <IconButton
           onClick={() => setIsOpen(true)}
           sx={{
-            position: 'fixed', bottom: 75, right: 24, zIndex: 1300,
+            position: 'fixed', bottom: 75, right: { xs: 16, sm: 24 }, zIndex: 1300,
             width: 56, height: 56,
             background: 'linear-gradient(135deg, #6C63FF, #3B82F6)',
             color: '#fff', boxShadow: '0 4px 20px rgba(108,99,255,0.4)',
@@ -67,7 +67,7 @@ const ChatbotWidget: React.FC = () => {
       {/* Chat Panel */}
       <Fade in={isOpen}>
         <Paper sx={{
-          position: 'fixed', bottom: 24, right: 24, zIndex: 1300,
+          position: 'fixed', bottom: { xs: 16, sm: 24 }, right: { xs: 16, sm: 24 }, zIndex: 1300,
           width: { xs: 'calc(100vw - 32px)', sm: 380 }, height: { xs: 480, sm: 520 },
           borderRadius: '16px', overflow: 'hidden', display: isOpen ? 'flex' : 'none',
           flexDirection: 'column',

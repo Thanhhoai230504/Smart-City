@@ -88,7 +88,7 @@ const Footer: React.FC = () => {
               </Stack>
               <Stack direction="row" alignItems="center" spacing={1}>
                 <Email sx={{ fontSize: 15, color: '#3B82F6' }} />
-                <Typography variant="body2" color="text.secondary">nguyenthanhhoai230504@gmail.com</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ wordBreak: 'break-all' }}>nguyenthanhhoai230504@gmail.com</Typography>
               </Stack>
               <Stack direction="row" alignItems="flex-start" spacing={1}>
                 <LocationOn sx={{ fontSize: 15, color: '#3B82F6', mt: 0.3 }} />

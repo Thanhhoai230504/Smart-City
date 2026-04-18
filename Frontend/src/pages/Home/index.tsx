@@ -83,11 +83,13 @@ const HomePage: React.FC = () => {
           position: 'absolute', top: '20%', left: 0, width: '120px', height: '2px',
           background: 'linear-gradient(90deg, transparent, #3B82F6, transparent)',
           animation: 'slideRight 4s ease-in-out infinite',
+          willChange: 'transform',
         }} />
         <Box sx={{
           position: 'absolute', bottom: '30%', right: 0, width: '80px', height: '2px',
           background: 'linear-gradient(90deg, transparent, #10B981, transparent)',
           animation: 'slideLeft 5s ease-in-out infinite',
+          willChange: 'transform',
         }} />
 
         {/* Soft glow — single, subtle */}
@@ -281,8 +283,8 @@ const HomePage: React.FC = () => {
       </Box>
 
       <style>{`
-        @keyframes slideRight { 0%,100% { transform: translateX(-100px); opacity: 0; } 50% { transform: translateX(200px); opacity: 1; } }
-        @keyframes slideLeft { 0%,100% { transform: translateX(100px); opacity: 0; } 50% { transform: translateX(-200px); opacity: 1; } }
+        @keyframes slideRight { 0%,100% { transform: translateX(-100%); opacity: 0; } 50% { transform: translateX(100%); opacity: 1; } }
+        @keyframes slideLeft { 0%,100% { transform: translateX(100%); opacity: 0; } 50% { transform: translateX(-100%); opacity: 1; } }
       `}</style>
     </Box>
   );
