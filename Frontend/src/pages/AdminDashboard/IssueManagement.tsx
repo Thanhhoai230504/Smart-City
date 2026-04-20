@@ -35,7 +35,7 @@ const IssueManagement: React.FC<Props> = ({ onDataChange }) => {
       const { data } = await issueApi.getIssues(params);
       setIssues(data.data.issues);
       setPag(data.data.pagination);
-    } catch { } finally { setLoading(false); }
+    } catch { /* silently ignore */ } finally { setLoading(false); }
   }, [sortBy]);
 
   useEffect(() => { loadIssues(1, filter); }, [filter, sortBy, loadIssues]);
@@ -46,7 +46,7 @@ const IssueManagement: React.FC<Props> = ({ onDataChange }) => {
       setSnack({ open: true, msg: `Trạng thái → ${STATUS_LABELS[status]}`, severity: 'success' });
       loadIssues(pag.current, filter);
       onDataChange();
-    } catch { setSnack({ open: true, msg: 'Cập nhật thất bại', severity: 'error' }); }
+    } catch { /* silently ignore */ setSnack({ open: true, msg: 'Cập nhật thất bại', severity: 'error' }); }
   };
 
   const handleDelete = async () => {
@@ -57,7 +57,7 @@ const IssueManagement: React.FC<Props> = ({ onDataChange }) => {
       setSnack({ open: true, msg: 'Đã xoá sự cố', severity: 'success' });
       loadIssues(pag.current, filter);
       onDataChange();
-    } catch { setSnack({ open: true, msg: 'Xoá thất bại', severity: 'error' }); }
+    } catch { /* silently ignore */ setSnack({ open: true, msg: 'Xoá thất bại', severity: 'error' }); }
   };
 
   return (

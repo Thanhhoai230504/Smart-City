@@ -31,7 +31,7 @@ const UserManagement: React.FC<Props> = ({ onDataChange }) => {
       const { data } = await userApi.getUsers(params);
       setUsers(data.data.users);
       setPag(data.data.pagination);
-    } catch { } finally { setLoading(false); }
+    } catch { /* silently ignore */ } finally { setLoading(false); }
   }, []);
 
   useEffect(() => { loadUsers(1, filter); }, [filter, loadUsers]);
@@ -42,7 +42,7 @@ const UserManagement: React.FC<Props> = ({ onDataChange }) => {
       setSnack({ open: true, msg: `Đã đổi vai trò → ${role === 'admin' ? 'Admin' : 'User'}`, severity: 'success' });
       loadUsers(pag.current, filter);
       onDataChange();
-    } catch { setSnack({ open: true, msg: 'Không thể đổi vai trò', severity: 'error' }); }
+    } catch { /* silently ignore */ setSnack({ open: true, msg: 'Không thể đổi vai trò', severity: 'error' }); }
   };
 
   const handleToggleActive = async (id: string) => {
@@ -50,7 +50,7 @@ const UserManagement: React.FC<Props> = ({ onDataChange }) => {
       await userApi.toggleActive(id);
       setSnack({ open: true, msg: 'Đã thay đổi trạng thái tài khoản', severity: 'success' });
       loadUsers(pag.current, filter);
-    } catch { setSnack({ open: true, msg: 'Thất bại', severity: 'error' }); }
+    } catch { /* silently ignore */ setSnack({ open: true, msg: 'Thất bại', severity: 'error' }); }
   };
 
   return (

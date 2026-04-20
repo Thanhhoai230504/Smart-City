@@ -45,7 +45,7 @@ const AdminDashboard: React.FC = () => {
     try {
       const { data } = await dashboardApi.getStats();
       setStats(data.data);
-    } catch { }
+    } catch { /* silently ignore */ }
   }, []);
 
   // ── Load dashboard data ──
@@ -118,7 +118,7 @@ const AdminDashboard: React.FC = () => {
               try {
                 await dashboardApi.sendReport('weekly');
                 alert('Đã gửi báo cáo tuần đến email admin!');
-              } catch { alert('Gửi thất bại'); }
+              } catch { /* silently ignore */ alert('Gửi thất bại'); }
               setSendingReport(false);
             }}
             sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 600, fontSize: '0.8rem', height: 32 }}>

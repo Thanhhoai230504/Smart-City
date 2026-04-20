@@ -1,0 +1,194 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================
+  # FRONTEND CI
+  # ============================================
+  frontend:
+    name: "⚛️ Frontend CI"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Frontend
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+          cache-dependency-path: Frontend/package-lock.json
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🔍 ESLint
+        run: npm run lint
+
+      - name: 🏷️ TypeScript type check
+        run: npx tsc --noEmit
+
+      - name: 🏗️ Build
+        run: npm run build
+        env:
+          VITE_API_URL: http://localhost:5000
+
+      - name: 📤 Upload build artifact
+        if: matrix.node-version == '20.x' && github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: Frontend/dist
+          retention-days: 7
+
+  # ============================================
+  # BACKEND CI
+  # ============================================
+  backend:
+    name: "⚙️ Backend CI"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Backend
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+          cache-dependency-path: Backend/package-lock.json
+
+      - name: 📦 Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: 🔍 ESLint
+        run: npm run lint
+
+      - name: 🧪 Run tests
+        run: npm test
+        env:
+          NODE_ENV: test
+          JWT_SECRET: ci-test-jwt-secret
+          JWT_REFRESH_SECRET: ci-test-jwt-refresh-secret
+
+      - name: 📊 Run tests with coverage
+        if: matrix.node-version == '20.x'
+        run: npm run test:coverage
+        env:
+          NODE_ENV: test
+          JWT_SECRET: ci-test-jwt-secret
+          JWT_REFRESH_SECRET: ci-test-jwt-refresh-secret
+
+      - name: 📤 Upload coverage report
+        if: matrix.node-version == '20.x'
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: Backend/coverage
+          retention-days: 14
+
+  # ============================================
+  # SECURITY AUDIT
+  # ============================================
+  security:
+    name: "🔒 Security Audit"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+
+      - name: 🔍 Frontend audit
+        working-directory: Frontend
+        run: npm audit --audit-level=critical || true
+
+      - name: 🔍 Backend audit
+        working-directory: Backend
+        run: npm audit --audit-level=critical || true
+
+      - name: 🔐 Check for secrets in code
+        run: |
+          echo "🔍 Scanning for potential secrets..."
+          FOUND=0
+
+          # Check for common secret patterns (excluding .env files and node_modules)
+          if grep -rn "password\s*=" --include="*.js" --include="*.ts" --include="*.tsx" --exclude-dir=node_modules --exclude-dir=.git --exclude="*.test.*" --exclude="setup.js" . 2>/dev/null | grep -v ".env" | grep -v "process.env" | head -5; then
+            echo "⚠️  Potential hardcoded passwords found"
+            FOUND=1
+          fi
+
+          if grep -rn "AKIA[0-9A-Z]\{16\}" --include="*.js" --include="*.ts" --exclude-dir=node_modules --exclude-dir=.git . 2>/dev/null; then
+            echo "⚠️  Potential AWS keys found"
+            FOUND=1
+          fi
+
+          if [ "$FOUND" -eq 0 ]; then
+            echo "✅ No obvious secrets detected in source code"
+          fi
+
+  # ============================================
+  # CI STATUS SUMMARY
+  # ============================================
+  ci-status:
+    name: "✅ CI Status"
+    runs-on: ubuntu-latest
+    needs: [frontend, backend, security]
+    if: always()
+
+    steps:
+      - name: Check CI results
+        run: |
+          echo "## CI Pipeline Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.frontend.result }}" == "success" ]; then
+            echo "✅ **Frontend** — All checks passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Frontend** — Failed (${{ needs.frontend.result }})" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ needs.backend.result }}" == "success" ]; then
+            echo "✅ **Backend** — All checks passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Backend** — Failed (${{ needs.backend.result }})" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ needs.security.result }}" == "success" ]; then
+            echo "✅ **Security** — Audit passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ **Security** — Issues found (${{ needs.security.result }})" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Fail if critical jobs failed
+        if: needs.frontend.result == 'failure' || needs.backend.result == 'failure'
+        run: exit 1

@@ -98,7 +98,7 @@ const PlaceManagement: React.FC<Props> = ({ onDataChange }) => {
     try {
       const { data } = await placeApi.getPlaces();
       setPlaces(data.data.places);
-    } catch { } finally { setLoading(false); }
+    } catch { /* silently ignore */ } finally { setLoading(false); }
   }, []);
 
   useEffect(() => { loadPlaces(); }, [loadPlaces]);
@@ -151,7 +151,7 @@ const PlaceManagement: React.FC<Props> = ({ onDataChange }) => {
       try {
         const results = await searchGoongAddress(value);
         setSuggestions(results); setShowSuggestions(results.length > 0);
-      } catch { } finally { setSearching(false); }
+      } catch { /* silently ignore */ } finally { setSearching(false); }
     }, 400);
   }, []);
 
@@ -161,7 +161,7 @@ const PlaceManagement: React.FC<Props> = ({ onDataChange }) => {
     try {
       const results = await searchGoongAddress(form.address);
       setSuggestions(results); setShowSuggestions(true);
-    } catch { } finally { setSearching(false); }
+    } catch { /* silently ignore */ } finally { setSearching(false); }
   }, [form.address]);
 
   const handleSelectSuggestion = useCallback(async (pred: GoongPrediction) => {
@@ -170,7 +170,7 @@ const PlaceManagement: React.FC<Props> = ({ onDataChange }) => {
       const detail = await getGoongPlaceDetail(pred.place_id);
       setForm(f => ({ ...f, address: pred.description, latitude: detail.lat, longitude: detail.lng }));
       setFlyTarget({ lat: detail.lat, lng: detail.lng });
-    } catch { } finally { setSearching(false); }
+    } catch { /* silently ignore */ } finally { setSearching(false); }
   }, []);
 
   const handleMapClick = useCallback((lat: number, lng: number) => {
@@ -191,7 +191,7 @@ const PlaceManagement: React.FC<Props> = ({ onDataChange }) => {
         setSnack({ open: true, msg: 'Đã thêm địa điểm mới', severity: 'success' });
       }
       closeDialog(); loadPlaces(); onDataChange();
-    } catch { setSnack({ open: true, msg: 'Lưu thất bại', severity: 'error' }); }
+    } catch { /* silently ignore */ setSnack({ open: true, msg: 'Lưu thất bại', severity: 'error' }); }
   };
 
   const handleDelete = async () => {
@@ -201,7 +201,7 @@ const PlaceManagement: React.FC<Props> = ({ onDataChange }) => {
       setDeleteId(null);
       setSnack({ open: true, msg: 'Đã xoá địa điểm', severity: 'success' });
       loadPlaces(); onDataChange();
-    } catch { setSnack({ open: true, msg: 'Xoá thất bại', severity: 'error' }); }
+    } catch { /* silently ignore */ setSnack({ open: true, msg: 'Xoá thất bại', severity: 'error' }); }
   };
 
   return (

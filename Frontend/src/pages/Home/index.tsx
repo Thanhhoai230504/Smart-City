@@ -54,6 +54,24 @@ const useInView = (threshold = 0.3) => {
   return { ref, inView };
 };
 
+// Stat item component — isolates useCountUp at component top level
+const StatItem: React.FC<{ stat: typeof stats[number]; index: number; inView: boolean }> = ({ stat, index, inView }) => {
+  const count = useCountUp(stat.value, 1500, inView);
+  return (
+    <Stack alignItems="center" spacing={0.5} sx={{
+      opacity: inView ? 1 : 0,
+      transform: inView ? 'translateY(0)' : 'translateY(20px)',
+      transition: `all 0.6s cubic-bezier(0.16, 1, 0.3, 1) ${index * 0.15}s`,
+    }}>
+      <Box sx={{ color: stat.color, mb: 0.5 }}>{stat.icon}</Box>
+      <Typography variant="h3" fontWeight={800} sx={{ color: '#F1F5F9', fontSize: { xs: '1.8rem', md: '2.5rem' } }}>
+        {count}{stat.suffix}
+      </Typography>
+      <Typography variant="body2" color="text.secondary" fontWeight={500}>{stat.label}</Typography>
+    </Stack>
+  );
+};
+
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const [heroVisible, setHeroVisible] = useState(false);
@@ -177,24 +195,11 @@ const HomePage: React.FC = () => {
       }}>
         <Container maxWidth="md">
           <Grid container spacing={4} justifyContent="center">
-            {stats.map((s, i) => {
-              const count = useCountUp(s.value, 1500, statsView.inView);
-              return (
-                <Grid item xs={4} key={i}>
-                  <Stack alignItems="center" spacing={0.5} sx={{
-                    opacity: statsView.inView ? 1 : 0,
-                    transform: statsView.inView ? 'translateY(0)' : 'translateY(20px)',
-                    transition: `all 0.6s cubic-bezier(0.16, 1, 0.3, 1) ${i * 0.15}s`,
-                  }}>
-                    <Box sx={{ color: s.color, mb: 0.5 }}>{s.icon}</Box>
-                    <Typography variant="h3" fontWeight={800} sx={{ color: '#F1F5F9', fontSize: { xs: '1.8rem', md: '2.5rem' } }}>
-                      {count}{s.suffix}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" fontWeight={500}>{s.label}</Typography>
-                  </Stack>
-                </Grid>
-              );
-            })}
+            {stats.map((s, i) => (
+              <Grid item xs={4} key={i}>
+                <StatItem stat={s} index={i} inView={statsView.inView} />
+              </Grid>
+            ))}
           </Grid>
         </Container>
       </Box>
