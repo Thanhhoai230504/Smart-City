@@ -366,7 +366,7 @@ const PlaceManagement: React.FC<Props> = ({ onDataChange }) => {
                 zoom={form.latitude ? 15 : DEFAULT_ZOOM}
                 style={{ height: 'calc(100% - 36px)', width: '100%' }}
               >
-                <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+                <TileLayer attribution='&copy; Google Maps' url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=vi" />
                 <MapClickPicker onSelect={handleMapClick} />
                 {flyTarget && <FlyToLocation lat={flyTarget.lat} lng={flyTarget.lng} />}
                 {form.latitude && form.longitude && <Marker position={[form.latitude, form.longitude]} icon={placeMarkerIcon} />}

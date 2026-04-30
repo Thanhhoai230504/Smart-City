@@ -559,7 +559,10 @@ const ReportIssuePage: React.FC = () => {
                 <Box sx={{ height: 'calc(100% - 55px)', borderRadius: 2, overflow: 'hidden' }}>
                   <MapContainer center={[DA_NANG_CENTER.lat, DA_NANG_CENTER.lng]} zoom={DEFAULT_ZOOM}
                     style={{ height: '100%', width: '100%' }}>
-                    <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+                    <TileLayer
+                      attribution='&copy; Google Maps'
+                      url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=vi"
+                    />
                     <LocationPicker onSelect={handleLocationSelect} />
                     {flyTarget && <FlyToLocation lat={flyTarget.lat} lng={flyTarget.lng} />}
                     {lat && lng && <Marker position={[lat, lng]} icon={markerIcon} />}
