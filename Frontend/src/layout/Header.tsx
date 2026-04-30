@@ -56,11 +56,11 @@ const Header: React.FC = () => {
           <Box component={RouterLink} to="/" sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none', color: 'inherit', gap: 1.5 }}>
             <Box sx={{
               width: 36, height: 36, borderRadius: '10px',
-              background: 'linear-gradient(135deg, #6C63FF, #00D9A6)',
+              background: 'linear-gradient(135deg, #0EA5E9, #10B981)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: '1.2rem', fontWeight: 800,
             }}>🏙️</Box>
-            <Typography variant="h6" sx={{ fontWeight: 700, display: { xs: 'none', sm: 'block' }, background: 'linear-gradient(135deg, #6C63FF, #00D9A6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, display: { xs: 'none', sm: 'block' }, background: 'linear-gradient(135deg, #0EA5E9, #10B981)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
               Smart City Đà Nẵng
             </Typography>
           </Box>
@@ -76,7 +76,7 @@ const Header: React.FC = () => {
                   sx={{
                     color: location.pathname === item.path ? 'primary.main' : 'text.secondary',
                     fontWeight: location.pathname === item.path ? 600 : 400,
-                    '&:hover': { color: 'primary.light', bgcolor: 'rgba(108,99,255,0.08)' },
+                    '&:hover': { color: 'primary.light', bgcolor: 'rgba(14,165,233,0.08)' },
                   }}
                 >
                   {item.label}
@@ -90,7 +90,7 @@ const Header: React.FC = () => {
                   sx={{
                     color: location.pathname === '/admin' ? 'primary.main' : 'text.secondary',
                     fontWeight: location.pathname === '/admin' ? 600 : 400,
-                    '&:hover': { color: 'primary.light', bgcolor: 'rgba(108,99,255,0.08)' },
+                    '&:hover': { color: 'primary.light', bgcolor: 'rgba(14,165,233,0.08)' },
                   }}
                 >
                   Dashboard
@@ -143,7 +143,7 @@ const Header: React.FC = () => {
       <Drawer anchor="left" open={drawerOpen} onClose={() => setDrawerOpen(false)}
         PaperProps={{ sx: { width: 280, bgcolor: 'background.paper' } }}>
         <Box sx={{ p: 2 }}>
-          <Typography variant="h6" fontWeight={700} sx={{ background: 'linear-gradient(135deg, #6C63FF, #00D9A6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+          <Typography variant="h6" fontWeight={700} sx={{ background: 'linear-gradient(135deg, #0EA5E9, #10B981)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
             🏙️ Smart City Đà Nẵng
           </Typography>
         </Box>
@@ -180,7 +180,7 @@ const Header: React.FC = () => {
 
       {/* Logout confirmation dialog */}
       <Dialog open={logoutOpen} onClose={() => setLogoutOpen(false)}
-        PaperProps={{ sx: { bgcolor: '#1F2937', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', minWidth: 320 } }}>
+        PaperProps={{ sx: { bgcolor: '#1A2332', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', minWidth: 320 } }}>
         <DialogTitle sx={{ pb: 1 }}>⚠️ Xác nhận đăng xuất</DialogTitle>
         <DialogContent>
           <Typography color="text.secondary">Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?</Typography>

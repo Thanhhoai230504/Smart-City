@@ -61,7 +61,7 @@ export const STATUS_LABELS: Record<string, string> = {
 export const CATEGORY_LABELS: Record<string, string> = {
   pothole: 'Ổ gà', garbage: 'Rác thải', streetlight: 'Đèn đường', flooding: 'Ngập nước', tree: 'Cây đổ', other: 'Khác',
 };
-export const BAR_COLORS = ['#6C63FF', '#00D9A6', '#F59E0B', '#EF4444', '#3B82F6', '#EC4899'];
+export const BAR_COLORS = ['#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#EC4899'];
 export const TRAFFIC_LEVEL_COLORS: Record<string, string> = {
   normal: '#10B981', slow: '#F59E0B', congested: '#F97316', heavy: '#EF4444',
 };
@@ -84,7 +84,7 @@ export const GlassCard: React.FC<{ children: React.ReactNode; sx?: object }> = (
     bgcolor: 'rgba(17,24,39,0.7)', backdropFilter: 'blur(16px)',
     border: '1px solid rgba(255,255,255,0.06)',
     transition: 'border-color 0.3s, box-shadow 0.3s',
-    '&:hover': { borderColor: 'rgba(108,99,255,0.3)', boxShadow: '0 0 20px rgba(108,99,255,0.08)' },
+    '&:hover': { borderColor: 'rgba(14,165,233,0.3)', boxShadow: '0 0 20px rgba(14,165,233,0.08)' },
     ...sx,
   }}>
     {children}

@@ -14,7 +14,7 @@ const NotFoundPage: React.FC = () => {
       }}>
         <Typography sx={{
           fontSize: { xs: '6rem', md: '8rem' }, fontWeight: 900, lineHeight: 1,
-          background: 'linear-gradient(135deg, #6C63FF, #00D9A6)',
+          background: 'linear-gradient(135deg, #0EA5E9, #10B981)',
           WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
         }}>
           404

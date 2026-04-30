@@ -142,7 +142,7 @@ const DonutSkeleton: React.FC<{ delay: number }> = ({ delay }) => (
       <Box sx={{
         width: 160, height: 160, borderRadius: '50%',
         border: '16px solid rgba(255,255,255,0.04)',
-        borderTopColor: 'rgba(108,99,255,0.15)',
+        borderTopColor: 'rgba(14,165,233,0.15)',
         borderRightColor: 'rgba(59,130,246,0.12)',
         animation: `${pulse} 2s ease-in-out infinite`,
         animationDelay: `${delay}s`,

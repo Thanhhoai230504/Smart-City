@@ -85,7 +85,7 @@ const IssueManagement: React.FC<Props> = ({ onDataChange }) => {
               <MenuItem value="-voteCount">🔥 Ủng hộ nhiều nhất</MenuItem>
             </Select>
           </FormControl>
-          <Chip label={`${pag.total} sự cố`} sx={{ bgcolor: 'rgba(108,99,255,0.15)', color: '#A5B4FC', fontWeight: 600 }} />
+          <Chip label={`${pag.total} sự cố`} sx={{ bgcolor: 'rgba(14,165,233,0.15)', color: '#A5B4FC', fontWeight: 600 }} />
         </Stack>
       </Stack>
 
@@ -112,7 +112,7 @@ const IssueManagement: React.FC<Props> = ({ onDataChange }) => {
                 <Typography color="text.secondary">Không có sự cố</Typography>
               </TableCell></TableRow>
             ) : issues.map(issue => (
-              <TableRow key={issue._id} hover sx={{ '&:hover': { bgcolor: 'rgba(108,99,255,0.04)' } }}>
+              <TableRow key={issue._id} hover sx={{ '&:hover': { bgcolor: 'rgba(14,165,233,0.04)' } }}>
                 <TableCell sx={{ ...cellSx, maxWidth: 200 }}>
                   <Typography variant="body2" fontWeight={500} noWrap>{issue.title}</Typography>
                   <Typography variant="caption" color="text.secondary" noWrap>📍 {issue.location}</Typography>
@@ -122,7 +122,7 @@ const IssueManagement: React.FC<Props> = ({ onDataChange }) => {
                 </TableCell>
                 <TableCell sx={cellSx}>
                   <Chip size="small" label={CATEGORY_LABELS[issue.category] || issue.category}
-                    sx={{ height: 22, fontSize: '0.7rem', bgcolor: 'rgba(108,99,255,0.15)', color: '#A5B4FC' }} />
+                    sx={{ height: 22, fontSize: '0.7rem', bgcolor: 'rgba(14,165,233,0.15)', color: '#A5B4FC' }} />
                 </TableCell>
                 <TableCell sx={cellSx}>
                   <Stack direction="row" alignItems="center" spacing={0.5}>
@@ -155,7 +155,7 @@ const IssueManagement: React.FC<Props> = ({ onDataChange }) => {
                 </TableCell>
                 <TableCell sx={cellSx}>
                   <Stack direction="row" spacing={0.5}>
-                    <Tooltip title="Xem"><IconButton size="small" onClick={() => navigate(`/issues/${issue._id}`)} sx={{ color: '#6C63FF' }}><Visibility fontSize="small" /></IconButton></Tooltip>
+                    <Tooltip title="Xem"><IconButton size="small" onClick={() => navigate(`/issues/${issue._id}`)} sx={{ color: '#0EA5E9' }}><Visibility fontSize="small" /></IconButton></Tooltip>
                     <Tooltip title="Xoá"><IconButton size="small" onClick={() => setDeleteId(issue._id)} sx={{ color: '#EF4444' }}><Delete fontSize="small" /></IconButton></Tooltip>
                   </Stack>
                 </TableCell>
@@ -174,7 +174,7 @@ const IssueManagement: React.FC<Props> = ({ onDataChange }) => {
 
       {/* Delete Dialog */}
       <Dialog open={!!deleteId} onClose={() => setDeleteId(null)}
-        PaperProps={{ sx: { bgcolor: '#1F2937', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px' } }}>
+        PaperProps={{ sx: { bgcolor: '#1A2332', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px' } }}>
         <DialogTitle>⚠️ Xác nhận xoá</DialogTitle>
         <DialogContent><Typography color="text.secondary">Bạn có chắc muốn xoá sự cố này?</Typography></DialogContent>
         <DialogActions>

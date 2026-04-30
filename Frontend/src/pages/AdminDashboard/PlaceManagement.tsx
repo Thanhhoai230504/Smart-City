@@ -249,7 +249,7 @@ const PlaceManagement: React.FC<Props> = ({ onDataChange }) => {
                 <Typography color="text.secondary">Chưa có địa điểm</Typography>
               </TableCell></TableRow>
             ) : pagedPlaces.map(p => (
-              <TableRow key={p._id} hover sx={{ '&:hover': { bgcolor: 'rgba(108,99,255,0.04)' } }}>
+              <TableRow key={p._id} hover sx={{ '&:hover': { bgcolor: 'rgba(14,165,233,0.04)' } }}>
                 <TableCell sx={{ ...cellSx, maxWidth: 180 }}><Typography variant="body2" fontWeight={500} noWrap>{p.name}</Typography></TableCell>
                 <TableCell sx={cellSx}><Chip size="small" label={PLACE_TYPE_LABELS[p.type] || p.type} sx={{ height: 24, fontSize: '0.7rem', bgcolor: 'rgba(236,72,153,0.15)', color: '#F9A8D4' }} /></TableCell>
                 <TableCell sx={{ ...cellSx, maxWidth: 180 }}><Typography variant="caption" noWrap>{p.address || '—'}</Typography></TableCell>
@@ -277,7 +277,7 @@ const PlaceManagement: React.FC<Props> = ({ onDataChange }) => {
 
       {/* ── Place Form Dialog with Goong + Map ── */}
       <Dialog open={dialogOpen} onClose={closeDialog} maxWidth="md" fullWidth
-        PaperProps={{ sx: { bgcolor: '#1F2937', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', maxHeight: '90vh' } }}>
+        PaperProps={{ sx: { bgcolor: '#1A2332', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', maxHeight: '90vh' } }}>
         <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           {editing ? '✏️ Sửa địa điểm' : '➕ Thêm địa điểm mới'}
           <IconButton onClick={closeDialog} size="small"><Close /></IconButton>
@@ -319,7 +319,7 @@ const PlaceManagement: React.FC<Props> = ({ onDataChange }) => {
                   <Paper elevation={8} sx={{
                     position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 1300,
                     mt: 0.5, maxHeight: 250, overflow: 'auto', borderRadius: 2,
-                    border: '1px solid', borderColor: 'divider', bgcolor: '#1F2937',
+                    border: '1px solid', borderColor: 'divider', bgcolor: '#1A2332',
                   }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 2, pt: 1 }}>
                       <Typography variant="caption" color="text.secondary">{suggestions.length} kết quả</Typography>
@@ -384,7 +384,7 @@ const PlaceManagement: React.FC<Props> = ({ onDataChange }) => {
 
       {/* Delete Dialog */}
       <Dialog open={!!deleteId} onClose={() => setDeleteId(null)}
-        PaperProps={{ sx: { bgcolor: '#1F2937', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px' } }}>
+        PaperProps={{ sx: { bgcolor: '#1A2332', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px' } }}>
         <DialogTitle>⚠️ Xác nhận xoá</DialogTitle>
         <DialogContent><Typography color="text.secondary">Bạn có chắc muốn xoá địa điểm này?</Typography></DialogContent>
         <DialogActions>

@@ -81,17 +81,17 @@ const ExportButton: React.FC = () => {
   .header { text-align: center; margin-bottom: 20px; }
   .header h2 { font-size: 18px; text-transform: uppercase; letter-spacing: 1px; }
   .header p { font-size: 12px; color: #555; margin-top: 4px; }
-  .header hr { border: none; border-top: 2px solid #6C63FF; margin: 10px 100px 0; }
+  .header hr { border: none; border-top: 2px solid #0EA5E9; margin: 10px 100px 0; }
   .meta { display: flex; justify-content: space-between; margin: 15px 0; font-size: 12px; color: #555; }
   table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
-  th { background: #6C63FF; color: white; padding: 8px 6px; text-align: left; font-weight: 600; }
+  th { background: #0EA5E9; color: white; padding: 8px 6px; text-align: left; font-weight: 600; }
   td { padding: 6px; border: 1px solid #ddd; }
   tr:nth-child(even) { background: #f8f9fa; }
   .footer { text-align: center; font-size: 9px; color: #999; margin-top: 30px; border-top: 1px solid #eee; padding-top: 8px; }
   @media print { body { padding: 15px; } .no-print { display: none; } }
 </style></head><body>
   <div class="no-print" style="text-align:center;margin-bottom:15px">
-    <button onclick="window.print()" style="padding:10px 30px;font-size:14px;background:#6C63FF;color:white;border:none;border-radius:8px;cursor:pointer">🖨️ In / Lưu PDF</button>
+    <button onclick="window.print()" style="padding:10px 30px;font-size:14px;background:#0EA5E9;color:white;border:none;border-radius:8px;cursor:pointer">🖨️ In / Lưu PDF</button>
   </div>
   <div class="header">
     <h2>Báo cáo sự cố đô thị — Đà Nẵng</h2>

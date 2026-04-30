@@ -98,10 +98,10 @@ const UserManagement: React.FC<Props> = ({ onDataChange }) => {
                 ))}
               </TableRow>
             )) : users.map(u => (
-              <TableRow key={u._id} hover sx={{ '&:hover': { bgcolor: 'rgba(108,99,255,0.04)' }, opacity: u.isActive ? 1 : 0.5 }}>
+              <TableRow key={u._id} hover sx={{ '&:hover': { bgcolor: 'rgba(14,165,233,0.04)' }, opacity: u.isActive ? 1 : 0.5 }}>
                 <TableCell sx={cellSx}>
                   <Stack direction="row" alignItems="center" spacing={1}>
-                    <Avatar sx={{ width: 30, height: 30, bgcolor: u.role === 'admin' ? '#6C63FF' : '#3B82F6', fontSize: '0.75rem' }}>
+                    <Avatar sx={{ width: 30, height: 30, bgcolor: u.role === 'admin' ? '#0EA5E9' : '#3B82F6', fontSize: '0.75rem' }}>
                       {u.name.charAt(0).toUpperCase()}
                     </Avatar>
                     <Typography variant="body2" fontWeight={500}>{u.name}</Typography>
@@ -111,12 +111,12 @@ const UserManagement: React.FC<Props> = ({ onDataChange }) => {
                 <TableCell sx={cellSx}>
                   {u._id === currentUser?._id || u._id === (currentUser as any)?.id ? (
                     <Chip size="small" icon={<AdminPanelSettings sx={{ fontSize: 14 }} />} label={u.role === 'admin' ? 'Admin' : 'User'}
-                      sx={{ height: 24, fontSize: '0.7rem', bgcolor: 'rgba(108,99,255,0.2)', color: '#A5B4FC' }} />
+                      sx={{ height: 24, fontSize: '0.7rem', bgcolor: 'rgba(14,165,233,0.2)', color: '#A5B4FC' }} />
                   ) : (
                     <Select size="small" value={u.role} onChange={(e: SelectChangeEvent) => handleRoleChange(u._id, e.target.value)}
                       sx={{
                         height: 28, fontSize: '0.75rem', borderRadius: '8px',
-                        bgcolor: u.role === 'admin' ? 'rgba(108,99,255,0.15)' : 'rgba(59,130,246,0.15)',
+                        bgcolor: u.role === 'admin' ? 'rgba(14,165,233,0.15)' : 'rgba(59,130,246,0.15)',
                         color: u.role === 'admin' ? '#A5B4FC' : '#93C5FD',
                         '& .MuiOutlinedInput-notchedOutline': { borderColor: 'transparent' },
                         '& .MuiSvgIcon-root': { color: u.role === 'admin' ? '#A5B4FC' : '#93C5FD' },

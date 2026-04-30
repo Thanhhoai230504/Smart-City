@@ -54,9 +54,9 @@ const ChatbotWidget: React.FC = () => {
           sx={{
             position: 'fixed', bottom: 75, right: { xs: 16, sm: 24 }, zIndex: 1300,
             width: 56, height: 56,
-            background: 'linear-gradient(135deg, #6C63FF, #3B82F6)',
-            color: '#fff', boxShadow: '0 4px 20px rgba(108,99,255,0.4)',
-            '&:hover': { background: 'linear-gradient(135deg, #5A52D5, #2563EB)', transform: 'scale(1.1)' },
+            background: 'linear-gradient(135deg, #0EA5E9, #3B82F6)',
+            color: '#fff', boxShadow: '0 4px 20px rgba(14,165,233,0.4)',
+            '&:hover': { background: 'linear-gradient(135deg, #0284C7, #2563EB)', transform: 'scale(1.1)' },
             transition: 'all 0.3s',
           }}
         >
@@ -72,12 +72,12 @@ const ChatbotWidget: React.FC = () => {
           borderRadius: '16px', overflow: 'hidden', display: isOpen ? 'flex' : 'none',
           flexDirection: 'column',
           bgcolor: 'rgba(17,24,39,0.97)', backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(108,99,255,0.2)',
+          border: '1px solid rgba(14,165,233,0.2)',
           boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
         }}>
           {/* Header */}
           <Stack direction="row" alignItems="center" justifyContent="space-between"
-            sx={{ px: 2, py: 1.5, background: 'linear-gradient(135deg, #6C63FF, #3B82F6)' }}>
+            sx={{ px: 2, py: 1.5, background: 'linear-gradient(135deg, #0EA5E9, #3B82F6)' }}>
             <Stack direction="row" alignItems="center" spacing={1}>
               <SmartToy sx={{ fontSize: 22 }} />
               <Box>
@@ -100,14 +100,14 @@ const ChatbotWidget: React.FC = () => {
               <Stack key={i} direction="row" justifyContent={msg.role === 'user' ? 'flex-end' : 'flex-start'}
                 sx={{ mb: 1.5 }}>
                 {msg.role === 'assistant' && (
-                  <Avatar sx={{ width: 28, height: 28, mr: 1, bgcolor: '#6C63FF', fontSize: 14 }}>
+                  <Avatar sx={{ width: 28, height: 28, mr: 1, bgcolor: '#0EA5E9', fontSize: 14 }}>
                     <SmartToy sx={{ fontSize: 16 }} />
                   </Avatar>
                 )}
                 <Box sx={{
                   maxWidth: '78%', px: 1.5, py: 1, borderRadius: '12px',
-                  bgcolor: msg.role === 'user' ? 'rgba(108,99,255,0.2)' : 'rgba(255,255,255,0.06)',
-                  border: msg.role === 'user' ? '1px solid rgba(108,99,255,0.3)' : '1px solid rgba(255,255,255,0.06)',
+                  bgcolor: msg.role === 'user' ? 'rgba(14,165,233,0.2)' : 'rgba(255,255,255,0.06)',
+                  border: msg.role === 'user' ? '1px solid rgba(14,165,233,0.3)' : '1px solid rgba(255,255,255,0.06)',
                 }}>
                   <Typography variant="body2" fontSize={13} sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
                     {msg.content}
@@ -122,7 +122,7 @@ const ChatbotWidget: React.FC = () => {
             ))}
             {loading && (
               <Stack direction="row" sx={{ mb: 1.5 }}>
-                <Avatar sx={{ width: 28, height: 28, mr: 1, bgcolor: '#6C63FF' }}>
+                <Avatar sx={{ width: 28, height: 28, mr: 1, bgcolor: '#0EA5E9' }}>
                   <SmartToy sx={{ fontSize: 16 }} />
                 </Avatar>
                 <Box sx={{ px: 1.5, py: 1, borderRadius: '12px', bgcolor: 'rgba(255,255,255,0.06)' }}>
@@ -142,9 +142,9 @@ const ChatbotWidget: React.FC = () => {
                 <Chip key={i} label={qa.label} size="small"
                   onClick={() => sendMessage(qa.msg)}
                   sx={{
-                    fontSize: '0.7rem', bgcolor: 'rgba(108,99,255,0.1)', color: '#A5B4FC',
-                    border: '1px solid rgba(108,99,255,0.2)', cursor: 'pointer',
-                    '&:hover': { bgcolor: 'rgba(108,99,255,0.2)' }
+                    fontSize: '0.7rem', bgcolor: 'rgba(14,165,233,0.1)', color: '#A5B4FC',
+                    border: '1px solid rgba(14,165,233,0.2)', cursor: 'pointer',
+                    '&:hover': { bgcolor: 'rgba(14,165,233,0.2)' }
                   }} />
               ))}
             </Stack>
@@ -161,7 +161,7 @@ const ChatbotWidget: React.FC = () => {
               sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'rgba(255,255,255,0.05)', borderRadius: '10px', fontSize: 13 } }}
             />
             <IconButton onClick={() => sendMessage(input)} disabled={loading || !input.trim()}
-              sx={{ bgcolor: 'rgba(108,99,255,0.2)', color: '#6C63FF', '&:hover': { bgcolor: 'rgba(108,99,255,0.3)' } }}>
+              sx={{ bgcolor: 'rgba(14,165,233,0.2)', color: '#0EA5E9', '&:hover': { bgcolor: 'rgba(14,165,233,0.3)' } }}>
               <Send fontSize="small" />
             </IconButton>
           </Stack>

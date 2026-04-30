@@ -13,7 +13,7 @@ body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #0A0E1A;
+  background-color: #0C1222;
   color: #F1F5F9;
   overflow-x: hidden;
   max-width: 100vw;
@@ -29,7 +29,7 @@ body {
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #111827;
+  background: #141B2D;
 }
 ::-webkit-scrollbar-thumb {
   background: #374151;
@@ -41,7 +41,7 @@ body {
 
 /* Leaflet popup dark theme override */
 .leaflet-popup-content-wrapper {
-  background: #1F2937 !important;
+  background: #1A2332 !important;
   color: #F1F5F9 !important;
   border-radius: 12px !important;
   box-shadow: 0 8px 32px rgba(0,0,0,0.4) !important;
@@ -57,10 +57,10 @@ body {
   color: #94A3B8 !important;
 }
 .leaflet-popup-tip {
-  background: #1F2937 !important;
+  background: #1A2332 !important;
 }
 .leaflet-container {
-  background: #0A0E1A !important;
+  background: #0C1222 !important;
 }
 a.leaflet-popup-close-button {
   color: #94A3B8 !important;

@@ -24,7 +24,7 @@ interface StatsData {
   rating: { average: number; total: number; distribution: Record<number, number> };
 }
 
-const STAT_COLORS = ['#6C63FF', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+const STAT_COLORS = ['#0EA5E9', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 
 const StatisticsPage: React.FC = () => {
   const [data, setData] = useState<StatsData | null>(null);
@@ -90,7 +90,7 @@ const StatisticsPage: React.FC = () => {
         {[
           { label: 'Tổng sự cố', value: data.overview.totalIssues, icon: <TrendingUp />, color: '#3B82F6', bg: 'rgba(59,130,246,0.1)' },
           { label: 'Đã xử lý', value: data.overview.resolvedCount, icon: <CheckCircle />, color: '#10B981', bg: 'rgba(16,185,129,0.1)' },
-          { label: 'Tỷ lệ xử lý', value: `${data.overview.resolutionRate}%`, icon: <TrendingUp />, color: '#6C63FF', bg: 'rgba(108,99,255,0.1)' },
+          { label: 'Tỷ lệ xử lý', value: `${data.overview.resolutionRate}%`, icon: <TrendingUp />, color: '#0EA5E9', bg: 'rgba(14,165,233,0.1)' },
           { label: 'TB thời gian xử lý', value: `${data.overview.avgResolutionHours}h`, icon: <AccessTime />, color: '#F59E0B', bg: 'rgba(245,158,11,0.1)' },
         ].map((card, i) => (
           <Grid item xs={6} md={3} key={i}>
@@ -124,18 +124,18 @@ const StatisticsPage: React.FC = () => {
                 <AreaChart data={trendData}>
                   <defs>
                     <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6C63FF" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#6C63FF" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#0EA5E9" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#0EA5E9" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
                   <XAxis dataKey="date" tick={{ fill: '#9CA3AF', fontSize: 11 }} />
                   <YAxis tick={{ fill: '#9CA3AF', fontSize: 11 }} allowDecimals={false} />
                   <Tooltip
-                    contentStyle={{ background: '#1F2937', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12 }}
+                    contentStyle={{ background: '#1A2332', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12 }}
                     labelStyle={{ color: '#F1F5F9' }}
                   />
-                  <Area type="monotone" dataKey="count" stroke="#6C63FF" fill="url(#trendGrad)" strokeWidth={2} name="Sự cố" />
+                  <Area type="monotone" dataKey="count" stroke="#0EA5E9" fill="url(#trendGrad)" strokeWidth={2} name="Sự cố" />
                 </AreaChart>
               </ResponsiveContainer>
             </CardContent>
@@ -152,7 +152,7 @@ const StatisticsPage: React.FC = () => {
                       <Cell key={i} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip contentStyle={{ background: '#1F2937', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12 }} />
+                  <Tooltip contentStyle={{ background: '#1A2332', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12 }} />
                   <Legend formatter={(value) => <span style={{ color: '#9CA3AF', fontSize: 12 }}>{value}</span>} />
                 </PieChart>
               </ResponsiveContainer>
@@ -172,7 +172,7 @@ const StatisticsPage: React.FC = () => {
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
                   <XAxis type="number" tick={{ fill: '#9CA3AF', fontSize: 11 }} allowDecimals={false} />
                   <YAxis type="category" dataKey="label" tick={{ fill: '#E2E8F0', fontSize: 12 }} width={120} />
-                  <Tooltip contentStyle={{ background: '#1F2937', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12 }} />
+                  <Tooltip contentStyle={{ background: '#1A2332', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12 }} />
                   <Bar dataKey="count" name="Số lượng" radius={[0, 6, 6, 0]}>
                     {data.issuesByCategory.map((entry, i) => (
                       <Cell key={i} fill={CATEGORY_MAP[entry.category]?.color || STAT_COLORS[i % STAT_COLORS.length]} />

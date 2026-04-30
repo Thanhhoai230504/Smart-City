@@ -50,7 +50,7 @@ const RegisterPage: React.FC = () => {
       background: 'linear-gradient(135deg, #0A0E1A 0%, #111827 100%)',
       position: 'relative', overflow: 'hidden',
     }}>
-      <Box sx={{ position: 'absolute', bottom: -100, left: -100, width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(0,217,166,0.1), transparent 70%)', filter: 'blur(60px)' }} />
+      <Box sx={{ position: 'absolute', bottom: -100, left: -100, width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(16,185,129,0.1), transparent 70%)', filter: 'blur(60px)' }} />
 
       <Container maxWidth="sm">
         <Card sx={{ p: { xs: 2, md: 4 }, backdropFilter: 'blur(20px)', bgcolor: 'rgba(17,24,39,0.8)' }}>
@@ -58,7 +58,7 @@ const RegisterPage: React.FC = () => {
             <Box textAlign="center" mb={4}>
               <Box sx={{
                 width: 56, height: 56, borderRadius: '16px', mx: 'auto', mb: 2,
-                background: 'linear-gradient(135deg, #00D9A6, #6C63FF)',
+                background: 'linear-gradient(135deg, #10B981, #0EA5E9)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem',
               }}>👤</Box>
               <Typography variant="h4" fontWeight={700}>Đăng ký</Typography>

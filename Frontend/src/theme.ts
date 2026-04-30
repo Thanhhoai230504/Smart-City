@@ -4,18 +4,18 @@ const theme = createTheme({
   palette: {
     mode: 'dark',
     primary: {
-      main: '#6C63FF',
-      light: '#918AFF',
-      dark: '#4B45B2',
+      main: '#0EA5E9',
+      light: '#38BDF8',
+      dark: '#0284C7',
     },
     secondary: {
-      main: '#00D9A6',
-      light: '#33E4BB',
-      dark: '#009874',
+      main: '#10B981',
+      light: '#34D399',
+      dark: '#059669',
     },
     background: {
-      default: '#0A0E1A',
-      paper: '#111827',
+      default: '#0C1222',
+      paper: '#141B2D',
     },
     error: {
       main: '#FF4D6A',
@@ -24,7 +24,7 @@ const theme = createTheme({
       main: '#FFB547',
     },
     success: {
-      main: '#00D9A6',
+      main: '#10B981',
     },
     info: {
       main: '#3B82F6',
@@ -56,11 +56,11 @@ const theme = createTheme({
           fontSize: '0.95rem',
         },
         containedPrimary: {
-          background: 'linear-gradient(135deg, #6C63FF 0%, #4B45B2 100%)',
-          boxShadow: '0 4px 15px rgba(108, 99, 255, 0.4)',
+          background: 'linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%)',
+          boxShadow: '0 4px 15px rgba(14, 165, 233, 0.4)',
           '&:hover': {
-            background: 'linear-gradient(135deg, #7B73FF 0%, #5A54C2 100%)',
-            boxShadow: '0 6px 20px rgba(108, 99, 255, 0.5)',
+            background: 'linear-gradient(135deg, #38BDF8 0%, #0EA5E9 100%)',
+            boxShadow: '0 6px 20px rgba(14, 165, 233, 0.5)',
           },
         },
       },
@@ -85,7 +85,7 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           backgroundImage: 'none',
-          backgroundColor: 'rgba(10, 14, 26, 0.8)',
+          backgroundColor: 'rgba(12, 18, 34, 0.8)',
           backdropFilter: 'blur(20px)',
           borderBottom: '1px solid rgba(255,255,255,0.06)',
         },

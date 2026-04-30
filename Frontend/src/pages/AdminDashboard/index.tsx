@@ -125,13 +125,13 @@ const AdminDashboard: React.FC = () => {
             {sendingReport ? 'Đang gửi...' : 'Gửi báo cáo'}
           </Button>
           <Chip label={new Date().toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-            sx={{ bgcolor: 'rgba(108,99,255,0.1)', color: 'primary.light', fontWeight: 500 }} />
+            sx={{ bgcolor: 'rgba(14,165,233,0.1)', color: 'primary.light', fontWeight: 500 }} />
         </Stack>
       </Stack>
 
       <Grid container spacing={2.5}>
         {/* STAT CARDS */}
-        <Grid item xs={6} md={4} lg={2}><StatCard icon={<BugReport />} label="Tổng sự cố" value={stats?.overview.totalIssues || 0} gradient="linear-gradient(135deg, #6C63FF, #5A52D5)" /></Grid>
+        <Grid item xs={6} md={4} lg={2}><StatCard icon={<BugReport />} label="Tổng sự cố" value={stats?.overview.totalIssues || 0} gradient="linear-gradient(135deg, #0EA5E9, #0284C7)" /></Grid>
         <Grid item xs={6} md={4} lg={2}><StatCard icon={<Today />} label="Hôm nay" value={stats?.overview.issuesToday || 0} gradient="linear-gradient(135deg, #F59E0B, #D97706)" /></Grid>
         <Grid item xs={6} md={4} lg={2}><StatCard icon={<CalendarMonth />} label="Tuần này" value={stats?.overview.issuesThisWeek || 0} gradient="linear-gradient(135deg, #3B82F6, #2563EB)" /></Grid>
         <Grid item xs={6} md={4} lg={2}><StatCard icon={<People />} label="Người dùng" value={stats?.overview.totalUsers || 0} gradient="linear-gradient(135deg, #10B981, #059669)" /></Grid>
@@ -148,7 +148,7 @@ const AdminDashboard: React.FC = () => {
                 <XAxis dataKey="date" tick={{ fill: '#9CA3AF', fontSize: 11 }} />
                 <YAxis tick={{ fill: '#9CA3AF', fontSize: 11 }} allowDecimals={false} />
                 <RTooltip content={<ChartTooltip />} />
-                <Line type="monotone" dataKey="Sự cố" stroke="#6C63FF" strokeWidth={2.5} dot={{ r: 3, fill: '#6C63FF' }} activeDot={{ r: 6, fill: '#6C63FF', stroke: '#fff', strokeWidth: 2 }} />
+                <Line type="monotone" dataKey="Sự cố" stroke="#0EA5E9" strokeWidth={2.5} dot={{ r: 3, fill: '#0EA5E9' }} activeDot={{ r: 6, fill: '#0EA5E9', stroke: '#fff', strokeWidth: 2 }} />
               </LineChart>
             </ResponsiveContainer>
           </GlassCard>

@@ -25,7 +25,7 @@ interface Props {
   ChartTooltip: React.ComponentType<any>;
 }
 
-const LOCATION_COLORS = ['#6C63FF', '#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#EC4899'];
+const LOCATION_COLORS = ['#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#EC4899'];
 
 const EnvironmentHistoryChart: React.FC<Props> = ({ GlassCard, ChartTooltip }) => {
   const [period, setPeriod] = useState<string>('168'); // hours (7 days)

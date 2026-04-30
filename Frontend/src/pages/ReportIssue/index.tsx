@@ -467,7 +467,7 @@ const ReportIssuePage: React.FC = () => {
                     label={`AI gợi ý: ${CATEGORY_MAP[aiSuggestion.category]?.label || aiSuggestion.category} (${Math.round(aiSuggestion.confidence * 100)}%) — ${aiSuggestion.description}`}
                     size="small"
                     onDelete={() => setAiSuggestion(null)}
-                    sx={{ mt: 1, bgcolor: 'rgba(108,99,255,0.15)', color: '#A5B4FC', border: '1px solid rgba(108,99,255,0.3)', maxWidth: '100%', height: 'auto', '& .MuiChip-label': { whiteSpace: 'normal', py: 0.5 } }}
+                    sx={{ mt: 1, bgcolor: 'rgba(14,165,233,0.15)', color: '#A5B4FC', border: '1px solid rgba(14,165,233,0.3)', maxWidth: '100%', height: 'auto', '& .MuiChip-label': { whiteSpace: 'normal', py: 0.5 } }}
                   />
                 )}
               </Box>
@@ -514,7 +514,7 @@ const ReportIssuePage: React.FC = () => {
                             </Typography>
                             <Stack direction="row" spacing={0.5} mt={0.5}>
                               <Chip label={CATEGORY_MAP[issue.category]?.label || issue.category}
-                                size="small" sx={{ fontSize: '0.65rem', height: 20, bgcolor: 'rgba(108,99,255,0.15)' }} />
+                                size="small" sx={{ fontSize: '0.65rem', height: 20, bgcolor: 'rgba(14,165,233,0.15)' }} />
                               <Chip label={`👍 ${issue.voteCount || 0}`}
                                 size="small" sx={{ fontSize: '0.65rem', height: 20, bgcolor: 'rgba(59,130,246,0.15)' }} />
                             </Stack>

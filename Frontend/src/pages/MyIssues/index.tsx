@@ -144,7 +144,7 @@ const MyIssuesPage: React.FC = () => {
 
       {/* Edit Dialog */}
       <Dialog open={editOpen} onClose={() => setEditOpen(false)} maxWidth="sm" fullWidth
-        PaperProps={{ sx: { bgcolor: '#1F2937', backgroundImage: 'none' } }}>
+        PaperProps={{ sx: { bgcolor: '#1A2332', backgroundImage: 'none' } }}>
         <DialogTitle>✏️ Chỉnh sửa sự cố</DialogTitle>
         <DialogContent>
           <TextField fullWidth label="Tiêu đề" value={editTitle} onChange={(e) => setEditTitle(e.target.value)}

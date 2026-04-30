@@ -129,7 +129,7 @@ const ProfilePage: React.FC = () => {
             <CardContent>
               <Avatar sx={{
                 width: 96, height: 96, mx: 'auto', mb: 2.5, fontSize: '2.5rem', fontWeight: 700,
-                background: 'linear-gradient(135deg, #6C63FF, #00D9A6)',
+                background: 'linear-gradient(135deg, #0EA5E9, #10B981)',
               }}>
                 {user.name.charAt(0).toUpperCase()}
               </Avatar>
@@ -157,7 +157,7 @@ const ProfilePage: React.FC = () => {
                 label={user.role === 'admin' ? 'Quản trị viên' : 'Người dùng'}
                 sx={{
                   mb: 3,
-                  bgcolor: user.role === 'admin' ? 'rgba(108,99,255,0.15)' : 'rgba(0,217,166,0.15)',
+                  bgcolor: user.role === 'admin' ? 'rgba(14,165,233,0.15)' : 'rgba(16,185,129,0.15)',
                   color: user.role === 'admin' ? 'primary.main' : 'secondary.main',
                   fontWeight: 600,
                 }}
@@ -216,7 +216,7 @@ const ProfilePage: React.FC = () => {
               <Typography variant="h6" fontWeight={700} mb={2}>📊 Sự cố của tôi</Typography>
 
               <Stack direction="row" spacing={2} mb={2}>
-                <Box sx={{ textAlign: 'center', flex: 1, p: 1.5, borderRadius: '12px', bgcolor: 'rgba(108,99,255,0.08)' }}>
+                <Box sx={{ textAlign: 'center', flex: 1, p: 1.5, borderRadius: '12px', bgcolor: 'rgba(14,165,233,0.08)' }}>
                   <BugReport sx={{ color: 'primary.main', mb: 0.5 }} />
                   <Typography variant="h5" fontWeight={700}>{myIssues.length}</Typography>
                   <Typography variant="caption" color="text.secondary">Tổng cộng</Typography>
