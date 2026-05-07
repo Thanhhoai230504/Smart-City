@@ -89,16 +89,22 @@ const getEnvironmentData = async () => {
 };
 
 const getEnvironmentHistory = async ({ location, hours = 24 }) => {
+  const hoursNum = parseInt(hours) || 24;
+
   const filter = {
     createdAt: {
-      $gte: new Date(Date.now() - parseInt(hours) * 60 * 60 * 1000)
+      $gte: new Date(Date.now() - hoursNum * 60 * 60 * 1000)
     }
   };
   if (location) filter.location = location;
 
+  // 7 locations × hours = reasonable max; cap at 5000 for safety
+  const maxRecords = Math.min(7 * hoursNum, 5000);
+
   const history = await EnvironmentData.find(filter)
     .sort('-createdAt')
-    .limit(100);
+    .limit(maxRecords)
+    .lean();
 
   return { history, total: history.length };
 };
