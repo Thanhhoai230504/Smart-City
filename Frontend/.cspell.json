@@ -1,0 +1,20 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "ignorePaths": ["node_modules", "dist", "build", "*.lock"],
+  "ignoreRegExpList": [
+    "[À-ÖØ-öø-ÿĀ-žḀ-ỿ]+"
+  ],
+  "words": [
+    "Giao", "quan", "gian", "minh", "Minh",
+    "ngay", "nhanh", "khai", "Biet", "Thanh",
+    "Hanh", "Phan", "Kham", "Pha", "Canh",
+    "Bao", "Gia", "Thong", "Trang", "Nhanh",
+    "BIET", "HANH", "PHAN", "KHAM", "CANH",
+    "THONG", "TRANG", "NHANH", "BIET",
+    "axiosClient", "statisticsApi", "cspell",
+    "sockio", "socketio", "realtime",
+    "keyframes", "endIcon", "startIcon",
+    "playsInline", "autoPlay"
+  ]
+}
