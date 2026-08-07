@@ -83,7 +83,7 @@ describe('PlaceService', () => {
 
   describe('updatePlace()', () => {
     it('should throw if place not found', async () => {
-      Place.findByIdAndUpdate.mockResolvedValue(null);
+      Place.findById.mockResolvedValue(null);
 
       await expect(
         placeService.updatePlace('nonexistent', { name: 'Updated' })
@@ -91,17 +91,65 @@ describe('PlaceService', () => {
     });
 
     it('should update and return place', async () => {
-      const updatedPlace = { _id: '1', name: 'Updated Hospital' };
-      Place.findByIdAndUpdate.mockResolvedValue(updatedPlace);
+      const updatedPlace = {
+        _id: '1',
+        name: 'Hospital',
+        save: jest.fn().mockResolvedValue(undefined),
+      };
+      Place.findById.mockResolvedValue(updatedPlace);
 
       const result = await placeService.updatePlace('1', { name: 'Updated Hospital' });
 
       expect(result.name).toBe('Updated Hospital');
-      expect(Place.findByIdAndUpdate).toHaveBeenCalledWith(
-        '1',
-        { name: 'Updated Hospital' },
-        { new: true, runValidators: true }
-      );
+      expect(Place.findById).toHaveBeenCalledWith('1');
+      expect(updatedPlace.save).toHaveBeenCalledTimes(1);
+    });
+
+    // Hồi quy: Object.assign(place, req.body) cho client gán geo trực tiếp,
+    // làm toạ độ GeoJSON lệch khỏi latitude/longitude.
+    it('should ignore fields outside the whitelist', async () => {
+      const place = {
+        _id: '1',
+        name: 'Hospital',
+        latitude: 16.05,
+        longitude: 108.2,
+        geo: { type: 'Point', coordinates: [108.2, 16.05] },
+        save: jest.fn().mockResolvedValue(undefined),
+      };
+      Place.findById.mockResolvedValue(place);
+
+      const result = await placeService.updatePlace('1', {
+        name: 'Updated Hospital',
+        geo: { type: 'Point', coordinates: [0, 0] },
+        _id: 'hacked',
+        createdAt: new Date(0),
+      });
+
+      expect(result.name).toBe('Updated Hospital');
+      expect(result.geo.coordinates).toEqual([108.2, 16.05]);
+      expect(result._id).toBe('1');
+      expect(result.createdAt).toBeUndefined();
+    });
+
+    it('should apply isActive and coordinate updates', async () => {
+      const place = {
+        _id: '1',
+        latitude: 16.05,
+        longitude: 108.2,
+        isActive: true,
+        save: jest.fn().mockResolvedValue(undefined),
+      };
+      Place.findById.mockResolvedValue(place);
+
+      const result = await placeService.updatePlace('1', {
+        latitude: 21.03,
+        longitude: 105.85,
+        isActive: false,
+      });
+
+      expect(result.latitude).toBe(21.03);
+      expect(result.longitude).toBe(105.85);
+      expect(result.isActive).toBe(false);
     });
   });
 

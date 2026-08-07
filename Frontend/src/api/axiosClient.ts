@@ -6,6 +6,7 @@ const axiosClient = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true, // send cookies (refresh token)
+  timeout: 30_000,
 });
 
 // Request interceptor: attach access token
@@ -33,8 +34,16 @@ axiosClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    const requestUrl = originalRequest?.url || '';
+    const isAuthRequest = [
+      '/auth/login',
+      '/auth/register',
+      '/auth/refresh',
+      '/auth/forgot-password',
+      '/auth/reset-password',
+    ].some((path) => requestUrl.includes(path));
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && !originalRequest?._retry && !isAuthRequest) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });

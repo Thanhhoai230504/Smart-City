@@ -10,6 +10,10 @@ interface IssueState {
   myPagination: Pagination | null;
   loading: boolean;
   error: string | null;
+  activeListRequestId: string | null;
+  activeDetailRequestId: string | null;
+  activeMyRequestId: string | null;
+  activeLoadingRequestId: string | null;
 }
 
 const initialState: IssueState = {
@@ -20,20 +24,24 @@ const initialState: IssueState = {
   myPagination: null,
   loading: false,
   error: null,
+  activeListRequestId: null,
+  activeDetailRequestId: null,
+  activeMyRequestId: null,
+  activeLoadingRequestId: null,
 };
 
-export const fetchIssues = createAsyncThunk('issues/fetchAll', async (params: Record<string, string | number> | undefined, { rejectWithValue }) => {
+export const fetchIssues = createAsyncThunk('issues/fetchAll', async (params: Record<string, string | number> | undefined, { rejectWithValue, signal }) => {
   try {
-    const { data } = await issueApi.getIssues(params);
+    const { data } = await issueApi.getIssues(params, signal);
     return data.data;
   } catch (err: any) {
     return rejectWithValue(err.response?.data?.message || 'Lỗi tải danh sách sự cố');
   }
 });
 
-export const fetchIssueById = createAsyncThunk('issues/fetchById', async (id: string, { rejectWithValue }) => {
+export const fetchIssueById = createAsyncThunk('issues/fetchById', async (id: string, { rejectWithValue, signal }) => {
   try {
-    const { data } = await issueApi.getIssueById(id);
+    const { data } = await issueApi.getIssueById(id, signal);
     return data.data;
   } catch (err: any) {
     return rejectWithValue(err.response?.data?.message || 'Không tìm thấy sự cố');
@@ -49,9 +57,9 @@ export const createIssue = createAsyncThunk('issues/create', async (formData: Fo
   }
 });
 
-export const fetchMyIssues = createAsyncThunk('issues/fetchMy', async (params: Record<string, string | number> | undefined, { rejectWithValue }) => {
+export const fetchMyIssues = createAsyncThunk('issues/fetchMy', async (params: Record<string, string | number> | undefined, { rejectWithValue, signal }) => {
   try {
-    const { data } = await issueApi.getMyIssues(params);
+    const { data } = await issueApi.getMyIssues(params, signal);
     return data.data;
   } catch (err: any) {
     return rejectWithValue(err.response?.data?.message || 'Lỗi tải sự cố của bạn');
@@ -67,26 +75,68 @@ const issueSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchIssues.pending, (state) => { state.loading = true; })
+      .addCase(fetchIssues.pending, (state, action) => {
+        state.loading = true;
+        state.error = null;
+        state.activeListRequestId = action.meta.requestId;
+        state.activeLoadingRequestId = action.meta.requestId;
+      })
       .addCase(fetchIssues.fulfilled, (state, action) => {
-        state.loading = false;
+        if (state.activeListRequestId !== action.meta.requestId) return;
+        if (state.activeLoadingRequestId === action.meta.requestId) state.loading = false;
         state.issues = action.payload.issues;
         state.pagination = action.payload.pagination;
       })
-      .addCase(fetchIssues.rejected, (state, action) => { state.loading = false; state.error = action.payload as string; })
-      .addCase(fetchIssueById.pending, (state) => { state.loading = true; })
-      .addCase(fetchIssueById.fulfilled, (state, action) => { state.loading = false; state.currentIssue = action.payload.issue; })
-      .addCase(fetchIssueById.rejected, (state, action) => { state.loading = false; state.error = action.payload as string; })
-      .addCase(createIssue.pending, (state) => { state.loading = true; })
-      .addCase(createIssue.fulfilled, (state) => { state.loading = false; })
-      .addCase(createIssue.rejected, (state, action) => { state.loading = false; state.error = action.payload as string; })
-      .addCase(fetchMyIssues.pending, (state) => { state.loading = true; })
+      .addCase(fetchIssues.rejected, (state, action) => {
+        if (state.activeListRequestId !== action.meta.requestId) return;
+        if (state.activeLoadingRequestId === action.meta.requestId) state.loading = false;
+        if (!action.meta.aborted) state.error = action.payload as string;
+      })
+      .addCase(fetchIssueById.pending, (state, action) => {
+        state.loading = true;
+        state.error = null;
+        state.activeDetailRequestId = action.meta.requestId;
+        state.activeLoadingRequestId = action.meta.requestId;
+      })
+      .addCase(fetchIssueById.fulfilled, (state, action) => {
+        if (state.activeDetailRequestId !== action.meta.requestId) return;
+        if (state.activeLoadingRequestId === action.meta.requestId) state.loading = false;
+        state.currentIssue = action.payload.issue;
+      })
+      .addCase(fetchIssueById.rejected, (state, action) => {
+        if (state.activeDetailRequestId !== action.meta.requestId) return;
+        if (state.activeLoadingRequestId === action.meta.requestId) state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(createIssue.pending, (state, action) => {
+        state.loading = true;
+        state.error = null;
+        state.activeLoadingRequestId = action.meta.requestId;
+      })
+      .addCase(createIssue.fulfilled, (state, action) => {
+        if (state.activeLoadingRequestId === action.meta.requestId) state.loading = false;
+      })
+      .addCase(createIssue.rejected, (state, action) => {
+        if (state.activeLoadingRequestId === action.meta.requestId) state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(fetchMyIssues.pending, (state, action) => {
+        state.loading = true;
+        state.error = null;
+        state.activeMyRequestId = action.meta.requestId;
+        state.activeLoadingRequestId = action.meta.requestId;
+      })
       .addCase(fetchMyIssues.fulfilled, (state, action) => {
-        state.loading = false;
+        if (state.activeMyRequestId !== action.meta.requestId) return;
+        if (state.activeLoadingRequestId === action.meta.requestId) state.loading = false;
         state.myIssues = action.payload.issues;
         state.myPagination = action.payload.pagination;
       })
-      .addCase(fetchMyIssues.rejected, (state, action) => { state.loading = false; state.error = action.payload as string; });
+      .addCase(fetchMyIssues.rejected, (state, action) => {
+        if (state.activeMyRequestId !== action.meta.requestId) return;
+        if (state.activeLoadingRequestId === action.meta.requestId) state.loading = false;
+        state.error = action.payload as string;
+      });
   },
 });
 

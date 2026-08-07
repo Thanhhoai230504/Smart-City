@@ -11,8 +11,28 @@ const ExportButton: React.FC = () => {
   const [exporting, setExporting] = useState(false);
 
   const fetchAllIssues = async () => {
-    const { data } = await issueApi.getIssues({ limit: 1000, sort: '-createdAt' });
-    return data.data.issues;
+    const pageSize = 100;
+    const { data: firstResponse } = await issueApi.getIssues({
+      page: 1,
+      limit: pageSize,
+      sort: '-createdAt',
+    });
+    const allIssues = [...firstResponse.data.issues];
+    const totalPages = firstResponse.data.pagination.pages;
+
+    // Tải theo lô nhỏ để không tạo hàng trăm request đồng thời khi dữ liệu lớn.
+    for (let startPage = 2; startPage <= totalPages; startPage += 4) {
+      const pages = Array.from(
+        { length: Math.min(4, totalPages - startPage + 1) },
+        (_, index) => startPage + index
+      );
+      const responses = await Promise.all(
+        pages.map((page) => issueApi.getIssues({ page, limit: pageSize, sort: '-createdAt' }))
+      );
+      responses.forEach((response) => allIssues.push(...response.data.data.issues));
+    }
+
+    return allIssues;
   };
 
   const handleExportExcel = async () => {

@@ -152,6 +152,8 @@ describe('Auth Middleware', () => {
         name: 'Test User',
         email: 'test@test.com',
         role: 'user',
+        // null với user/admin; chỉ có giá trị với role 'staff'
+        departmentId: null,
       });
       expect(mockNext).toHaveBeenCalledWith();
     });

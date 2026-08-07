@@ -1,14 +1,18 @@
 jest.mock('../../src/models/User');
 jest.mock('jsonwebtoken');
+jest.mock('../../src/services/emailService', () => ({
+  sendEmail: jest.fn(),
+}));
 
 const jwt = require('jsonwebtoken');
 const User = require('../../src/models/User');
+const { sendEmail } = require('../../src/services/emailService');
 const authService = require('../../src/services/authService');
-const ApiError = require('../../src/utils/apiError');
 
 describe('AuthService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    sendEmail.mockResolvedValue(true);
   });
 
   describe('registerUser()', () => {
@@ -40,12 +44,23 @@ describe('AuthService', () => {
         name: 'Test User',
         email: 'test@test.com',
         role: 'user',
+        isVerified: false,
+        verificationEmailSent: true,
       });
-      expect(User.create).toHaveBeenCalledWith({
+      expect(User.create).toHaveBeenCalledWith(expect.objectContaining({
         name: 'Test User',
         email: 'test@test.com',
         password: '123456',
-      });
+        isVerified: false,
+        emailVerificationTokenHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+        emailVerificationExpires: expect.any(Date),
+        emailVerificationSentAt: expect.any(Date),
+      }));
+      expect(sendEmail).toHaveBeenCalledWith(
+        'test@test.com',
+        expect.stringContaining('Smart City'),
+        expect.stringContaining('/verify-email?token=')
+      );
     });
   });
 
@@ -105,6 +120,116 @@ describe('AuthService', () => {
       expect(result.refreshToken).toBe('refresh-token');
       expect(result.user.email).toBe('test@test.com');
       expect(User.findByIdAndUpdate).toHaveBeenCalledWith('user123', { refreshToken: 'refresh-token' });
+    });
+
+    it('should block an unverified local account after a valid password', async () => {
+      const unverifiedUser = {
+        ...mockUserDoc,
+        provider: 'local',
+        isVerified: false,
+        comparePassword: jest.fn().mockResolvedValue(true),
+      };
+      User.findOne.mockReturnValue({
+        select: jest.fn().mockResolvedValue(unverifiedUser),
+      });
+
+      await expect(
+        authService.loginUser({ email: 'test@test.com', password: '123456' })
+      ).rejects.toMatchObject({
+        statusCode: 403,
+        code: 'EMAIL_NOT_VERIFIED',
+      });
+    });
+  });
+
+  describe('verifyEmail()', () => {
+    it('should verify a valid token and clear its stored hash', async () => {
+      const user = {
+        _id: 'user123',
+        name: 'Test',
+        email: 'test@test.com',
+        isVerified: false,
+        emailVerificationTokenHash: 'old-hash',
+        emailVerificationExpires: new Date(),
+        emailVerificationSentAt: new Date(),
+        save: jest.fn().mockResolvedValue(true),
+      };
+      User.findOne.mockReturnValue({
+        select: jest.fn().mockResolvedValue(user),
+      });
+
+      const result = await authService.verifyEmail('a'.repeat(64));
+
+      expect(User.findOne).toHaveBeenCalledWith(expect.objectContaining({
+        emailVerificationTokenHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+        isVerified: false,
+      }));
+      expect(user.isVerified).toBe(true);
+      expect(user.emailVerificationTokenHash).toBeNull();
+      expect(user.emailVerificationExpires).toBeNull();
+      expect(user.save).toHaveBeenCalled();
+      expect(result.isVerified).toBe(true);
+    });
+
+    it('should reject an invalid or expired token', async () => {
+      User.findOne.mockReturnValue({
+        select: jest.fn().mockResolvedValue(null),
+      });
+
+      await expect(authService.verifyEmail('b'.repeat(64)))
+        .rejects.toThrow('Liên kết xác thực không hợp lệ hoặc đã hết hạn.');
+    });
+  });
+
+  describe('resendVerificationEmail()', () => {
+    it('should issue a new token and send a verification email', async () => {
+      const user = {
+        email: 'test@test.com',
+        name: 'Test',
+        provider: 'local',
+        isVerified: false,
+        emailVerificationSentAt: new Date(Date.now() - 120000),
+        save: jest.fn().mockResolvedValue(true),
+      };
+      User.findOne.mockReturnValue({
+        select: jest.fn().mockResolvedValue(user),
+      });
+
+      await expect(authService.resendVerificationEmail(' TEST@TEST.COM '))
+        .resolves.toEqual({ sent: true });
+
+      expect(User.findOne).toHaveBeenCalledWith({
+        email: 'test@test.com',
+        provider: 'local',
+      });
+      expect(user.emailVerificationTokenHash).toMatch(/^[a-f0-9]{64}$/);
+      expect(user.emailVerificationExpires).toBeInstanceOf(Date);
+      expect(user.save).toHaveBeenCalled();
+      expect(sendEmail).toHaveBeenCalled();
+    });
+
+    it('should enforce the resend cooldown without revealing account state', async () => {
+      User.findOne.mockReturnValue({
+        select: jest.fn().mockResolvedValue({
+          provider: 'local',
+          isVerified: false,
+          emailVerificationSentAt: new Date(),
+        }),
+      });
+
+      await expect(authService.resendVerificationEmail('test@test.com'))
+        .resolves.toEqual({ sent: true });
+      expect(sendEmail).not.toHaveBeenCalled();
+    });
+
+    it('should not reveal whether an email exists or is already verified', async () => {
+      User.findOne.mockReturnValue({
+        select: jest.fn().mockResolvedValue(null),
+      });
+
+      await expect(authService.resendVerificationEmail('none@test.com'))
+        .resolves.toEqual({ sent: true });
+      expect(sendEmail).not.toHaveBeenCalled();
     });
   });
 

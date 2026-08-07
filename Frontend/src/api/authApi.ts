@@ -5,6 +5,12 @@ export const authApi = {
   register: (data: RegisterData) =>
     axiosClient.post('/auth/register', data),
 
+  verifyEmail: (token: string) =>
+    axiosClient.get('/auth/verify-email', { params: { token } }),
+
+  resendVerification: (email: string) =>
+    axiosClient.post('/auth/resend-verification', { email }),
+
   login: (data: LoginCredentials) =>
     axiosClient.post('/auth/login', data),
 

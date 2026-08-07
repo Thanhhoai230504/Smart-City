@@ -16,6 +16,10 @@ passport.use(new GoogleStrategy({
     let user = await User.findOne({ provider: 'google', providerId: profile.id });
 
     if (user) {
+      if (!user.isVerified) {
+        user.isVerified = true;
+        await user.save();
+      }
       return done(null, user);
     }
 
@@ -28,6 +32,9 @@ passport.use(new GoogleStrategy({
         existingLocal.provider = 'google';
         existingLocal.providerId = profile.id;
         existingLocal.avatar = profile.photos?.[0]?.value || null;
+        existingLocal.isVerified = true;
+        existingLocal.emailVerificationTokenHash = null;
+        existingLocal.emailVerificationExpires = null;
         await existingLocal.save();
         return done(null, existingLocal);
       }
@@ -40,6 +47,7 @@ passport.use(new GoogleStrategy({
       provider: 'google',
       providerId: profile.id,
       avatar: profile.photos?.[0]?.value || null,
+      isVerified: true,
     });
 
     done(null, user);

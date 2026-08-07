@@ -1,12 +1,12 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store/store';
 import { Navigate } from 'react-router-dom';
 import { dashboardApi } from '../../api/dashboardApi';
 import { environmentApi } from '../../api/environmentApi';
-import { issueApi } from '../../api/issueApi';
 import {
   Box, Grid, Typography, Chip, Stack, Skeleton, Button, CircularProgress,
+  Tab, Tabs,
 } from '@mui/material';
 import {
   BugReport, Today, CalendarMonth, People, Place as PlaceIcon, Speed,
@@ -28,6 +28,10 @@ import EnvironmentHistoryChart from './EnvironmentHistoryChart';
 import TrafficDashboard from './TrafficDashboard';
 import ExportButton from './ExportButton';
 import DashboardLoading from './DashboardLoading';
+import DepartmentManagement from './DepartmentManagement';
+import AssignmentManagement from './AssignmentManagement';
+import DepartmentPerformance from './DepartmentPerformance';
+import AuditLogManagement from './AuditLogManagement';
 
 // ═══════════════ MAIN COMPONENT ═══════════════
 const AdminDashboard: React.FC = () => {
@@ -36,9 +40,9 @@ const AdminDashboard: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [traffic, setTraffic] = useState<TrafficStats | null>(null);
   const [envData, setEnvData] = useState<EnvData[]>([]);
-  const [allIssues, setAllIssues] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [sendingReport, setSendingReport] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
 
 
   const refreshStats = useCallback(async () => {
@@ -54,9 +58,8 @@ const AdminDashboard: React.FC = () => {
     (async () => {
       setLoading(true);
       try {
-        const [s, t, e, i] = await Promise.allSettled([
+        const [s, t, e] = await Promise.allSettled([
           dashboardApi.getStats(), dashboardApi.getTrafficStats(), environmentApi.getEnvironmentData(),
-          issueApi.getIssues({ limit: 500, sort: '-createdAt' }),
         ]);
         if (s.status === 'fulfilled') setStats(s.value.data.data);
         if (t.status === 'fulfilled') setTraffic(t.value.data.data);
@@ -64,29 +67,14 @@ const AdminDashboard: React.FC = () => {
           const d = e.value.data.data;
           setEnvData(Array.isArray(d.environment) ? d.environment : []);
         }
-        if (i.status === 'fulfilled') setAllIssues(i.value.data.data.issues || []);
       } finally { setLoading(false); }
     })();
   }, [isAuthenticated, currentUser]);
 
-  // District classification from location string (goong.io address)
-  const districtData = useMemo(() => {
-    const DISTRICT_NAMES = ['Hải Châu', 'Thanh Khê', 'Sơn Trà', 'Ngũ Hành Sơn', 'Liên Chiểu', 'Cẩm Lệ', 'Hòa Vang'];
-    const districts: Record<string, number> = {};
-    DISTRICT_NAMES.forEach((d) => { districts[d] = 0; });
-    districts['Khác'] = 0;
-
-    allIssues.forEach((issue) => {
-      const loc = issue.location || '';
-      const matched = DISTRICT_NAMES.find((d) => loc.includes(d));
-      districts[matched || 'Khác']++;
-    });
-
-    return Object.entries(districts)
-      .filter(([, count]) => count > 0)
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count);
-  }, [allIssues]);
+  // Thống kê theo quận và top vote đều do backend aggregate sẵn, không còn
+  // tải 500 issue về client để tự group nữa.
+  const districtData = (stats?.issuesByDistrict || []).filter((d) => d.count > 0);
+  const topVotedIssues = stats?.topVotedIssues || [];
 
   // Auth guards (AFTER all hooks)
   if (!isAuthenticated) return <Navigate to="/login" replace />;
@@ -129,7 +117,24 @@ const AdminDashboard: React.FC = () => {
         </Stack>
       </Stack>
 
-      <Grid container spacing={2.5}>
+      <Box sx={{ borderBottom: '1px solid rgba(255,255,255,0.08)', mb: 2.5 }}>
+        <Tabs
+          value={activeTab}
+          onChange={(_, value: number) => setActiveTab(value)}
+          variant="scrollable"
+          scrollButtons="auto"
+          aria-label="Khu vực quản trị"
+        >
+          <Tab label="Tổng quan" />
+          <Tab label="Đơn vị xử lý" />
+          <Tab label="Phân công" />
+          <Tab label="Hiệu suất" />
+          <Tab label="Nhật ký" />
+        </Tabs>
+      </Box>
+
+      {activeTab === 0 ? (
+        <Grid container spacing={2.5}>
         {/* STAT CARDS */}
         <Grid item xs={6} md={4} lg={2}><StatCard icon={<BugReport />} label="Tổng sự cố" value={stats?.overview.totalIssues || 0} gradient="linear-gradient(135deg, #0EA5E9, #0284C7)" /></Grid>
         <Grid item xs={6} md={4} lg={2}><StatCard icon={<Today />} label="Hôm nay" value={stats?.overview.issuesToday || 0} gradient="linear-gradient(135deg, #F59E0B, #D97706)" /></Grid>
@@ -211,16 +216,12 @@ const AdminDashboard: React.FC = () => {
         </Grid>
 
         {/* TOP VOTED ISSUES */}
-        {allIssues.some(i => (i.voteCount || 0) > 0) && (
+        {topVotedIssues.length > 0 && (
           <Grid item xs={12}>
             <GlassCard>
               <Typography fontWeight={600} mb={2}>🔥 Sự cố quan trọng nhất (theo vote)</Typography>
               <Stack spacing={1}>
-                {allIssues
-                  .filter(i => (i.voteCount || 0) > 0)
-                  .sort((a, b) => (b.voteCount || 0) - (a.voteCount || 0))
-                  .slice(0, 5)
-                  .map((issue, i) => (
+                {topVotedIssues.map((issue, i) => (
                     <Stack key={issue._id} direction="row" alignItems="center" spacing={2}
                       sx={{ p: 1.5, borderRadius: '10px', bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
                       <Typography fontWeight={700} color="primary.main" fontSize={18} sx={{ minWidth: 28 }}>
@@ -297,9 +298,16 @@ const AdminDashboard: React.FC = () => {
             </Grid>
           </GlassCard>
         </Grid>
-
-
-      </Grid>
+        </Grid>
+      ) : activeTab === 1 ? (
+        <DepartmentManagement />
+      ) : activeTab === 2 ? (
+        <AssignmentManagement />
+      ) : activeTab === 3 ? (
+        <DepartmentPerformance />
+      ) : (
+        <AuditLogManagement />
+      )}
     </Box>
   );
 };

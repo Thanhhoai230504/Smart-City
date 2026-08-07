@@ -28,6 +28,10 @@ class ApiError extends Error {
   static internal(message) {
     return new ApiError(500, message || 'Internal server error');
   }
+
+  static serviceUnavailable(message) {
+    return new ApiError(503, message || 'Service unavailable');
+  }
 }
 
 module.exports = ApiError;

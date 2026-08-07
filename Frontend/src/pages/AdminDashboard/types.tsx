@@ -2,6 +2,7 @@ import React from 'react';
 import {
   Box, Paper, Typography, Stack, Avatar,
 } from '@mui/material';
+import { Department, UserRole } from '../../types';
 
 // ─── Interfaces ───
 export interface DashboardStats {
@@ -12,6 +13,13 @@ export interface DashboardStats {
   issuesByStatus: Record<string, number>;
   issuesByCategory: { category: string; label: string; count: number }[];
   issuesTrend: { date: string; count: number }[];
+  // Backend gom nhóm sẵn theo field district đã chuẩn hoá
+  issuesByDistrict?: { name: string; count: number }[];
+  topVotedIssues?: TopVotedIssue[];
+}
+
+export interface TopVotedIssue {
+  _id: string; title: string; status: string; location: string; voteCount: number;
 }
 
 export interface TrafficRoad {
@@ -33,14 +41,19 @@ export interface EnvData {
 }
 
 export interface IssueItem {
-  _id: string; title: string; category: string; status: string;
-  location: string; createdAt: string;
-  userId?: { _id: string; name: string; email: string };
+    _id: string; title: string; category: string; status: string;
+    description: string; location: string; createdAt: string;
+    latitude: number; longitude: number; imageUrl?: string | null;
+  /** `email` chỉ có khi người gọi là admin/cán bộ */
+  userId?: { _id: string; name: string; email?: string } | string;
+  voteCount?: number;
+  duplicateCount?: number;
 }
 
 export interface UserItem {
-  _id: string; name: string; email: string; role: string;
+  _id: string; name: string; email: string; role: UserRole;
   isActive: boolean; createdAt: string;
+  departmentId?: Department | string | null;
   issueCount?: number;
   topBadge?: { id: string; label: string; icon: string; threshold: number } | null;
 }

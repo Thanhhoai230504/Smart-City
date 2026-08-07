@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../../store/store';
@@ -30,13 +30,16 @@ const MyIssuesPage: React.FC = () => {
   const [editDesc, setEditDesc] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const loadIssues = () => {
+  const loadIssues = useCallback(() => {
     const params: Record<string, string | number> = { page, limit: 10 };
     if (status) params.status = status;
-    dispatch(fetchMyIssues(params));
-  };
+    return dispatch(fetchMyIssues(params));
+  }, [dispatch, page, status]);
 
-  useEffect(() => { loadIssues(); }, [dispatch, page, status]);
+  useEffect(() => {
+    const request = loadIssues();
+    return () => request.abort();
+  }, [loadIssues]);
 
   const handleDelete = async (e: React.MouseEvent, issueId: string) => {
     e.stopPropagation();

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { lazy, Suspense, useState } from 'react';
 import { Link as RouterLink, useNavigate, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store/store';
@@ -6,22 +6,34 @@ import { logoutThunk } from '../store/slices/authSlice';
 import {
   AppBar, Toolbar, Typography, Button, Box, IconButton, Drawer,
   List, ListItem, ListItemButton, ListItemIcon, ListItemText,
-  Avatar, Menu, MenuItem, Divider, useMediaQuery, useTheme, Badge,
+  Avatar, Menu, MenuItem, Divider, useMediaQuery, useTheme,
   Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material';
 import {
   Menu as MenuIcon, Map as MapIcon, ReportProblem, Home, ListAlt,
-  Login, PersonAdd, Person, Logout, Add, NotificationsActive, Dashboard,
-  BarChart as BarChartIcon,
+  Login, PersonAdd, Person, Logout, Add, Dashboard,
+  BarChart as BarChartIcon, AssignmentInd, Videocam,
 } from '@mui/icons-material';
 
-import NotificationCenter from '../components/NotificationCenter';
+const NotificationCenter = lazy(() => import('../components/NotificationCenter'));
+import { UserRole } from '../types';
 
 const NAV_ITEMS = [
   { label: 'Trang chủ', path: '/', icon: <Home /> },
   { label: 'Bản đồ', path: '/map', icon: <MapIcon /> },
   { label: 'Sự cố', path: '/issues', icon: <ReportProblem /> },
   { label: 'Thống kê', path: '/statistics', icon: <BarChartIcon /> },
+  { label: 'Camera', path: '/cameras', icon: <Videocam /> },
+];
+
+const ROLE_NAV_ITEMS: Array<{
+  label: string;
+  path: string;
+  icon: React.ReactElement;
+  roles: UserRole[];
+}> = [
+  { label: 'Cán bộ', path: '/staff', icon: <AssignmentInd />, roles: ['staff', 'admin'] },
+  { label: 'Dashboard', path: '/admin', icon: <Dashboard />, roles: ['admin'] },
 ];
 
 const Header: React.FC = () => {
@@ -35,6 +47,9 @@ const Header: React.FC = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const roleNavItems = user
+    ? ROLE_NAV_ITEMS.filter((item) => item.roles.includes(user.role))
+    : [];
 
   const handleLogout = async () => {
     setLogoutOpen(false);
@@ -82,20 +97,21 @@ const Header: React.FC = () => {
                   {item.label}
                 </Button>
               ))}
-              {user?.role === 'admin' && (
+              {roleNavItems.map((item) => (
                 <Button
+                  key={item.path}
                   component={RouterLink}
-                  to="/admin"
-                  startIcon={<Dashboard />}
+                  to={item.path}
+                  startIcon={item.icon}
                   sx={{
-                    color: location.pathname === '/admin' ? 'primary.main' : 'text.secondary',
-                    fontWeight: location.pathname === '/admin' ? 600 : 400,
+                    color: location.pathname === item.path ? 'primary.main' : 'text.secondary',
+                    fontWeight: location.pathname === item.path ? 600 : 400,
                     '&:hover': { color: 'primary.light', bgcolor: 'rgba(14,165,233,0.08)' },
                   }}
                 >
-                  Dashboard
+                  {item.label}
                 </Button>
-              )}
+              ))}
             </Box>
           )}
 
@@ -107,8 +123,10 @@ const Header: React.FC = () => {
                 sx={{ display: { xs: 'none', sm: 'flex' }, borderRadius: '20px' }}>
                 Báo cáo
               </Button>
-              <NotificationCenter />
-              <IconButton onClick={(e) => setAnchorEl(e.currentTarget)} sx={{ p: 0.5 }}>
+              <Suspense fallback={null}>
+                <NotificationCenter />
+              </Suspense>
+              <IconButton aria-label="Mở menu tài khoản" onClick={(e) => setAnchorEl(e.currentTarget)} sx={{ p: 0.5 }}>
                 <Avatar sx={{ width: 36, height: 36, bgcolor: 'primary.main', fontSize: '0.9rem', fontWeight: 700 }}>
                   {user?.name?.charAt(0).toUpperCase()}
                 </Avatar>
@@ -166,15 +184,15 @@ const Header: React.FC = () => {
               </ListItemButton>
             </ListItem>
           )}
-          {user?.role === 'admin' && (
-            <ListItem disablePadding>
-              <ListItemButton onClick={() => { setDrawerOpen(false); navigate('/admin'); }}
-                selected={location.pathname === '/admin'}>
-                <ListItemIcon sx={{ color: location.pathname === '/admin' ? 'primary.main' : 'text.secondary' }}><Dashboard /></ListItemIcon>
-                <ListItemText primary="Dashboard" />
+          {roleNavItems.map((item) => (
+            <ListItem key={item.path} disablePadding>
+              <ListItemButton onClick={() => { setDrawerOpen(false); navigate(item.path); }}
+                selected={location.pathname === item.path}>
+                <ListItemIcon sx={{ color: location.pathname === item.path ? 'primary.main' : 'text.secondary' }}>{item.icon}</ListItemIcon>
+                <ListItemText primary={item.label} />
               </ListItemButton>
             </ListItem>
-          )}
+          ))}
         </List>
       </Drawer>
 

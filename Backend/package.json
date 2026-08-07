@@ -9,7 +9,15 @@
     "seed": "node src/seeds/seed.js",
     "test": "jest --verbose --forceExit --detectOpenHandles",
     "test:coverage": "jest --coverage --forceExit --detectOpenHandles",
-    "lint": "eslint src/"
+    "lint": "eslint src/",
+    "seed:departments": "node src/seeds/seedDepartments.js",
+    "backfill:issues": "node src/scripts/backfillIssueFields.js",
+    "backfill:places": "node src/scripts/backfillPlaceGeo.js",
+    "backfill:priorities": "node src/scripts/backfillPriorityScores.js",
+    "explain:priorities": "node src/scripts/explainPriorityQueries.js",
+    "benchmark:priorities": "node src/scripts/benchmarkPriorityScoring.js",
+    "backfill:embeddings": "node src/scripts/backfillIssueEmbeddings.js",
+    "evaluate:duplicates": "node src/scripts/evaluateDuplicateDetection.js"
   },
   "keywords": [
     "smart-city",

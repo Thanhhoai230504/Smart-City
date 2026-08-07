@@ -11,7 +11,6 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['pwa-icon-192.png', 'pwa-icon-512.png'],
       manifest: {
         name: 'Smart City Đà Nẵng',
         short_name: 'SmartCity',
@@ -41,8 +40,24 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // Precache chỉ shell cần để khởi động. Các chunk bản đồ/biểu đồ/export
+        // được cache lúc người dùng mở, tránh tải ngầm toàn bộ ứng dụng (~2.7 MB).
+        globPatterns: [
+          '**/*.{css,html,ico,svg,woff2}',
+          'assets/entry-*.js',
+          'assets/chunk-react-vendor-*.js',
+          'assets/chunk-mui-vendor-*.js',
+        ],
         runtimeCaching: [
+          {
+            urlPattern: /\/assets\/chunk-.*\.(?:js|css)$/i,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'lazy-app-chunks',
+              expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
           {
             urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
             handler: 'CacheFirst',
@@ -62,13 +77,23 @@ export default defineConfig({
             },
           },
           {
-            urlPattern: /\/api\/.*/i,
+            // Chỉ cache dữ liệu công khai, ít nhạy cảm. Không cache auth,
+            // hồ sơ, thông báo hoặc dữ liệu quản trị trong service worker.
+            urlPattern: ({ url, request }) => {
+              if (request.method !== 'GET') return false
+              return [
+                '/api/statistics',
+                '/api/places',
+                '/api/environment',
+                '/api/traffic',
+              ].some((pathPrefix) => url.pathname.startsWith(pathPrefix))
+            },
             handler: 'NetworkFirst',
             options: {
-              cacheName: 'api-cache',
-              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 5 },
-              networkTimeoutSeconds: 10,
-              cacheableResponse: { statuses: [0, 200] },
+              cacheName: 'public-api-cache',
+              expiration: { maxEntries: 40, maxAgeSeconds: 60 * 2 },
+              networkTimeoutSeconds: 5,
+              cacheableResponse: { statuses: [200] },
             },
           },
         ],
@@ -78,6 +103,32 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+    },
+  },
+  build: {
+    target: 'es2020',
+    cssCodeSplit: true,
+    sourcemap: false,
+    chunkSizeWarningLimit: 700,
+    rollupOptions: {
+      output: {
+        entryFileNames: 'assets/entry-[name]-[hash].js',
+        chunkFileNames: 'assets/chunk-[name]-[hash].js',
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined
+          if (id.includes('leaflet')) return 'map-vendor'
+          if (id.includes('recharts')) return 'chart-vendor'
+          if (id.includes('xlsx') || id.includes('jspdf')) return 'export-vendor'
+          if (id.includes('@mui') || id.includes('@emotion')) return 'mui-vendor'
+          if (
+            id.includes('react-dom')
+            || id.includes('react-router')
+            || id.includes('react-redux')
+            || id.includes('@reduxjs/toolkit')
+          ) return 'react-vendor'
+          return undefined
+        },
+      },
     },
   },
   server: {

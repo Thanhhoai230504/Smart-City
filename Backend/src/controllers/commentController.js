@@ -2,8 +2,8 @@ const commentService = require('../services/commentService');
 
 const getComments = async (req, res, next) => {
   try {
-    const comments = await commentService.getComments(req.params.issueId);
-    res.json({ success: true, data: { comments } });
+    const data = await commentService.getComments(req.params.issueId, req.query);
+    res.json({ success: true, data });
   } catch (error) {
     next(error);
   }

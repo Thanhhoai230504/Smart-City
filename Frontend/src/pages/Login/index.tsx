@@ -29,6 +29,8 @@ const LoginPage: React.FC = () => {
     const result = await dispatch(loginThunk({ email, password }));
     if (loginThunk.fulfilled.match(result)) {
       navigate('/');
+    } else if (loginThunk.rejected.match(result) && result.payload?.code === 'EMAIL_NOT_VERIFIED') {
+      navigate(`/verify-email?email=${encodeURIComponent(email)}`);
     }
   };
 

@@ -1,7 +1,9 @@
 const mongoose = require('mongoose');
+const { configureDnsServers } = require('./dns');
 
 const connectDB = async () => {
   try {
+    configureDnsServers();
     const conn = await mongoose.connect(process.env.MONGODB_URI, {
       // Mongoose 8 uses these defaults, but explicit for clarity
     });

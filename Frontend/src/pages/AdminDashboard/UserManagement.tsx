@@ -2,25 +2,45 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store/store';
 import { userApi } from '../../api/userApi';
+import { departmentApi } from '../../api/departmentApi';
 import {
   Typography, Chip, Stack, Avatar, Select, MenuItem, IconButton, Tooltip,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Skeleton, Pagination, FormControl, InputLabel, SelectChangeEvent,
-  Snackbar, Alert,
+  Snackbar, Alert, CircularProgress,
 } from '@mui/material';
-import { AdminPanelSettings, PersonOff, PersonOutline, BugReport, EmojiEvents } from '@mui/icons-material';
+import {
+  AdminPanelSettings, PersonOff, PersonOutline, BugReport, Engineering,
+} from '@mui/icons-material';
+import { Department, UserRole } from '../../types';
 import { GlassCard, UserItem, cellSx, headCellSx } from './types';
 
 interface Props {
   onDataChange: () => void;
 }
 
+const ROLE_LABELS: Record<UserRole, string> = {
+  user: 'User',
+  staff: 'Cán bộ',
+  admin: 'Admin',
+};
+
+const getDepartmentId = (user: UserItem) => {
+  if (!user.departmentId) return '';
+  return typeof user.departmentId === 'string'
+    ? user.departmentId
+    : user.departmentId._id;
+};
+
 const UserManagement: React.FC<Props> = ({ onDataChange }) => {
   const { user: currentUser } = useSelector((s: RootState) => s.auth);
   const [users, setUsers] = useState<UserItem[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [pag, setPag] = useState({ current: 1, pages: 1, total: 0 });
   const [filter, setFilter] = useState('');
   const [loading, setLoading] = useState(false);
+  const [departmentsLoading, setDepartmentsLoading] = useState(true);
+  const [assigningId, setAssigningId] = useState<string | null>(null);
   const [snack, setSnack] = useState<{ open: boolean; msg: string; severity: 'success' | 'error' }>({ open: false, msg: '', severity: 'success' });
 
   const loadUsers = useCallback(async (page = 1, role = '') => {
@@ -35,6 +55,23 @@ const UserManagement: React.FC<Props> = ({ onDataChange }) => {
   }, []);
 
   useEffect(() => { loadUsers(1, filter); }, [filter, loadUsers]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await departmentApi.getDepartments({ includeInactive: true });
+        setDepartments(data.data.departments);
+      } catch {
+        setSnack({
+          open: true,
+          msg: 'Không thể tải danh sách đơn vị.',
+          severity: 'error',
+        });
+      } finally {
+        setDepartmentsLoading(false);
+      }
+    })();
+  }, []);
 
   const handleRoleChange = async (id: string, role: string) => {
     try {
@@ -53,6 +90,30 @@ const UserManagement: React.FC<Props> = ({ onDataChange }) => {
     } catch { /* silently ignore */ setSnack({ open: true, msg: 'Thất bại', severity: 'error' }); }
   };
 
+  const handleDepartmentChange = async (user: UserItem, departmentId: string) => {
+    setAssigningId(user._id);
+    try {
+      await departmentApi.assignStaff(user._id, departmentId || null);
+      setSnack({
+        open: true,
+        msg: departmentId
+          ? 'Đã gán người dùng vào đơn vị và chuyển vai trò thành cán bộ.'
+          : 'Đã bỏ gán đơn vị và chuyển vai trò về người dùng.',
+        severity: 'success',
+      });
+      await loadUsers(pag.current, filter);
+      onDataChange();
+    } catch {
+      setSnack({
+        open: true,
+        msg: 'Không thể cập nhật đơn vị của người dùng.',
+        severity: 'error',
+      });
+    } finally {
+      setAssigningId(null);
+    }
+  };
+
   return (
     <GlassCard>
       <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2} flexWrap="wrap" gap={1}>
@@ -64,6 +125,7 @@ const UserManagement: React.FC<Props> = ({ onDataChange }) => {
               sx={{ borderRadius: '10px', '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.1)' } }}>
               <MenuItem value="">Tất cả</MenuItem>
               <MenuItem value="admin">👑 Admin</MenuItem>
+              <MenuItem value="staff">🛠️ Cán bộ</MenuItem>
               <MenuItem value="user">👤 User</MenuItem>
             </Select>
           </FormControl>
@@ -74,14 +136,14 @@ const UserManagement: React.FC<Props> = ({ onDataChange }) => {
       <TableContainer>
         <Table size="small">
           <TableHead><TableRow>
-            {['Tên', 'Email', 'Vai trò', 'Trạng thái', 'Báo cáo', 'Huy hiệu', 'Ngày tạo', 'Thao tác'].map(h => (
+            {['Tên', 'Email', 'Vai trò', 'Đơn vị', 'Trạng thái', 'Báo cáo', 'Huy hiệu', 'Ngày tạo', 'Thao tác'].map(h => (
               <TableCell key={h} sx={headCellSx}>{h}</TableCell>
             ))}
           </TableRow></TableHead>
           <TableBody>
             {loading ? [...Array(4)].map((_, i) => (
               <TableRow key={i} sx={{ '@keyframes shimmer': { '0%': { backgroundPosition: '-400px 0' }, '100%': { backgroundPosition: '400px 0' } }, '@keyframes fadeIn': { from: { opacity: 0, transform: 'translateY(4px)' }, to: { opacity: 1, transform: 'translateY(0)' } }, animation: `fadeIn 0.4s ease-out ${i * 0.08}s both` }}>
-                {[...Array(8)].map((_, j) => (
+                {[...Array(9)].map((_, j) => (
                   <TableCell key={j} sx={cellSx}>
                     {j === 0 ? (
                       <Stack direction="row" alignItems="center" spacing={1}>
@@ -90,9 +152,9 @@ const UserManagement: React.FC<Props> = ({ onDataChange }) => {
                       </Stack>
                     ) : (
                       <Skeleton variant="rounded"
-                        height={j === 2 || j === 3 || j === 5 ? 22 : 14}
-                        width={j === 1 ? '75%' : j === 4 ? 35 : j === 6 ? '65%' : '50%'}
-                        sx={{ bgcolor: 'transparent', background: 'linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.08) 40%, rgba(255,255,255,0.03) 80%)', backgroundSize: '800px 100%', animation: `shimmer 1.8s ease-in-out infinite`, animationDelay: `${j * 0.1}s`, borderRadius: j === 2 || j === 3 || j === 5 ? '10px' : '6px' }} />
+                        height={j === 2 || j === 3 || j === 4 || j === 6 ? 22 : 14}
+                        width={j === 1 ? '75%' : j === 5 ? 35 : j === 7 ? '65%' : '50%'}
+                        sx={{ bgcolor: 'transparent', background: 'linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.08) 40%, rgba(255,255,255,0.03) 80%)', backgroundSize: '800px 100%', animation: `shimmer 1.8s ease-in-out infinite`, animationDelay: `${j * 0.1}s`, borderRadius: j === 2 || j === 3 || j === 4 || j === 6 ? '10px' : '6px' }} />
                     )}
                   </TableCell>
                 ))}
@@ -101,7 +163,7 @@ const UserManagement: React.FC<Props> = ({ onDataChange }) => {
               <TableRow key={u._id} hover sx={{ '&:hover': { bgcolor: 'rgba(14,165,233,0.04)' }, opacity: u.isActive ? 1 : 0.5 }}>
                 <TableCell sx={cellSx}>
                   <Stack direction="row" alignItems="center" spacing={1}>
-                    <Avatar sx={{ width: 30, height: 30, bgcolor: u.role === 'admin' ? '#0EA5E9' : '#3B82F6', fontSize: '0.75rem' }}>
+                    <Avatar sx={{ width: 30, height: 30, bgcolor: u.role === 'admin' ? '#0EA5E9' : u.role === 'staff' ? '#10B981' : '#3B82F6', fontSize: '0.75rem' }}>
                       {u.name.charAt(0).toUpperCase()}
                     </Avatar>
                     <Typography variant="body2" fontWeight={500}>{u.name}</Typography>
@@ -109,11 +171,15 @@ const UserManagement: React.FC<Props> = ({ onDataChange }) => {
                 </TableCell>
                 <TableCell sx={cellSx}><Typography variant="caption">{u.email}</Typography></TableCell>
                 <TableCell sx={cellSx}>
-                  {u._id === currentUser?._id || u._id === (currentUser as any)?.id ? (
-                    <Chip size="small" icon={<AdminPanelSettings sx={{ fontSize: 14 }} />} label={u.role === 'admin' ? 'Admin' : 'User'}
+                  {u._id === currentUser?._id || u._id === currentUser?.id ? (
+                    <Chip size="small" icon={<AdminPanelSettings sx={{ fontSize: 14 }} />} label={ROLE_LABELS[u.role]}
                       sx={{ height: 24, fontSize: '0.7rem', bgcolor: 'rgba(14,165,233,0.2)', color: '#A5B4FC' }} />
+                  ) : u.role === 'staff' ? (
+                    <Chip size="small" icon={<Engineering sx={{ fontSize: 14 }} />} label="Cán bộ"
+                      sx={{ height: 24, fontSize: '0.7rem', bgcolor: 'rgba(16,185,129,0.16)', color: '#6EE7B7' }} />
                   ) : (
-                    <Select size="small" value={u.role} onChange={(e: SelectChangeEvent) => handleRoleChange(u._id, e.target.value)}
+                    <Select size="small" value={u.role} disabled={assigningId === u._id}
+                      onChange={(e: SelectChangeEvent) => handleRoleChange(u._id, e.target.value)}
                       sx={{
                         height: 28, fontSize: '0.75rem', borderRadius: '8px',
                         bgcolor: u.role === 'admin' ? 'rgba(14,165,233,0.15)' : 'rgba(59,130,246,0.15)',
@@ -124,6 +190,54 @@ const UserManagement: React.FC<Props> = ({ onDataChange }) => {
                       <MenuItem value="user">👤 User</MenuItem>
                       <MenuItem value="admin">👑 Admin</MenuItem>
                     </Select>
+                  )}
+                </TableCell>
+                <TableCell sx={{ ...cellSx, minWidth: 200 }}>
+                  {u.role === 'admin' ? (
+                    <Typography variant="caption" color="text.secondary">Không áp dụng</Typography>
+                  ) : (
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <Select
+                        size="small"
+                        displayEmpty
+                        value={getDepartmentId(u)}
+                        disabled={departmentsLoading || assigningId === u._id || (!u.isActive && !getDepartmentId(u))}
+                        onChange={(event: SelectChangeEvent) => handleDepartmentChange(u, event.target.value)}
+                        renderValue={(value) => {
+                          if (!value) return 'Chưa gán';
+                          const department = departments.find((item) => item._id === value);
+                          if (department) return `${department.code} — ${department.name}`;
+                          return departmentsLoading ? 'Đang tải đơn vị...' : 'Đơn vị không tồn tại';
+                        }}
+                        sx={{
+                          minWidth: 180,
+                          maxWidth: 230,
+                          height: 30,
+                          fontSize: '0.72rem',
+                          borderRadius: '8px',
+                          bgcolor: getDepartmentId(u) ? 'rgba(16,185,129,0.10)' : 'rgba(255,255,255,0.03)',
+                          '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.08)' },
+                        }}
+                      >
+                        <MenuItem value="">Không thuộc đơn vị</MenuItem>
+                        {getDepartmentId(u) && !departments.some((department) => department._id === getDepartmentId(u)) && (
+                          <MenuItem value={getDepartmentId(u)} disabled>
+                            {departmentsLoading ? 'Đang tải đơn vị...' : 'Đơn vị không tồn tại'}
+                          </MenuItem>
+                        )}
+                        {departments.map((department) => (
+                          <MenuItem
+                            key={department._id}
+                            value={department._id}
+                            disabled={!department.isActive}
+                          >
+                            {department.code} — {department.name}
+                            {!department.isActive ? ' (đã vô hiệu hoá)' : ''}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                      {assigningId === u._id && <CircularProgress size={16} />}
+                    </Stack>
                   )}
                 </TableCell>
                 <TableCell sx={cellSx}>
@@ -153,9 +267,10 @@ const UserManagement: React.FC<Props> = ({ onDataChange }) => {
                   <Typography variant="caption" color="text.secondary">{new Date(u.createdAt).toLocaleDateString('vi-VN')}</Typography>
                 </TableCell>
                 <TableCell sx={cellSx}>
-                  {u._id !== currentUser?._id && u._id !== (currentUser as any)?.id && (
+                  {u._id !== currentUser?._id && u._id !== currentUser?.id && (
                     <Tooltip title={u.isActive ? 'Khoá tài khoản' : 'Mở khoá'}>
-                      <IconButton size="small" onClick={() => handleToggleActive(u._id)}
+                      <IconButton size="small" disabled={assigningId === u._id}
+                        onClick={() => handleToggleActive(u._id)}
                         sx={{ color: u.isActive ? '#EF4444' : '#10B981' }}>
                         {u.isActive ? <PersonOff fontSize="small" /> : <PersonOutline fontSize="small" />}
                       </IconButton>

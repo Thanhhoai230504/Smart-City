@@ -12,15 +12,11 @@ import {
 } from '@mui/material';
 import {
   Search, LocationOn, ThumbUp, FilterList, Close, CalendarMonth,
-  NotificationsActive,
+  NotificationsActive, AddCircleOutline,
 } from '@mui/icons-material';
-import { CATEGORY_MAP, STATUS_MAP } from '../../utils/constants';
+import { CATEGORY_MAP, STATUS_MAP, DA_NANG_DISTRICTS } from '../../utils/constants';
 import { timeAgo } from '../../utils/helpers';
-
-const DA_NANG_DISTRICTS = [
-  'Hải Châu', 'Thanh Khê', 'Sơn Trà', 'Ngũ Hành Sơn',
-  'Liên Chiểu', 'Cẩm Lệ', 'Hòa Vang', 'Hoàng Sa',
-];
+import SlaBadge from '../../components/SlaBadge';
 
 const IssuesPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -45,6 +41,10 @@ const IssuesPage: React.FC = () => {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+  }, []);
 
   const handleSearchChange = useCallback((value: string) => {
     setSearchInput(value);
@@ -91,13 +91,40 @@ const IssuesPage: React.FC = () => {
     if (district) params.district = district;
     if (dateFrom) params.dateFrom = dateFrom;
     if (dateTo) params.dateTo = dateTo;
-    dispatch(fetchIssues(params));
+    const request = dispatch(fetchIssues(params));
+    return () => request.abort();
   }, [dispatch, page, status, category, sortBy, search, district, dateFrom, dateTo]);
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Typography variant="h4" fontWeight={700} mb={1}>Sự cố đô thị</Typography>
-      <Typography color="text.secondary" mb={3}>Danh sách các sự cố được báo cáo tại Đà Nẵng</Typography>
+      <Box sx={{
+        mb: 3,
+        p: { xs: 2.5, sm: 3.5 },
+        borderRadius: '22px',
+        border: '1px solid rgba(56,189,248,0.15)',
+        background: 'linear-gradient(120deg, rgba(14,165,233,0.12), rgba(16,185,129,0.05) 58%, rgba(15,27,45,0.68))',
+        boxShadow: '0 24px 60px rgba(2,8,23,0.2)',
+      }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'center' }} justifyContent="space-between" spacing={2}>
+          <Box>
+            <Typography variant="overline" color="primary.light" fontWeight={700} letterSpacing={1.6}>
+              Cổng phản ánh cộng đồng
+            </Typography>
+            <Typography variant="h4" mt={0.3} mb={0.7}>Sự cố đô thị</Typography>
+            <Typography color="text.secondary">
+              Theo dõi tiến độ xử lý các phản ánh trên toàn thành phố Đà Nẵng.
+            </Typography>
+          </Box>
+          <Button
+            variant="contained"
+            startIcon={<AddCircleOutline />}
+            onClick={() => navigate('/report')}
+            sx={{ alignSelf: { xs: 'stretch', sm: 'center' }, whiteSpace: 'nowrap' }}
+          >
+            Báo cáo sự cố
+          </Button>
+        </Stack>
+      </Box>
 
       {/* District Watch Banner */}
       {isAuthenticated && (
@@ -313,14 +340,27 @@ const IssuesPage: React.FC = () => {
             const st = STATUS_MAP[issue.status] || STATUS_MAP.reported;
             return (
               <Grid item xs={12} sm={6} md={4} key={issue._id}>
-                <Card onClick={() => navigate(`/issues/${issue._id}`)}
+                <Card
+                  component="article"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Xem chi tiết sự cố ${issue.title}`}
+                  onClick={() => navigate(`/issues/${issue._id}`)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      navigate(`/issues/${issue._id}`);
+                    }
+                  }}
                   sx={{
                     cursor: 'pointer', height: '100%', transition: 'all 0.3s',
+                    contentVisibility: 'auto',
+                    containIntrinsicSize: '320px',
                     '&:hover': { transform: 'translateY(-4px)', borderColor: `${cat.color}40`, boxShadow: `0 8px 30px ${cat.color}15` },
                   }}>
                   {issue.imageUrl && (
                     <CardMedia component="img" height={160} image={issue.imageUrl}
-                      alt={issue.title} sx={{ objectFit: 'cover' }} />
+                      loading="lazy" decoding="async" alt={issue.title} sx={{ objectFit: 'cover' }} />
                   )}
                   {!issue.imageUrl && (
                     <Box sx={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: `${cat.color}10`, fontSize: '2.5rem' }}>
@@ -328,9 +368,10 @@ const IssuesPage: React.FC = () => {
                     </Box>
                   )}
                   <CardContent>
-                    <Stack direction="row" spacing={0.8} mb={1.5}>
+                    <Stack direction="row" spacing={0.8} mb={1.5} flexWrap="wrap" useFlexGap>
                       <Chip label={cat.label} size="small" sx={{ bgcolor: `${cat.color}20`, color: cat.color, fontWeight: 600, fontSize: '0.7rem' }} />
                       <Chip label={st.label} size="small" sx={{ bgcolor: `${st.color}20`, color: st.color, fontWeight: 600, fontSize: '0.7rem' }} />
+                      <SlaBadge status={issue.slaStatus} dueAt={issue.dueAt} />
                     </Stack>
                     <Typography variant="subtitle1" fontWeight={600} mb={0.5} noWrap>{issue.title}</Typography>
                     <Stack direction="row" alignItems="center" spacing={0.5} mb={0.5}>

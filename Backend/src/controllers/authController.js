@@ -3,7 +3,36 @@ const authService = require('../services/authService');
 const register = async (req, res, next) => {
   try {
     const user = await authService.registerUser(req.body);
-    res.status(201).json({ success: true, message: 'Registration successful.', data: { user } });
+    res.status(201).json({
+      success: true,
+      message: 'Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.',
+      data: { user }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const verifyEmail = async (req, res, next) => {
+  try {
+    const user = await authService.verifyEmail(req.query.token);
+    res.json({
+      success: true,
+      message: 'Xác thực email thành công. Bạn có thể đăng nhập.',
+      data: { user }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const resendVerification = async (req, res, next) => {
+  try {
+    await authService.resendVerificationEmail(req.body.email);
+    res.json({
+      success: true,
+      message: 'Nếu email chưa được xác thực, một liên kết mới đã được gửi.',
+    });
   } catch (error) {
     next(error);
   }
@@ -104,4 +133,15 @@ const googleCallback = async (req, res) => {
   }
 };
 
-module.exports = { register, login, refresh, logout, getProfile, updateProfile, changePassword, googleCallback };
+module.exports = {
+  register,
+  verifyEmail,
+  resendVerification,
+  login,
+  refresh,
+  logout,
+  getProfile,
+  updateProfile,
+  changePassword,
+  googleCallback
+};

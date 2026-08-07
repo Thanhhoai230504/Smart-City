@@ -34,4 +34,25 @@ const updateIssueStatusValidator = [
     .withMessage('Invalid status')
 ];
 
-module.exports = { createIssueValidator, updateIssueStatusValidator };
+const duplicateCandidateValidator = [
+  body('title')
+    .trim()
+    .isLength({ min: 3, max: 200 }).withMessage('Tiêu đề phải từ 3 đến 200 ký tự'),
+  body('description')
+    .trim()
+    .isLength({ min: 10, max: 2000 }).withMessage('Mô tả phải từ 10 đến 2000 ký tự'),
+  body('category')
+    .isIn(['pothole', 'garbage', 'streetlight', 'flooding', 'tree', 'other'])
+    .withMessage('Loại sự cố không hợp lệ'),
+  body('latitude')
+    .isFloat({ min: -90, max: 90 }).withMessage('Latitude không hợp lệ')
+    .toFloat(),
+  body('longitude')
+    .isFloat({ min: -180, max: 180 }).withMessage('Longitude không hợp lệ')
+    .toFloat(),
+  body('issueId')
+    .optional({ values: 'falsy' })
+    .isMongoId().withMessage('issueId không hợp lệ'),
+];
+
+module.exports = { createIssueValidator, updateIssueStatusValidator, duplicateCandidateValidator };

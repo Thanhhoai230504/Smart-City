@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import axios from 'axios';
 import { authApi } from '../../api/authApi';
 import { AuthState, LoginCredentials, RegisterData, User } from '../../types';
 
@@ -10,12 +11,27 @@ const initialState: AuthState = {
   error: null,
 };
 
-export const loginThunk = createAsyncThunk('auth/login', async (credentials: LoginCredentials, { rejectWithValue }) => {
+export interface AuthFailure {
+  message: string;
+  code?: string;
+}
+
+export const loginThunk = createAsyncThunk<
+  { accessToken: string; user: User },
+  LoginCredentials,
+  { rejectValue: AuthFailure }
+>('auth/login', async (credentials, { rejectWithValue }) => {
   try {
     const { data } = await authApi.login(credentials);
     return data.data;
-  } catch (err: any) {
-    return rejectWithValue(err.response?.data?.message || 'Đăng nhập thất bại');
+  } catch (err: unknown) {
+    if (axios.isAxiosError<{ message?: string; code?: string }>(err)) {
+      return rejectWithValue({
+        message: err.response?.data?.message || 'Đăng nhập thất bại',
+        code: err.response?.data?.code,
+      });
+    }
+    return rejectWithValue({ message: 'Đăng nhập thất bại' });
   }
 });
 
@@ -66,7 +82,7 @@ const authSlice = createSlice({
       })
       .addCase(loginThunk.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload as string;
+        state.error = action.payload?.message || action.error.message || 'Đăng nhập thất bại';
       })
       // Register
       .addCase(registerThunk.pending, (state) => { state.loading = true; state.error = null; })

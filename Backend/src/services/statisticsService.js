@@ -1,31 +1,30 @@
 const Issue = require('../models/Issue');
-
-const DA_NANG_DISTRICTS = [
-  'Hải Châu', 'Thanh Khê', 'Sơn Trà', 'Ngũ Hành Sơn',
-  'Liên Chiểu', 'Cẩm Lệ', 'Hòa Vang',
-];
+const { DA_NANG_DISTRICTS } = require('../utils/districts');
 
 const getPublicStatistics = async () => {
-  const now = new Date();
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  // Chỉ tính các sự cố chưa bị xoá mềm.
+  const activeMatch = { isDeleted: false, mergedInto: null };
 
   const [
     totalIssues, issuesByStatus, issuesByCategory,
-    issuesTrend, avgResolutionTime, issuesByDistrict, ratingStats,
+    issuesTrend, avgResolutionTime, districtAgg, ratingStats,
   ] = await Promise.all([
-    Issue.countDocuments(),
+    Issue.countDocuments(activeMatch),
 
     Issue.aggregate([
+      { $match: activeMatch },
       { $group: { _id: '$status', count: { $sum: 1 } } },
     ]),
 
     Issue.aggregate([
+      { $match: activeMatch },
       { $group: { _id: '$category', count: { $sum: 1 } } },
       { $sort: { count: -1 } },
     ]),
 
     Issue.aggregate([
-      { $match: { createdAt: { $gte: thirtyDaysAgo } } },
+      { $match: { ...activeMatch, createdAt: { $gte: thirtyDaysAgo } } },
       {
         $group: {
           _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
@@ -36,7 +35,7 @@ const getPublicStatistics = async () => {
     ]),
 
     Issue.aggregate([
-      { $match: { status: 'resolved', resolvedAt: { $ne: null } } },
+      { $match: { ...activeMatch, status: 'resolved', resolvedAt: { $ne: null } } },
       {
         $project: {
           resolutionHours: {
@@ -47,20 +46,22 @@ const getPublicStatistics = async () => {
       { $group: { _id: null, avgHours: { $avg: '$resolutionHours' } } },
     ]),
 
-    // Thống kê theo quận
-    Promise.all(
-      DA_NANG_DISTRICTS.map(async (district) => {
-        const [total, resolved] = await Promise.all([
-          Issue.countDocuments({ location: { $regex: district, $options: 'i' } }),
-          Issue.countDocuments({ location: { $regex: district, $options: 'i' }, status: 'resolved' }),
-        ]);
-        return { district, total, resolved, rate: total > 0 ? Math.round((resolved / total) * 100) : 0 };
-      })
-    ),
+    // Thống kê theo quận: một lần $group trên field district đã chuẩn hoá,
+    // thay cho 2 countDocuments($regex) mỗi quận (14 query quét toàn bảng).
+    Issue.aggregate([
+      { $match: activeMatch },
+      {
+        $group: {
+          _id: '$district',
+          total: { $sum: 1 },
+          resolved: { $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] } },
+        },
+      },
+    ]),
 
     // Rating stats
     Issue.aggregate([
-      { $match: { 'rating.score': { $ne: null } } },
+      { $match: { ...activeMatch, 'rating.score': { $ne: null } } },
       {
         $group: {
           _id: null,
@@ -71,6 +72,15 @@ const getPublicStatistics = async () => {
       },
     ]),
   ]);
+
+  // Giữ nguyên đủ 7 quận kể cả khi chưa có sự cố nào, để chart không bị nhảy cột.
+  const districtCounts = new Map(districtAgg.map((d) => [d._id, d]));
+  const issuesByDistrict = DA_NANG_DISTRICTS.map((district) => {
+    const found = districtCounts.get(district);
+    const total = found?.total || 0;
+    const resolved = found?.resolved || 0;
+    return { district, total, resolved, rate: total > 0 ? Math.round((resolved / total) * 100) : 0 };
+  });
 
   // Build status map
   const statusMap = { reported: 0, processing: 0, resolved: 0, rejected: 0 };

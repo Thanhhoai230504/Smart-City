@@ -32,6 +32,19 @@ const placeSchema = new mongoose.Schema({
     min: -180,
     max: 180
   },
+  // GeoJSON Point [longitude, latitude] cho truy vấn khoảng cách tới bệnh
+  // viện/trường học khi tính điểm ưu tiên.
+  geo: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number],
+      default: undefined
+    }
+  },
   description: {
     type: String,
     trim: true,
@@ -50,8 +63,19 @@ const placeSchema = new mongoose.Schema({
   timestamps: true
 });
 
+placeSchema.pre('validate', function(next) {
+  if (this.isModified('latitude') || this.isModified('longitude') || this.isNew) {
+    if (typeof this.latitude === 'number' && typeof this.longitude === 'number') {
+      this.geo = { type: 'Point', coordinates: [this.longitude, this.latitude] };
+    }
+  }
+  next();
+});
+
 // Index for common queries
 placeSchema.index({ type: 1 });
 placeSchema.index({ isActive: 1 });
+placeSchema.index({ geo: '2dsphere' });
+placeSchema.index({ type: 1, isActive: 1 });
 
 module.exports = mongoose.model('Place', placeSchema);

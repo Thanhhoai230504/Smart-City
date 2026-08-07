@@ -75,11 +75,13 @@ const getDbContext = async (message) => {
   if (!needsStats) return '';
 
   try {
+    // Không đưa sự cố đã xoá mềm vào ngữ cảnh trả lời của chatbot.
+    const activeMatch = { isDeleted: false, mergedInto: null };
     const [total, byStatus, byCategory, recent] = await Promise.all([
-      Issue.countDocuments(),
-      Issue.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
-      Issue.aggregate([{ $group: { _id: '$category', count: { $sum: 1 } } }]),
-      Issue.find().sort({ createdAt: -1 }).limit(5).select('title category status location createdAt').lean(),
+      Issue.countDocuments(activeMatch),
+      Issue.aggregate([{ $match: activeMatch }, { $group: { _id: '$status', count: { $sum: 1 } } }]),
+      Issue.aggregate([{ $match: activeMatch }, { $group: { _id: '$category', count: { $sum: 1 } } }]),
+      Issue.find(activeMatch).sort({ createdAt: -1 }).limit(5).select('title category status location createdAt').lean(),
     ]);
 
     const statusMap = { reported: 'Mới báo cáo', processing: 'Đang xử lý', resolved: 'Đã xử lý', rejected: 'Từ chối' };

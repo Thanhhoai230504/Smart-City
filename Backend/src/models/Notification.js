@@ -9,7 +9,14 @@ const notificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['issue_created', 'issue_updated', 'issue_resolved', 'issue_rejected', 'comment', 'area_alert'],
+    enum: [
+      'issue_created', 'issue_updated', 'issue_resolved', 'issue_rejected',
+      'comment', 'area_alert',
+      // Luồng phân công & SLA
+      'issue_assigned', 'sla_reminder', 'sla_escalated',
+      // Gộp sự cố trùng lặp
+      'issue_merged'
+    ],
     required: true
   },
   title: {

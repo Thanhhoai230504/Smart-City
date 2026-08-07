@@ -1,0 +1,50 @@
+[
+  {
+    "recordedAt": "2026-01-10T08:00:00.000Z",
+    "isDuplicate": true,
+    "query": { "title": "Ngập sâu đường 2 Tháng 9", "description": "Mưa lớn làm nước ngập khoảng 30 cm, xe máy chết máy", "category": "flooding" },
+    "candidate": { "title": "Đường 2 Tháng 9 ngập nước nghiêm trọng", "description": "Nước dâng 30cm sau mưa khiến nhiều xe chết máy", "category": "flooding", "distanceMeters": 35, "createdAt": "2026-01-10T07:30:00.000Z" }
+  },
+  {
+    "recordedAt": "2026-02-11T09:00:00.000Z",
+    "isDuplicate": true,
+    "query": { "title": "Cây đổ chắn đường Lê Lợi", "description": "Cây lớn đổ ngang đường sau bão", "category": "tree" },
+    "candidate": { "title": "Cây xanh ngã trên phố Lê Lợi", "description": "Sau bão cây lớn nằm chắn ngang đường", "category": "tree", "distanceMeters": 42, "createdAt": "2026-02-11T08:20:00.000Z" }
+  },
+  {
+    "recordedAt": "2026-03-12T10:00:00.000Z",
+    "isDuplicate": false,
+    "query": { "title": "Đèn đường hỏng", "description": "Cột đèn không sáng vào ban đêm", "category": "streetlight" },
+    "candidate": { "title": "Rác thải chưa thu gom", "description": "Đống rác bốc mùi ven đường", "category": "garbage", "distanceMeters": 220, "createdAt": "2026-03-12T08:00:00.000Z" }
+  },
+  {
+    "recordedAt": "2026-04-15T11:00:00.000Z",
+    "isDuplicate": false,
+    "query": { "title": "Ổ gà Nguyễn Văn Linh", "description": "Ổ gà lớn giữa làn xe máy", "category": "pothole" },
+    "candidate": { "title": "Ổ gà Điện Biên Phủ", "description": "Nhiều ổ gà nhỏ trước trung tâm thương mại", "category": "pothole", "distanceMeters": 470, "createdAt": "2026-04-14T08:00:00.000Z" }
+  },
+  {
+    "recordedAt": "2026-05-17T12:00:00.000Z",
+    "isDuplicate": true,
+    "query": { "title": "Nắp cống mất ở Phan Châu Trinh", "description": "Hố cống sâu không có nắp rất nguy hiểm", "category": "other" },
+    "candidate": { "title": "Mất nắp cống đường Phan Châu Trinh", "description": "Nắp cống bị mất tạo hố sâu nguy hiểm", "category": "other", "distanceMeters": 18, "createdAt": "2026-05-17T11:50:00.000Z" }
+  },
+  {
+    "recordedAt": "2026-06-20T13:00:00.000Z",
+    "isDuplicate": false,
+    "query": { "title": "Cành cây gãy", "description": "Cành cây lớn sắp rơi xuống đường", "category": "tree" },
+    "candidate": { "title": "Cây đổ sau bão", "description": "Cây xanh chắn toàn bộ con đường", "category": "tree", "distanceMeters": 490, "createdAt": "2026-06-01T08:00:00.000Z" }
+  },
+  {
+    "recordedAt": "2026-07-22T14:00:00.000Z",
+    "isDuplicate": true,
+    "query": { "title": "Rác chất đống Hoàng Diệu", "description": "Rác chưa thu gom bốc mùi khó chịu", "category": "garbage" },
+    "candidate": { "title": "Đống rác ven đường Hoàng Diệu", "description": "Rác thải chất đống lâu ngày và bốc mùi", "category": "garbage", "distanceMeters": 28, "createdAt": "2026-07-22T12:00:00.000Z" }
+  },
+  {
+    "recordedAt": "2026-07-25T15:00:00.000Z",
+    "isDuplicate": false,
+    "query": { "title": "Ngập đường ven biển", "description": "Nước mưa ngập làn đường sát biển", "category": "flooding" },
+    "candidate": { "title": "Đèn đường ven biển bị tắt", "description": "Dãy đèn chiếu sáng không hoạt động", "category": "streetlight", "distanceMeters": 90, "createdAt": "2026-07-25T13:00:00.000Z" }
+  }
+]

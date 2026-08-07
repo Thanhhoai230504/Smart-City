@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const path = require('path');
+const { configureDnsServers } = require('../config/dns');
 
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
@@ -9,6 +10,7 @@ const Issue = require('../models/Issue');
 
 const seedIssues = async () => {
   try {
+    configureDnsServers();
     await mongoose.connect(process.env.MONGODB_URI);
     console.log('✅ Connected to MongoDB');
 

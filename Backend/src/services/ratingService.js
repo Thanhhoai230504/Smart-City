@@ -2,7 +2,7 @@ const Issue = require('../models/Issue');
 const ApiError = require('../utils/apiError');
 
 const rateIssue = async (issueId, userId, { score, comment }) => {
-  const issue = await Issue.findById(issueId);
+  const issue = await Issue.findOne({ _id: issueId, isDeleted: false, mergedInto: null });
   if (!issue) throw ApiError.notFound('Sự cố không tồn tại');
 
   const reporterId = issue.userId._id.toString();
@@ -30,7 +30,7 @@ const rateIssue = async (issueId, userId, { score, comment }) => {
 
 const getAverageRating = async () => {
   const result = await Issue.aggregate([
-    { $match: { 'rating.score': { $ne: null } } },
+    { $match: { isDeleted: false, mergedInto: null, 'rating.score': { $ne: null } } },
     {
       $group: {
         _id: null,

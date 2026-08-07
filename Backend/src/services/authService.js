@@ -1,6 +1,36 @@
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const User = require('../models/User');
 const ApiError = require('../utils/apiError');
+const { DA_NANG_DISTRICTS } = require('../utils/districts');
+const { sendEmail } = require('./emailService');
+const { buildVerificationEmail } = require('../utils/emailTemplates');
+
+const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
+const RESEND_COOLDOWN_MS = 60 * 1000;
+
+const hashVerificationToken = (token) => (
+  crypto.createHash('sha256').update(token).digest('hex')
+);
+
+const createVerificationToken = () => {
+  const token = crypto.randomBytes(32).toString('hex');
+  return {
+    token,
+    hash: hashVerificationToken(token),
+    expiresAt: new Date(Date.now() + VERIFICATION_TTL_MS),
+  };
+};
+
+const sendVerificationMessage = async (user, token) => {
+  const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+  const verificationUrl = `${clientUrl}/verify-email?token=${encodeURIComponent(token)}`;
+  return sendEmail(
+    user.email,
+    'Xác thực email — Smart City Đà Nẵng',
+    buildVerificationEmail({ userName: user.name, verificationUrl })
+  );
+};
 
 const generateAccessToken = (user) => {
   return jwt.sign(
@@ -19,22 +49,41 @@ const generateRefreshToken = (user) => {
 };
 
 const registerUser = async ({ name, email, password }) => {
-  const existingUser = await User.findOne({ email });
+  const normalizedEmail = email.trim().toLowerCase();
+  const existingUser = await User.findOne({ email: normalizedEmail });
   if (existingUser) {
     throw ApiError.badRequest('Email already registered.');
   }
 
-  const user = await User.create({ name, email, password });
+  const verification = createVerificationToken();
+  const now = new Date();
+  const user = await User.create({
+    name,
+    email: normalizedEmail,
+    password,
+    isVerified: false,
+    emailVerificationTokenHash: verification.hash,
+    emailVerificationExpires: verification.expiresAt,
+    emailVerificationSentAt: now,
+  });
+  const verificationEmailSent = await sendVerificationMessage(user, verification.token);
+  if (!verificationEmailSent) {
+    // Cho phép người dùng thử gửi lại ngay nếu nhà cung cấp email vừa lỗi.
+    await User.findByIdAndUpdate(user._id, { emailVerificationSentAt: null });
+  }
+
   return {
     id: user._id,
     name: user.name,
     email: user.email,
-    role: user.role
+    role: user.role,
+    isVerified: false,
+    verificationEmailSent,
   };
 };
 
 const loginUser = async ({ email, password }) => {
-  const user = await User.findOne({ email }).select('+password');
+  const user = await User.findOne({ email: email.trim().toLowerCase() }).select('+password');
   if (!user) {
     throw ApiError.unauthorized('Invalid email or password.');
   }
@@ -46,6 +95,12 @@ const loginUser = async ({ email, password }) => {
   const isMatch = await user.comparePassword(password);
   if (!isMatch) {
     throw ApiError.unauthorized('Invalid email or password.');
+  }
+
+  if (user.provider === 'local' && user.isVerified === false) {
+    const error = ApiError.forbidden('Email chưa được xác thực. Vui lòng kiểm tra hộp thư hoặc gửi lại email xác thực.');
+    error.code = 'EMAIL_NOT_VERIFIED';
+    throw error;
   }
 
   const accessToken = generateAccessToken(user);
@@ -60,7 +115,9 @@ const loginUser = async ({ email, password }) => {
       id: user._id,
       name: user.name,
       email: user.email,
-      role: user.role
+      role: user.role,
+      departmentId: user.departmentId || null,
+      isVerified: user.isVerified !== false,
     }
   };
 };
@@ -76,8 +133,70 @@ const refreshAccessToken = async (refreshToken) => {
   if (!user || user.refreshToken !== refreshToken) {
     throw ApiError.unauthorized('Invalid refresh token.');
   }
+  if (user.provider === 'local' && user.isVerified === false) {
+    throw ApiError.unauthorized('Email chưa được xác thực.');
+  }
 
   return generateAccessToken(user);
+};
+
+const verifyEmail = async (token) => {
+  const tokenHash = hashVerificationToken(token);
+  const user = await User.findOne({
+    emailVerificationTokenHash: tokenHash,
+    emailVerificationExpires: { $gt: new Date() },
+    isVerified: false,
+  }).select('+emailVerificationTokenHash +emailVerificationExpires +emailVerificationSentAt');
+
+  if (!user) {
+    throw ApiError.badRequest('Liên kết xác thực không hợp lệ hoặc đã hết hạn.');
+  }
+
+  user.isVerified = true;
+  user.emailVerificationTokenHash = null;
+  user.emailVerificationExpires = null;
+  user.emailVerificationSentAt = null;
+  await user.save();
+
+  return {
+    id: user._id,
+    name: user.name,
+    email: user.email,
+    isVerified: true,
+  };
+};
+
+const resendVerificationEmail = async (email) => {
+  const normalizedEmail = email.trim().toLowerCase();
+  const user = await User.findOne({
+    email: normalizedEmail,
+    provider: 'local',
+  }).select('+emailVerificationTokenHash +emailVerificationExpires +emailVerificationSentAt');
+
+  // Phản hồi giống nhau để không lộ email nào đã đăng ký/đã xác thực.
+  if (!user || user.isVerified) {
+    return { sent: true };
+  }
+
+  if (
+    user.emailVerificationSentAt
+    && Date.now() - new Date(user.emailVerificationSentAt).getTime() < RESEND_COOLDOWN_MS
+  ) {
+    return { sent: true };
+  }
+
+  const verification = createVerificationToken();
+  user.emailVerificationTokenHash = verification.hash;
+  user.emailVerificationExpires = verification.expiresAt;
+  user.emailVerificationSentAt = new Date();
+  await user.save();
+
+  const sent = await sendVerificationMessage(user, verification.token);
+  if (!sent) {
+    user.emailVerificationSentAt = null;
+    await user.save();
+  }
+  return { sent: true };
 };
 
 const logoutUser = async (userId) => {
@@ -91,11 +210,6 @@ const getProfile = async (userId) => {
   }
   return user;
 };
-
-const DA_NANG_DISTRICTS = [
-  'Hải Châu', 'Thanh Khê', 'Sơn Trà', 'Ngũ Hành Sơn',
-  'Liên Chiểu', 'Cẩm Lệ', 'Hòa Vang', 'Hoàng Sa',
-];
 
 const updateProfile = async (userId, { name, watchedDistricts }) => {
   const updateData = {};
@@ -151,6 +265,7 @@ const generateTokensForUser = async (user) => {
       role: user.role,
       provider: user.provider,
       avatar: user.avatar,
+      isVerified: true,
     },
   };
 };
@@ -164,4 +279,6 @@ module.exports = {
   updateProfile,
   changePassword,
   generateTokensForUser,
+  verifyEmail,
+  resendVerificationEmail,
 };

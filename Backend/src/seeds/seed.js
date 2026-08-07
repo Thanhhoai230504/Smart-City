@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const dotenv = require('dotenv');
 const path = require('path');
+const { configureDnsServers } = require('../config/dns');
 
 // Load env vars
 dotenv.config({ path: path.join(__dirname, '../../.env') });
@@ -10,10 +11,12 @@ const User = require('../models/User');
 const Issue = require('../models/Issue');
 const Place = require('../models/Place');
 const EnvironmentData = require('../models/EnvironmentData');
+const { runPriorityBatch } = require('../services/priorityService');
 
 const seedData = async () => {
   try {
     // Connect to MongoDB
+    configureDnsServers();
     await mongoose.connect(process.env.MONGODB_URI);
     console.log('✅ Connected to MongoDB');
 
@@ -173,6 +176,7 @@ const seedData = async () => {
     console.log(`📍 Created ${places.length} places`);
 
     // ============ ISSUES (Sự cố mẫu) ============
+    const seedNow = new Date();
     const issues = await Issue.create([
       {
         title: 'Ổ gà lớn trên đường Nguyễn Văn Linh',
@@ -189,11 +193,12 @@ const seedData = async () => {
         description: 'Có một đống rác lớn chưa được thu gom ở ven đường Hoàng Diệu, gần ngã ba với đường Ông Ích Khiêm. Bốc mùi rất khó chịu.',
         category: 'garbage',
         location: 'Đường Hoàng Diệu, Hải Châu, Đà Nẵng',
-        latitude: 16.0650,
-        longitude: 108.2100,
         status: 'processing',
         userId: user1._id,
-        adminId: admin._id
+        adminId: admin._id,
+        // Một trong bốn sự cố lân cận dùng để minh hoạ factor mật độ.
+        latitude: 16.0716,
+        longitude: 108.2138
       },
       {
         title: 'Đèn đường hỏng trên đường Trần Phú',
@@ -212,21 +217,27 @@ const seedData = async () => {
         description: 'Mưa lớn gây ngập nước đoạn đường 2 Tháng 9, nước dâng cao khoảng 30cm. Nhiều xe máy chết máy khi đi qua.',
         category: 'flooding',
         location: 'Đường 2 Tháng 9, Hải Châu, Đà Nẵng',
-        latitude: 16.0510,
-        longitude: 108.2200,
+        latitude: 16.0719,
+        longitude: 108.2138,
         status: 'reported',
-        userId: user2._id
+        userId: user2._id,
+        votes: [user1._id, user2._id, admin._id],
+        voteCount: 3,
+        createdAt: new Date(seedNow.getTime() - 72 * 60 * 60 * 1000)
       },
       {
         title: 'Cây đổ chắn đường Lê Lợi',
         description: 'Cây xà cừ lớn bị đổ sau cơn bão, chắn ngang đường Lê Lợi đoạn gần trường THPT Trần Phú. Cần dọn dẹp gấp.',
         category: 'tree',
         location: 'Đường Lê Lợi, Hải Châu, Đà Nẵng',
-        latitude: 16.0620,
-        longitude: 108.2150,
+        latitude: 16.0332,
+        longitude: 108.2438,
         status: 'processing',
         userId: user1._id,
-        adminId: admin._id
+        adminId: admin._id,
+        votes: [user1._id, user2._id, admin._id],
+        voteCount: 3,
+        createdAt: new Date(seedNow.getTime() - 6 * 60 * 60 * 1000)
       },
       {
         title: 'Nắp cống bị mất trên đường Phan Châu Trinh',
@@ -247,10 +258,71 @@ const seedData = async () => {
         latitude: 16.0670,
         longitude: 108.1950,
         status: 'reported',
+        userId: user1._id,
+        createdAt: new Date(seedNow.getTime() - 36 * 60 * 60 * 1000)
+      },
+      // Ba bản ghi dưới đây cùng sự cố rác tạo mật độ quanh bệnh viện cho kịch
+      // bản critical; nội dung vẫn là báo cáo hợp lệ để demo danh sách/bản đồ.
+      {
+        title: 'Cành cây lớn chắn lối vào bệnh viện',
+        description: 'Cành cây gãy chắn một phần làn đường, cần thu dọn sớm.',
+        category: 'tree',
+        location: 'Hải Phòng, Hải Châu, Đà Nẵng',
+        latitude: 16.0721,
+        longitude: 108.2142,
+        status: 'reported',
         userId: user1._id
+      },
+      {
+        title: 'Đèn đường chập chờn gần cổng bệnh viện',
+        description: 'Đèn đường bật tắt liên tục vào buổi tối.',
+        category: 'streetlight',
+        location: 'Hải Phòng, Hải Châu, Đà Nẵng',
+        latitude: 16.0717,
+        longitude: 108.2144,
+        status: 'reported',
+        userId: user2._id
+      },
+      {
+        title: 'Mặt đường bong tróc trên đường Hải Phòng',
+        description: 'Một đoạn mặt đường bong tróc gây xóc cho xe cấp cứu.',
+        category: 'pothole',
+        location: 'Hải Phòng, Hải Châu, Đà Nẵng',
+        latitude: 16.0723,
+        longitude: 108.2136,
+        status: 'reported',
+        userId: user1._id
+      },
+      // Kịch bản low ở xa điểm nhạy cảm và không có sự cố lân cận.
+      {
+        title: 'Biển tên đường bị mờ tại Hòa Vang',
+        description: 'Biển tên đường đã cũ và khó đọc nhưng chưa gây nguy hiểm trực tiếp.',
+        category: 'other',
+        location: 'Xã Hòa Phong, Hòa Vang, Đà Nẵng',
+        latitude: 15.9950,
+        longitude: 108.1050,
+        status: 'reported',
+        userId: user2._id
       }
     ]);
     console.log(`🚨 Created ${issues.length} issues`);
+
+    // Tạo index địa lý trước khi chạy scoring và tính điểm mẫu bằng đúng engine production.
+    await Promise.all([Issue.createIndexes(), Place.createIndexes()]);
+    const priorityResult = await runPriorityBatch({ limit: issues.length, concurrency: 3 });
+    const priorityDistribution = await Issue.aggregate([
+      { $match: { priorityLevel: { $ne: null } } },
+      { $group: { _id: '$priorityLevel', count: { $sum: 1 } } },
+      { $sort: { _id: 1 } },
+    ]);
+    console.log(`⚡ Priority scores: ${priorityResult.updated}/${priorityResult.scanned}`);
+    console.log('   Distribution:', priorityDistribution.map((item) => `${item._id}=${item.count}`).join(', ') || 'none');
+    const seededLevels = new Set(priorityDistribution.map((item) => item._id));
+    const missingPriorityLevels = ['low', 'medium', 'high', 'critical']
+      .filter((level) => !seededLevels.has(level));
+    if (missingPriorityLevels.length) {
+      throw new Error(`Priority seed scenarios missing levels: ${missingPriorityLevels.join(', ')}`);
+    }
 
     // ============ ENVIRONMENT DATA ============
     const envData = await EnvironmentData.create([

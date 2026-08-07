@@ -1,4 +1,4 @@
-const { body } = require('express-validator');
+const { body, query } = require('express-validator');
 
 const registerValidator = [
   body('name')
@@ -23,4 +23,24 @@ const loginValidator = [
     .notEmpty().withMessage('Password is required')
 ];
 
-module.exports = { registerValidator, loginValidator };
+const verifyEmailValidator = [
+  query('token')
+    .notEmpty().withMessage('Verification token is required')
+    .isLength({ min: 64, max: 64 }).withMessage('Verification token is invalid')
+    .isHexadecimal().withMessage('Verification token is invalid'),
+];
+
+const resendVerificationValidator = [
+  body('email')
+    .trim()
+    .notEmpty().withMessage('Email is required')
+    .isEmail().withMessage('Please enter a valid email')
+    .normalizeEmail(),
+];
+
+module.exports = {
+  registerValidator,
+  loginValidator,
+  verifyEmailValidator,
+  resendVerificationValidator
+};

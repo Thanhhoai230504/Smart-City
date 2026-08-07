@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { issueApi } from '../../api/issueApi';
 import {
@@ -6,12 +7,18 @@ import {
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Skeleton, Pagination, FormControl, InputLabel, SelectChangeEvent,
   Dialog, DialogTitle, DialogContent, DialogActions, Button, Snackbar, Alert,
+  CircularProgress, Box, Divider,
 } from '@mui/material';
-import { Delete, Visibility, ThumbUp } from '@mui/icons-material';
+import { CallMerge, Delete, Visibility, ThumbUp } from '@mui/icons-material';
 import {
   GlassCard, IssueItem, STATUS_COLORS, STATUS_LABELS, CATEGORY_LABELS,
   cellSx, headCellSx,
 } from './types';
+import { DuplicateCandidate, DuplicateCandidateMeta, IssueStatus } from '../../types';
+
+interface ApiErrorResponse {
+  message?: string;
+}
 
 interface Props {
   onDataChange: () => void;
@@ -26,6 +33,13 @@ const IssueManagement: React.FC<Props> = ({ onDataChange }) => {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [snack, setSnack] = useState<{ open: boolean; msg: string; severity: 'success' | 'error' }>({ open: false, msg: '', severity: 'success' });
   const [sortBy, setSortBy] = useState('-createdAt');
+  const [mergeSource, setMergeSource] = useState<IssueItem | null>(null);
+  const [mergeCandidates, setMergeCandidates] = useState<DuplicateCandidate[]>([]);
+  const [mergeMeta, setMergeMeta] = useState<DuplicateCandidateMeta | null>(null);
+  const [mergeTargetId, setMergeTargetId] = useState('');
+  const [mergeLoading, setMergeLoading] = useState(false);
+  const [merging, setMerging] = useState(false);
+  const [mergeError, setMergeError] = useState('');
 
   const loadIssues = useCallback(async (page = 1, status = '') => {
     setLoading(true);
@@ -40,7 +54,7 @@ const IssueManagement: React.FC<Props> = ({ onDataChange }) => {
 
   useEffect(() => { loadIssues(1, filter); }, [filter, sortBy, loadIssues]);
 
-  const handleStatusChange = async (id: string, status: string) => {
+  const handleStatusChange = async (id: string, status: IssueStatus) => {
     try {
       await issueApi.updateIssueStatus(id, status);
       setSnack({ open: true, msg: `Trạng thái → ${STATUS_LABELS[status]}`, severity: 'success' });
@@ -59,6 +73,57 @@ const IssueManagement: React.FC<Props> = ({ onDataChange }) => {
       onDataChange();
     } catch { /* silently ignore */ setSnack({ open: true, msg: 'Xoá thất bại', severity: 'error' }); }
   };
+
+  const openMergeDialog = async (source: IssueItem) => {
+    setMergeSource(source);
+    setMergeTargetId('');
+    setMergeCandidates([]);
+    setMergeMeta(null);
+    setMergeError('');
+    setMergeLoading(true);
+    try {
+      const { data } = await issueApi.getDuplicateCandidatesForIssue(source._id);
+      setMergeCandidates(data.data.candidates);
+      setMergeMeta(data.data.meta);
+    } catch (error) {
+      setMergeError(
+        axios.isAxiosError<ApiErrorResponse>(error)
+          ? error.response?.data?.message || 'Không thể tải danh sách sự cố gốc.'
+          : 'Không thể tải danh sách sự cố gốc.'
+      );
+    } finally {
+      setMergeLoading(false);
+    }
+  };
+
+  const handleMerge = async () => {
+    if (!mergeSource || !mergeTargetId) return;
+    setMerging(true);
+    setMergeError('');
+    try {
+      await issueApi.mergeIssue(mergeSource._id, mergeTargetId);
+      setSnack({
+        open: true,
+        msg: `Đã gộp “${mergeSource.title}” vào sự cố gốc.`,
+        severity: 'success',
+      });
+      setMergeSource(null);
+      await loadIssues(pag.current, filter);
+      onDataChange();
+    } catch (error) {
+      setMergeError(
+        axios.isAxiosError<ApiErrorResponse>(error)
+          ? error.response?.data?.message || 'Không thể gộp sự cố.'
+          : 'Không thể gộp sự cố.'
+      );
+    } finally {
+      setMerging(false);
+    }
+  };
+
+  const selectedMergeCandidate = mergeCandidates.find(
+    (candidate) => candidate.issue._id === mergeTargetId
+  );
 
   return (
     <GlassCard>
@@ -126,16 +191,16 @@ const IssueManagement: React.FC<Props> = ({ onDataChange }) => {
                 </TableCell>
                 <TableCell sx={cellSx}>
                   <Stack direction="row" alignItems="center" spacing={0.5}>
-                    <ThumbUp sx={{ fontSize: 14, color: (issue as any).voteCount > 0 ? '#F59E0B' : 'text.disabled' }} />
-                    <Typography variant="body2" fontWeight={(issue as any).voteCount > 0 ? 700 : 400}
-                      color={(issue as any).voteCount > 0 ? '#F59E0B' : 'text.secondary'}>
-                      {(issue as any).voteCount || 0}
+                    <ThumbUp sx={{ fontSize: 14, color: (issue.voteCount || 0) > 0 ? '#F59E0B' : 'text.disabled' }} />
+                    <Typography variant="body2" fontWeight={(issue.voteCount || 0) > 0 ? 700 : 400}
+                      color={(issue.voteCount || 0) > 0 ? '#F59E0B' : 'text.secondary'}>
+                      {issue.voteCount || 0}
                     </Typography>
                   </Stack>
                 </TableCell>
                 <TableCell sx={cellSx}>
                   <Select size="small" value={issue.status}
-                    onChange={(e: SelectChangeEvent) => handleStatusChange(issue._id, e.target.value)}
+                    onChange={(e: SelectChangeEvent) => handleStatusChange(issue._id, e.target.value as IssueStatus)}
                     sx={{
                       height: 28, fontSize: '0.75rem', borderRadius: '8px',
                       bgcolor: `${STATUS_COLORS[issue.status]}15`, color: STATUS_COLORS[issue.status],
@@ -156,6 +221,11 @@ const IssueManagement: React.FC<Props> = ({ onDataChange }) => {
                 <TableCell sx={cellSx}>
                   <Stack direction="row" spacing={0.5}>
                     <Tooltip title="Xem"><IconButton size="small" onClick={() => navigate(`/issues/${issue._id}`)} sx={{ color: '#0EA5E9' }}><Visibility fontSize="small" /></IconButton></Tooltip>
+                    <Tooltip title="Gộp vào sự cố gốc">
+                      <IconButton size="small" onClick={() => openMergeDialog(issue)} sx={{ color: '#8B5CF6' }}>
+                        <CallMerge fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
                     <Tooltip title="Xoá"><IconButton size="small" onClick={() => setDeleteId(issue._id)} sx={{ color: '#EF4444' }}><Delete fontSize="small" /></IconButton></Tooltip>
                   </Stack>
                 </TableCell>
@@ -180,6 +250,119 @@ const IssueManagement: React.FC<Props> = ({ onDataChange }) => {
         <DialogActions>
           <Button onClick={() => setDeleteId(null)} sx={{ color: 'text.secondary' }}>Huỷ</Button>
           <Button onClick={handleDelete} variant="contained" color="error">Xoá</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(mergeSource)}
+        onClose={merging ? undefined : () => setMergeSource(null)}
+        fullWidth
+        maxWidth="sm"
+        PaperProps={{ sx: { bgcolor: '#1A2332', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px' } }}
+      >
+        <DialogTitle>Gộp báo cáo trùng lặp</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <Alert severity="info">
+              Bản trùng vẫn được giữ trong lịch sử nhưng sẽ ẩn khỏi danh sách. Vote và người
+              theo dõi được chuyển sang sự cố gốc. Hệ thống chỉ đề xuất, admin là người quyết định.
+            </Alert>
+
+            {mergeMeta?.mode !== 'embedding' && (
+              <Alert severity="warning">
+                Embedding chưa sẵn sàng; danh sách đang dùng so khớp từ khóa + vị trí.
+              </Alert>
+            )}
+
+            <Stack spacing={0.5}>
+              <Typography variant="caption" color="text.secondary">Báo cáo cần gộp</Typography>
+              <Typography fontWeight={700}>{mergeSource?.title}</Typography>
+              <Typography variant="body2" color="text.secondary">{mergeSource?.location}</Typography>
+            </Stack>
+
+            {mergeError && <Alert severity="error">{mergeError}</Alert>}
+
+            <FormControl fullWidth disabled={mergeLoading || merging}>
+              <InputLabel id="merge-target-label">Chọn sự cố gốc</InputLabel>
+              <Select
+                labelId="merge-target-label"
+                value={mergeTargetId}
+                label="Chọn sự cố gốc"
+                onChange={(event: SelectChangeEvent) => setMergeTargetId(event.target.value)}
+                startAdornment={mergeLoading ? <CircularProgress size={18} sx={{ mr: 1 }} /> : undefined}
+              >
+                {mergeCandidates.map((candidate) => (
+                  <MenuItem key={candidate.issue._id} value={candidate.issue._id}>
+                    <Stack sx={{ minWidth: 0 }}>
+                      <Typography variant="body2" noWrap>{candidate.issue.title}</Typography>
+                      <Typography variant="caption" color="text.secondary" noWrap>
+                        Giống {Math.round(candidate.duplicateScore * 100)}%
+                        {' · '}
+                        {candidate.distanceMeters} m
+                        {' · '}
+                        {CATEGORY_LABELS[candidate.issue.category] || candidate.issue.category}
+                      </Typography>
+                    </Stack>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {selectedMergeCandidate && mergeSource && (
+              <Box sx={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: 2, p: 1.5 }}>
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap mb={1.25}>
+                  <Chip
+                    size="small"
+                    color={selectedMergeCandidate.confidence === 'high' ? 'error' : 'warning'}
+                    label={`Độ trùng ${Math.round(selectedMergeCandidate.duplicateScore * 100)}%`}
+                  />
+                  <Chip size="small" label={`${selectedMergeCandidate.distanceMeters} m`} />
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    label={selectedMergeCandidate.method === 'embedding' ? 'Embedding' : 'Từ khóa dự phòng'}
+                  />
+                </Stack>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} divider={<Divider flexItem orientation="vertical" />}>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography variant="caption" color="text.secondary">Báo cáo cần gộp</Typography>
+                    <Typography variant="body2" fontWeight={700}>{mergeSource.title}</Typography>
+                    <Typography variant="caption" color="text.secondary">{mergeSource.location}</Typography>
+                    <Typography variant="caption" display="block" mt={0.5}>{mergeSource.description}</Typography>
+                  </Box>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography variant="caption" color="text.secondary">Sự cố gốc đề xuất</Typography>
+                    <Typography variant="body2" fontWeight={700}>{selectedMergeCandidate.issue.title}</Typography>
+                    <Typography variant="caption" color="text.secondary">{selectedMergeCandidate.issue.location}</Typography>
+                    <Typography variant="caption" display="block" mt={0.5}>{selectedMergeCandidate.issue.description}</Typography>
+                  </Box>
+                </Stack>
+                <Typography variant="caption" color="text.secondary" display="block" mt={1.25}>
+                  {selectedMergeCandidate.reasons.join(' · ')}
+                </Typography>
+              </Box>
+            )}
+
+            {!mergeLoading && mergeCandidates.length === 0 && !mergeError && (
+              <Typography variant="body2" color="text.secondary">
+                Không có sự cố khác phù hợp để chọn làm bản gốc.
+              </Typography>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setMergeSource(null)} disabled={merging} color="inherit">
+            Hủy
+          </Button>
+          <Button
+            variant="contained"
+            color="secondary"
+            onClick={handleMerge}
+            disabled={!mergeTargetId || merging}
+            startIcon={merging ? <CircularProgress size={17} color="inherit" /> : <CallMerge />}
+          >
+            {merging ? 'Đang gộp...' : 'Xác nhận gộp'}
+          </Button>
         </DialogActions>
       </Dialog>
 

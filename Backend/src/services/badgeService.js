@@ -1,9 +1,9 @@
 const Issue = require('../models/Issue');
-const User = require('../models/User');
 const { getBadgesForCount, getNextBadge, BADGE_CONFIG } = require('../utils/badgeConfig');
 
 const getUserBadges = async (userId) => {
-  const issueCount = await Issue.countDocuments({ userId });
+  // Sự cố đã xoá mềm không tính vào thành tích.
+  const issueCount = await Issue.countDocuments({ userId, isDeleted: false });
   return {
     issueCount,
     badges: getBadgesForCount(issueCount),
@@ -17,6 +17,7 @@ const getUserBadges = async (userId) => {
 
 const getLeaderboard = async (limit = 10) => {
   const leaders = await Issue.aggregate([
+    { $match: { isDeleted: false } },
     { $group: { _id: '$userId', issueCount: { $sum: 1 } } },
     { $sort: { issueCount: -1 } },
     { $limit: limit },

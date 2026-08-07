@@ -27,13 +27,19 @@ describe('CommentService', () => {
       const mockComments = [{ _id: '1', content: 'Hello' }];
       Comment.find.mockReturnValue({
         populate: jest.fn().mockReturnValue({
-          sort: jest.fn().mockResolvedValue(mockComments),
+          sort: jest.fn().mockReturnValue({
+            skip: jest.fn().mockReturnValue({
+              limit: jest.fn().mockResolvedValue(mockComments),
+            }),
+          }),
         }),
       });
+      Comment.countDocuments.mockResolvedValue(1);
 
       const result = await commentService.getComments('issue1');
 
-      expect(result).toHaveLength(1);
+      expect(result.comments).toHaveLength(1);
+      expect(result.pagination.total).toBe(1);
       expect(Comment.find).toHaveBeenCalledWith({ issueId: 'issue1' });
     });
   });
@@ -52,7 +58,7 @@ describe('CommentService', () => {
     });
 
     it('should throw if issue not found', async () => {
-      Issue.findById.mockReturnValue({
+      Issue.findOne.mockReturnValue({
         populate: jest.fn().mockResolvedValue(null),
       });
 
@@ -62,7 +68,7 @@ describe('CommentService', () => {
     });
 
     it('should create comment and notify admins when user comments', async () => {
-      Issue.findById.mockReturnValue({
+      Issue.findOne.mockReturnValue({
         populate: jest.fn().mockResolvedValue({
           _id: 'issue1',
           title: 'Pothole',
@@ -92,7 +98,7 @@ describe('CommentService', () => {
     });
 
     it('should create comment and notify reporter when admin comments', async () => {
-      Issue.findById.mockReturnValue({
+      Issue.findOne.mockReturnValue({
         populate: jest.fn().mockResolvedValue({
           _id: 'issue1',
           title: 'Pothole',

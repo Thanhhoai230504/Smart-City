@@ -13,6 +13,7 @@ import L from 'leaflet';
 import { Send, CloudUpload, LocationOn, Search, MyLocation, Close, SmartToy, Phone, ThumbUp } from '@mui/icons-material';
 import { CATEGORY_MAP, DA_NANG_CENTER, DEFAULT_ZOOM } from '../../utils/constants';
 import { issueApi } from '../../api/issueApi';
+import { DuplicateCandidate, DuplicateCandidateMeta } from '../../types';
 
 // ── Goong API helpers ──
 const GOONG_API_KEY = import.meta.env.VITE_GOONG_API_KEY;
@@ -41,6 +42,15 @@ interface GoongPlaceDetailResponse {
   };
   status: string;
 }
+
+interface SelectedIssueImage {
+  id: string;
+  file: File;
+  previewUrl: string;
+}
+
+const MAX_ISSUE_IMAGES = 5;
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 
 // Autocomplete: search for address suggestions near Da Nang
 const searchAddress = async (input: string): Promise<GoongPrediction[]> => {
@@ -110,8 +120,8 @@ const ReportIssuePage: React.FC = () => {
   const [location, setLocation] = useState('');
   const [lat, setLat] = useState<number | null>(null);
   const [lng, setLng] = useState<number | null>(null);
-  const [image, setImage] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [images, setImages] = useState<SelectedIssueImage[]>([]);
+  const objectUrlsRef = useRef<Set<string>>(new Set());
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -129,20 +139,61 @@ const ReportIssuePage: React.FC = () => {
   const searchBoxRef = useRef<HTMLDivElement>(null);
   const [gettingLocation, setGettingLocation] = useState(false);
 
-  // Nearby duplicate detection
-  const [nearbyIssues, setNearbyIssues] = useState<any[]>([]);
-  const [nearbyLoading, setNearbyLoading] = useState(false);
+  // Two-stage duplicate detection: geo prefilter + embedding/lexical scoring.
+  const [duplicateCandidates, setDuplicateCandidates] = useState<DuplicateCandidate[]>([]);
+  const [duplicateMeta, setDuplicateMeta] = useState<DuplicateCandidateMeta | null>(null);
+  const [duplicateLoading, setDuplicateLoading] = useState(false);
+  const [duplicateError, setDuplicateError] = useState('');
+  const [confirmingDuplicateId, setConfirmingDuplicateId] = useState('');
+  const [confirmedDuplicateId, setConfirmedDuplicateId] = useState('');
 
-  const fetchNearbyIssues = useCallback(async (latitude: number, longitude: number) => {
-    setNearbyLoading(true);
-    try {
-      const { data } = await issueApi.getNearbyIssues(latitude, longitude, 300);
-      setNearbyIssues(data.data.issues || []);
-    } catch {
-      setNearbyIssues([]);
-    }
-    setNearbyLoading(false);
+  useEffect(() => {
+    const objectUrls = objectUrlsRef.current;
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      objectUrls.forEach((url) => URL.revokeObjectURL(url));
+      objectUrls.clear();
+    };
   }, []);
+
+  useEffect(() => {
+    if (!lat || !lng || title.trim().length < 3 || description.trim().length < 10 || !category) {
+      setDuplicateCandidates([]);
+      setDuplicateMeta(null);
+      setDuplicateError('');
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      setDuplicateLoading(true);
+      setDuplicateError('');
+      try {
+        const { data } = await issueApi.findDuplicateCandidates({
+          title: title.trim(),
+          description: description.trim(),
+          category,
+          latitude: lat,
+          longitude: lng,
+        }, controller.signal);
+        setDuplicateCandidates(data.data.candidates);
+        setDuplicateMeta(data.data.meta);
+      } catch {
+        if (!controller.signal.aborted) {
+          setDuplicateError('Không thể kiểm tra đề xuất trùng lúc này. Bạn vẫn có thể gửi báo cáo mới.');
+          setDuplicateCandidates([]);
+          setDuplicateMeta(null);
+        }
+      } finally {
+        if (!controller.signal.aborted) setDuplicateLoading(false);
+      }
+    }, 650);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [category, description, lat, lng, title]);
 
   // ── Close dropdown when clicking outside ──
   useEffect(() => {
@@ -210,7 +261,6 @@ const ReportIssuePage: React.FC = () => {
       setLng(detail.lng);
       setLocation(prediction.description);
       setFlyTarget({ lat: detail.lat, lng: detail.lng });
-      fetchNearbyIssues(detail.lat, detail.lng);
     } catch {
       setError('Không lấy được toạ độ. Vui lòng thử lại hoặc click trên bản đồ.');
     } finally {
@@ -223,7 +273,6 @@ const ReportIssuePage: React.FC = () => {
     setLat(latitude);
     setLng(longitude);
     setFlyTarget(null);
-    fetchNearbyIssues(latitude, longitude);
     // Reverse geocode khi click trên bản đồ
     try {
       const address = await reverseGeocode(latitude, longitude);
@@ -245,7 +294,6 @@ const ReportIssuePage: React.FC = () => {
         setLat(latitude);
         setLng(longitude);
         setFlyTarget({ lat: latitude, lng: longitude });
-        fetchNearbyIssues(latitude, longitude);
         try {
           const address = await reverseGeocode(latitude, longitude);
           setLocation(address);
@@ -267,25 +315,91 @@ const ReportIssuePage: React.FC = () => {
   }, []);
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) { setError('Ảnh tối đa 5MB'); return; }
-      setImage(file);
-      setPreview(URL.createObjectURL(file));
+    const selectedFiles = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (!selectedFiles.length) return;
 
-      // AI classify
+    if (selectedFiles.some((file) => !file.type.startsWith('image/'))) {
+      setError('Chỉ chấp nhận tệp hình ảnh.');
+      return;
+    }
+    if (selectedFiles.some((file) => file.size > MAX_IMAGE_SIZE)) {
+      setError('Mỗi ảnh có dung lượng tối đa 5MB.');
+      return;
+    }
+
+    const existingSignatures = new Set(
+      images.map(({ file }) => `${file.name}:${file.size}:${file.lastModified}`)
+    );
+    const uniqueFiles = selectedFiles.filter((file) => {
+      const signature = `${file.name}:${file.size}:${file.lastModified}`;
+      if (existingSignatures.has(signature)) return false;
+      existingSignatures.add(signature);
+      return true;
+    });
+    if (!uniqueFiles.length) return;
+    if (images.length + uniqueFiles.length > MAX_ISSUE_IMAGES) {
+      setError(`Mỗi báo cáo chỉ được chọn tối đa ${MAX_ISSUE_IMAGES} ảnh.`);
+      return;
+    }
+
+    const additions = uniqueFiles.map((file) => {
+      const previewUrl = URL.createObjectURL(file);
+      objectUrlsRef.current.add(previewUrl);
+      return {
+        id: `${file.name}-${file.size}-${file.lastModified}-${Math.random()}`,
+        file,
+        previewUrl,
+      };
+    });
+    setImages((current) => [...current, ...additions]);
+    setError('');
+
+    // Ảnh đầu tiên đại diện cho báo cáo và được dùng để AI gợi ý phân loại.
+    if (images.length === 0) {
       setAiClassifying(true);
       setAiSuggestion(null);
       try {
         const { aiApi } = await import('../../api/aiApi');
-        const { data } = await aiApi.classifyImage(file);
+        const { data } = await aiApi.classifyImage(additions[0].file);
         const result = data.data;
         setAiSuggestion(result);
         if (result.confidence >= 0.5 && !category) {
           setCategory(result.category);
         }
-      } catch { /* silent */ }
+      } catch { /* AI chỉ là gợi ý, không chặn người dùng báo cáo */ }
       setAiClassifying(false);
+    }
+  };
+
+  const handleRemoveImage = (imageId: string) => {
+    setImages((current) => {
+      const removed = current.find((image) => image.id === imageId);
+      if (removed) {
+        URL.revokeObjectURL(removed.previewUrl);
+        objectUrlsRef.current.delete(removed.previewUrl);
+      }
+      return current.filter((image) => image.id !== imageId);
+    });
+    setAiSuggestion(null);
+  };
+
+  const handleConfirmDuplicate = async (candidate: DuplicateCandidate) => {
+    const duplicateIssue = candidate.issue;
+    setConfirmingDuplicateId(duplicateIssue._id);
+    setError('');
+    try {
+      const { data } = await issueApi.confirmDuplicate(duplicateIssue._id);
+      setConfirmedDuplicateId(duplicateIssue._id);
+      setDuplicateCandidates((current) => current.map((item) => (
+        item.issue._id === duplicateIssue._id
+          ? { ...item, issue: { ...item.issue, voteCount: data.data.voteCount } }
+          : item
+      )));
+    } catch {
+      setError('Không thể xác nhận sự cố trùng. Vui lòng thử lại.');
+    } finally {
+      setConfirmingDuplicateId('');
     }
   };
 
@@ -303,7 +417,7 @@ const ReportIssuePage: React.FC = () => {
     formData.append('latitude', String(lat));
     formData.append('longitude', String(lng));
     if (phone.trim()) formData.append('phone', phone.trim());
-    if (image) formData.append('image', image);
+    images.forEach(({ file }) => formData.append('images', file));
 
     const result = await dispatch(createIssue(formData));
     if (createIssue.fulfilled.match(result)) {
@@ -448,12 +562,72 @@ const ReportIssuePage: React.FC = () => {
               {/* Image Upload */}
               <Box>
                 <Button component="label" variant="outlined" startIcon={<CloudUpload />} fullWidth
+                  disabled={images.length >= MAX_ISSUE_IMAGES}
                   sx={{ py: 2, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.15)' }}>
-                  {image ? image.name : 'Chọn ảnh minh họa (tùy chọn, tối đa 5MB)'}
-                  <input type="file" hidden accept="image/*" onChange={handleImageChange} />
+                  {images.length
+                    ? `Thêm ảnh (${images.length}/${MAX_ISSUE_IMAGES})`
+                    : `Chọn tối đa ${MAX_ISSUE_IMAGES} ảnh (mỗi ảnh tối đa 5MB)`}
+                  <input
+                    type="file"
+                    hidden
+                    multiple
+                    accept="image/*"
+                    onChange={handleImageChange}
+                  />
                 </Button>
-                {preview && (
-                  <Box component="img" src={preview} alt="Preview" sx={{ mt: 2, width: '100%', maxHeight: 200, objectFit: 'cover', borderRadius: 2 }} />
+                {images.length > 0 && (
+                  <Box
+                    sx={{
+                      mt: 2,
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(105px, 1fr))',
+                      gap: 1,
+                    }}
+                  >
+                    {images.map((image, index) => (
+                      <Box
+                        key={image.id}
+                        sx={{
+                          position: 'relative',
+                          aspectRatio: '1 / 1',
+                          borderRadius: 2,
+                          overflow: 'hidden',
+                          border: '1px solid',
+                          borderColor: index === 0 ? 'primary.main' : 'divider',
+                        }}
+                      >
+                        <Box
+                          component="img"
+                          src={image.previewUrl}
+                          alt={`Ảnh báo cáo ${index + 1}`}
+                          sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                        {index === 0 && (
+                          <Chip
+                            label="Ảnh chính"
+                            size="small"
+                            color="primary"
+                            sx={{ position: 'absolute', left: 5, bottom: 5, height: 20, fontSize: '0.65rem' }}
+                          />
+                        )}
+                        <IconButton
+                          size="small"
+                          aria-label={`Xóa ảnh ${index + 1}`}
+                          onClick={() => handleRemoveImage(image.id)}
+                          sx={{
+                            position: 'absolute',
+                            top: 4,
+                            right: 4,
+                            bgcolor: 'rgba(0,0,0,0.7)',
+                            color: 'white',
+                            '&:hover': { bgcolor: 'rgba(239,68,68,0.9)' },
+                          }}
+                        >
+                          <Close fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    ))}
+                  </Box>
                 )}
                 {aiClassifying && (
                   <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 1 }}>
@@ -483,60 +657,132 @@ const ReportIssuePage: React.FC = () => {
                 </Alert>
               )}
 
-              {/* Nearby issues warning */}
-              {nearbyLoading && (
+              {/* Embedding duplicate candidates */}
+              {duplicateLoading && (
                 <Stack direction="row" alignItems="center" spacing={1}>
                   <CircularProgress size={16} />
-                  <Typography variant="caption" color="text.secondary">Đang kiểm tra sự cố gần đó...</Typography>
+                  <Typography variant="caption" color="text.secondary">Đang so khớp nội dung và vị trí...</Typography>
                 </Stack>
               )}
-              {!nearbyLoading && nearbyIssues.length > 0 && (
+              {duplicateError && <Alert severity="info">{duplicateError}</Alert>}
+              {!duplicateLoading && duplicateCandidates.length > 0 && (
                 <Alert severity="warning" sx={{ '& .MuiAlert-message': { width: '100%' } }}>
                   <Typography variant="body2" fontWeight={600} mb={1}>
-                    ⚠️ Có {nearbyIssues.length} sự cố đã được báo cáo gần vị trí này (bán kính 300m)
+                    ⚠️ Có {duplicateCandidates.length} báo cáo có khả năng trùng
                   </Typography>
                   <Typography variant="caption" color="text.secondary" display="block" mb={1.5}>
-                    Nếu sự cố bạn gặp trùng với các báo cáo dưới đây, hãy nhấn 👍 Upvote để ưu tiên xử lý thay vì tạo báo cáo mới.
+                    Hệ thống so khớp nội dung, khoảng cách, loại và thời gian. Đây chỉ là đề xuất;
+                    bạn vẫn quyết định xác nhận hoặc tạo báo cáo riêng.
                   </Typography>
+                  {duplicateMeta?.mode !== 'embedding' && (
+                    <Alert severity="info" sx={{ mb: 1.5, py: 0.25 }}>
+                      Embedding chưa sẵn sàng; kết quả đang dùng từ khóa + vị trí dự phòng.
+                    </Alert>
+                  )}
+                  {confirmedDuplicateId && (
+                    <Alert
+                      severity="success"
+                      sx={{ mb: 1.5 }}
+                      action={(
+                        <Button
+                          component={Link}
+                          to={`/issues/${confirmedDuplicateId}`}
+                          color="inherit"
+                          size="small"
+                        >
+                          Theo dõi
+                        </Button>
+                      )}
+                    >
+                      Đã xác nhận cùng một sự cố. Bạn không cần gửi báo cáo mới.
+                    </Alert>
+                  )}
                   <Stack spacing={1}>
-                    {nearbyIssues.map((issue: any) => (
-                      <Paper key={issue._id} sx={{
+                    {duplicateCandidates.map((candidate) => {
+                      const candidateIssue = candidate.issue;
+                      return (
+                      <Paper key={candidateIssue._id} sx={{
                         p: 1.5, bgcolor: 'rgba(255,255,255,0.03)',
                         border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px',
                       }}>
                         <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
                           <Box sx={{ flex: 1, minWidth: 0 }}>
                             <Typography variant="body2" fontWeight={600} noWrap>
-                              {CATEGORY_MAP[issue.category]?.icon} {issue.title}
+                              {CATEGORY_MAP[candidateIssue.category]?.icon} {candidateIssue.title}
                             </Typography>
                             <Typography variant="caption" color="text.secondary" noWrap display="block">
-                              📍 {issue.location} · ~{issue.distance}m
+                              📍 {candidateIssue.location} · ~{candidate.distanceMeters}m
                             </Typography>
-                            <Stack direction="row" spacing={0.5} mt={0.5}>
-                              <Chip label={CATEGORY_MAP[issue.category]?.label || issue.category}
+                            <Stack direction="row" spacing={0.5} mt={0.5} flexWrap="wrap" useFlexGap>
+                              <Chip label={`Giống ${Math.round(candidate.duplicateScore * 100)}%`}
+                                color={candidate.confidence === 'high' ? 'error' : 'warning'}
+                                size="small" sx={{ fontSize: '0.65rem', height: 20 }} />
+                              <Chip label={CATEGORY_MAP[candidateIssue.category]?.label || candidateIssue.category}
                                 size="small" sx={{ fontSize: '0.65rem', height: 20, bgcolor: 'rgba(14,165,233,0.15)' }} />
-                              <Chip label={`👍 ${issue.voteCount || 0}`}
+                              <Chip label={`👍 ${candidateIssue.voteCount || 0}`}
                                 size="small" sx={{ fontSize: '0.65rem', height: 20, bgcolor: 'rgba(59,130,246,0.15)' }} />
                             </Stack>
+                            <Typography variant="caption" color="text.secondary" display="block" mt={0.65}>
+                              {candidate.reasons.join(' · ')}
+                            </Typography>
                           </Box>
-                          <Button component={Link} to={`/issues/${issue._id}`} target="_blank"
-                            variant="outlined" size="small" startIcon={<ThumbUp sx={{ fontSize: 14 }} />}
-                            sx={{
-                              textTransform: 'none', fontSize: '0.7rem', borderRadius: '8px',
-                              minWidth: 'auto', whiteSpace: 'nowrap', flexShrink: 0,
-                            }}>
-                            Xem & Vote
-                          </Button>
+                          <Stack spacing={0.75} alignItems="flex-end">
+                            <Button
+                              type="button"
+                              variant={confirmedDuplicateId === candidateIssue._id ? 'contained' : 'outlined'}
+                              color="success"
+                              size="small"
+                              startIcon={confirmingDuplicateId === candidateIssue._id
+                                ? <CircularProgress size={14} color="inherit" />
+                                : <ThumbUp sx={{ fontSize: 14 }} />}
+                              disabled={Boolean(confirmingDuplicateId || confirmedDuplicateId)}
+                              onClick={() => handleConfirmDuplicate(candidate)}
+                              sx={{
+                                textTransform: 'none',
+                                fontSize: '0.7rem',
+                                borderRadius: '8px',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {confirmedDuplicateId === candidateIssue._id
+                                ? 'Đã xác nhận'
+                                : 'Đây là cùng một sự cố'}
+                            </Button>
+                            <Button
+                              component={Link}
+                              to={`/issues/${candidateIssue._id}`}
+                              target="_blank"
+                              size="small"
+                              sx={{ fontSize: '0.68rem', minWidth: 'auto' }}
+                            >
+                              Xem chi tiết
+                            </Button>
+                          </Stack>
                         </Stack>
                       </Paper>
-                    ))}
+                    );})}
                   </Stack>
+                  {confirmedDuplicateId && (
+                    <Button
+                      type="button"
+                      color="inherit"
+                      size="small"
+                      onClick={() => setConfirmedDuplicateId('')}
+                      sx={{ mt: 1 }}
+                    >
+                      Tôi vẫn muốn tạo báo cáo riêng
+                    </Button>
+                  )}
                 </Alert>
               )}
 
               <Button type="submit" variant="contained" size="large" startIcon={loading ? <CircularProgress size={20} /> : <Send />}
-                disabled={loading} sx={{ py: 1.5 }}>
-                {loading ? 'Đang gửi...' : 'Gửi báo cáo'}
+                disabled={loading || Boolean(confirmedDuplicateId)} sx={{ py: 1.5 }}>
+                {loading
+                  ? 'Đang gửi...'
+                  : confirmedDuplicateId
+                    ? 'Đã xác nhận báo cáo trùng'
+                    : 'Gửi báo cáo'}
               </Button>
             </Stack>
           </Grid>

@@ -19,7 +19,8 @@ import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RTooltip,
 } from 'recharts';
 import { formatDate } from '../../utils/helpers';
-import { Issue } from '../../types';
+import { DA_NANG_DISTRICTS } from '../../utils/constants';
+import { IssueSummary } from '../../types';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -49,7 +50,13 @@ const ProfilePage: React.FC = () => {
   const [newPw, setNewPw] = useState('');
   const [changingPw, setChangingPw] = useState(false);
 
-  const [myIssues, setMyIssues] = useState<Issue[]>([]);
+  const [issueStats, setIssueStats] = useState<IssueSummary>({
+    total: 0,
+    reported: 0,
+    processing: 0,
+    resolved: 0,
+    rejected: 0,
+  });
   const [badgeData, setBadgeData] = useState<any>(null);
   const [watchedDistricts, setWatchedDistricts] = useState<string[]>([]);
   const [savingDistricts, setSavingDistricts] = useState(false);
@@ -63,10 +70,11 @@ const ProfilePage: React.FC = () => {
   }, [user]);
 
   useEffect(() => {
+    const controller = new AbortController();
     (async () => {
       try {
-        const { data } = await issueApi.getMyIssues({ limit: 100 });
-        setMyIssues(data.data.issues);
+        const { data } = await issueApi.getMyIssueSummary(controller.signal);
+        setIssueStats(data.data.summary);
       } catch { /* ignore */ }
     })();
     (async () => {
@@ -75,6 +83,7 @@ const ProfilePage: React.FC = () => {
         setBadgeData(data.data);
       } catch { /* ignore */ }
     })();
+    return () => controller.abort();
   }, []);
 
   const handleUpdateName = async () => {
@@ -108,15 +117,11 @@ const ProfilePage: React.FC = () => {
 
   if (loading || !user) return <LoadingSpinner />;
 
-  // Issue stats
-  const issueStats = myIssues.reduce((acc, i) => {
-    acc[i.status] = (acc[i.status] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-
-  const pieData = Object.entries(issueStats).map(([status, count]) => ({
+  const pieData = (['reported', 'processing', 'resolved', 'rejected'] as const)
+    .filter((status) => issueStats[status] > 0)
+    .map((status) => ({
     name: STATUS_LABELS[status] || status,
-    value: count,
+    value: issueStats[status],
     color: STATUS_COLORS[status] || '#666',
   }));
 
@@ -218,7 +223,7 @@ const ProfilePage: React.FC = () => {
               <Stack direction="row" spacing={2} mb={2}>
                 <Box sx={{ textAlign: 'center', flex: 1, p: 1.5, borderRadius: '12px', bgcolor: 'rgba(14,165,233,0.08)' }}>
                   <BugReport sx={{ color: 'primary.main', mb: 0.5 }} />
-                  <Typography variant="h5" fontWeight={700}>{myIssues.length}</Typography>
+                  <Typography variant="h5" fontWeight={700}>{issueStats.total}</Typography>
                   <Typography variant="caption" color="text.secondary">Tổng cộng</Typography>
                 </Box>
                 <Box sx={{ textAlign: 'center', flex: 1, p: 1.5, borderRadius: '12px', bgcolor: 'rgba(16,185,129,0.08)' }}>
@@ -333,7 +338,7 @@ const ProfilePage: React.FC = () => {
                 Chọn quận/huyện bạn muốn theo dõi. Khi có sự cố mới tại khu vực đó, bạn sẽ nhận thông báo.
               </Typography>
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                {['Hải Châu', 'Thanh Khê', 'Sơn Trà', 'Ngũ Hành Sơn', 'Liên Chiểu', 'Cẩm Lệ', 'Hòa Vang', 'Hoàng Sa'].map(d => {
+                {DA_NANG_DISTRICTS.map(d => {
                   const active = watchedDistricts.includes(d);
                   return (
                     <Chip

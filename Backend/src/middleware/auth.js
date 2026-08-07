@@ -33,7 +33,10 @@ const authMiddleware = async (req, res, next) => {
       id: user._id,
       name: user.name,
       email: user.email,
-      role: user.role
+      role: user.role,
+      // null với user/admin; là đơn vị của cán bộ với role 'staff'.
+      // Lấy từ DB chứ không từ token để đổi đơn vị có hiệu lực ngay.
+      departmentId: user.departmentId || null
     };
 
     next();
@@ -64,6 +67,56 @@ const adminMiddleware = (req, res, next) => {
       success: false,
       message: 'Access denied. Admin privileges required.'
     });
+  }
+  next();
+};
+
+/**
+ * Cho phép cả admin và cán bộ (staff) — dùng cho các route xử lý sự cố.
+ * Việc giới hạn cán bộ chỉ thấy sự cố của đơn vị mình do service làm,
+ * dựa trên `req.user.departmentId`. Phải dùng SAU authMiddleware.
+ */
+const staffMiddleware = (req, res, next) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'staff') {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied. Staff or admin privileges required.'
+    });
+  }
+  // Cán bộ mất đơn vị (đơn vị bị xoá) thì không có phạm vi xử lý nào hợp lệ.
+  if (req.user.role === 'staff' && !req.user.departmentId) {
+    return res.status(403).json({
+      success: false,
+      message: 'Tài khoản cán bộ chưa được gán đơn vị. Liên hệ quản trị viên.'
+    });
+  }
+  next();
+};
+
+/**
+ * Xác thực tuỳ chọn: gắn `req.user` nếu có token hợp lệ, còn không thì cho đi
+ * tiếp như khách. Dùng cho route công khai nhưng cần biết người gọi là ai —
+ * ví dụ GET /api/issues phải bó phạm vi khi người gọi là cán bộ.
+ * Token sai/hết hạn không trả 401 để không làm hỏng trải nghiệm khách xem công khai.
+ */
+const optionalAuthMiddleware = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return next();
+
+  try {
+    const decoded = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET);
+    const user = await User.findById(decoded.id);
+    if (user && user.isActive) {
+      req.user = {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        departmentId: user.departmentId || null
+      };
+    }
+  } catch {
+    // Token không hợp lệ thì coi như khách.
   }
   next();
 };
@@ -104,4 +157,10 @@ const ownerMiddleware = (model) => {
   };
 };
 
-module.exports = { authMiddleware, adminMiddleware, ownerMiddleware };
+module.exports = {
+  authMiddleware,
+  adminMiddleware,
+  staffMiddleware,
+  optionalAuthMiddleware,
+  ownerMiddleware
+};

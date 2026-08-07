@@ -1,16 +1,19 @@
 const Notification = require('../models/Notification');
 const ApiError = require('../utils/apiError');
+const { parsePagination } = require('../utils/pagination');
 
 const getNotifications = async (userId, { page = 1, limit = 20 }) => {
-  const pageNum = parseInt(page);
-  const limitNum = parseInt(limit);
-  const skip = (pageNum - 1) * limitNum;
+  const { pageNum, limitNum, skip } = parsePagination(
+    { page, limit },
+    { defaultLimit: 20, maxLimit: 100 }
+  );
 
   const [notifications, total, unreadCount] = await Promise.all([
     Notification.find({ userId })
       .sort('-createdAt')
       .skip(skip)
-      .limit(limitNum),
+      .limit(limitNum)
+      .lean(),
     Notification.countDocuments({ userId }),
     Notification.countDocuments({ userId, isRead: false })
   ]);

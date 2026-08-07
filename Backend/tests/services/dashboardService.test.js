@@ -34,21 +34,39 @@ describe('DashboardService', () => {
         .mockResolvedValueOnce([      // issuesTrend
           { _id: '2026-04-01', count: 3 },
           { _id: '2026-04-02', count: 5 },
+        ])
+        .mockResolvedValueOnce([      // issuesByDistrict
+          { _id: 'Hải Châu', count: 12 },
+          { _id: null, count: 3 },
         ]);
 
       User.countDocuments.mockResolvedValue(500);
       Place.countDocuments.mockResolvedValue(30);
-      Issue.find.mockReturnValue({
-        populate: jest.fn().mockReturnValue({
-          sort: jest.fn().mockReturnValue({
-            limit: jest.fn().mockReturnValue({
-              select: jest.fn().mockResolvedValue([
-                { _id: '1', title: 'Recent 1' },
-              ]),
+      Issue.find
+        // recentIssues
+        .mockReturnValueOnce({
+          populate: jest.fn().mockReturnValue({
+            sort: jest.fn().mockReturnValue({
+              limit: jest.fn().mockReturnValue({
+                select: jest.fn().mockResolvedValue([
+                  { _id: '1', title: 'Recent 1' },
+                ]),
+              }),
             }),
           }),
-        }),
-      });
+        })
+        // topVotedIssues
+        .mockReturnValueOnce({
+          sort: jest.fn().mockReturnValue({
+            limit: jest.fn().mockReturnValue({
+              select: jest.fn().mockReturnValue({
+                lean: jest.fn().mockResolvedValue([
+                  { _id: '2', title: 'Hot issue', voteCount: 9 },
+                ]),
+              }),
+            }),
+          }),
+        });
 
       const result = await dashboardService.getStats();
 
@@ -76,6 +94,13 @@ describe('DashboardService', () => {
         { date: '2026-04-02', count: 5 },
       ]);
 
+      // Quận được gom nhóm trong DB, bản ghi không xác định quận trả về 'Khác'
+      expect(result.issuesByDistrict).toEqual([
+        { name: 'Hải Châu', count: 12 },
+        { name: 'Khác', count: 3 },
+      ]);
+
+      expect(result.topVotedIssues).toHaveLength(1);
       expect(result.recentIssues).toHaveLength(1);
     });
   });

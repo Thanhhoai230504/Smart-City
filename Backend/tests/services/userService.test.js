@@ -1,6 +1,7 @@
 jest.mock('../../src/models/User');
 jest.mock('../../src/models/Issue');
 
+const mongoose = require('mongoose');
 const User = require('../../src/models/User');
 const Issue = require('../../src/models/Issue');
 const userService = require('../../src/services/userService');
@@ -80,6 +81,18 @@ describe('UserService', () => {
       ).rejects.toThrow('Cannot change your own role');
     });
 
+    // Hồi quy: req.params.id là string còn req.user.id là ObjectId (auth.js gán
+    // user._id), nên so sánh === luôn false và admin tự hạ quyền được.
+    it('should throw when own id is a string and currentUserId is an ObjectId', async () => {
+      const id = new mongoose.Types.ObjectId();
+      User.findByIdAndUpdate.mockResolvedValue({ _id: id, role: 'user' });
+
+      await expect(
+        userService.updateUserRole(id.toString(), 'user', id)
+      ).rejects.toThrow('Cannot change your own role');
+      expect(User.findByIdAndUpdate).not.toHaveBeenCalled();
+    });
+
     it('should throw if target user not found', async () => {
       User.findByIdAndUpdate.mockResolvedValue(null);
 
@@ -104,6 +117,17 @@ describe('UserService', () => {
       await expect(
         userService.toggleUserActive('admin1', 'admin1')
       ).rejects.toThrow('Cannot deactivate your own account');
+    });
+
+    // Hồi quy: req.params.id là string, req.user.id là ObjectId (auth.js gán
+    // user._id) nên so sánh === luôn false và admin tự khoá được tài khoản.
+    it('should throw when deactivating own account with ObjectId currentUserId', async () => {
+      const id = new mongoose.Types.ObjectId();
+
+      await expect(
+        userService.toggleUserActive(id.toString(), id)
+      ).rejects.toThrow('Cannot deactivate your own account');
+      expect(User.findById).not.toHaveBeenCalled();
     });
 
     it('should throw if user not found', async () => {

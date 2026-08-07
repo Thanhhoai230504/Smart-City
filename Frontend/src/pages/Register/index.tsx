@@ -35,7 +35,7 @@ const RegisterPage: React.FC = () => {
 
     const result = await dispatch(registerThunk({ name, email, password }));
     if (registerThunk.fulfilled.match(result)) {
-      navigate('/login');
+      navigate(`/verify-email?email=${encodeURIComponent(email)}`);
     }
   };
 

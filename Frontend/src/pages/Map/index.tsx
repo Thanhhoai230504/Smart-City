@@ -3,10 +3,11 @@ import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../../store/store';
 import { fetchPlaces } from '../../store/slices/placeSlice';
 import { fetchEnvironment } from '../../store/slices/environmentSlice';
-import { fetchIssues } from '../../store/slices/issueSlice';
-import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-leaflet';
+import { issueApi } from '../../api/issueApi';
+import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents, Polyline } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet.heat';
+import 'leaflet/dist/leaflet.css';
 import {
   Box, Paper, Typography, FormControlLabel, Switch, Stack,
   ToggleButton, ToggleButtonGroup, Fab, TextField, InputAdornment,
@@ -14,10 +15,10 @@ import {
 } from '@mui/material';
 import {
   Layers, MyLocation, Search, FilterAlt, ExpandMore, ExpandLess,
-  Directions, Close, SwapVert,
+  Directions, Close,
 } from '@mui/icons-material';
 import { DA_NANG_CENTER, DEFAULT_ZOOM, PLACE_TYPE_MAP, CATEGORY_MAP, STATUS_MAP } from '../../utils/constants';
-import { Place, Issue, EnvironmentData } from '../../types';
+import { Place, MapIssue, EnvironmentData } from '../../types';
 
 const TOMTOM_API_KEY = import.meta.env.VITE_TOMTOM_API_KEY;
 const GOONG_API_KEY = import.meta.env.VITE_GOONG_API_KEY;
@@ -25,11 +26,19 @@ const GOONG_API_KEY = import.meta.env.VITE_GOONG_API_KEY;
 const TRAFFIC_FLOW_TILES_URL =
   `https://api.tomtom.com/traffic/map/4/tile/flow/relative0/{z}/{x}/{y}.png?key=${TOMTOM_API_KEY}&tileSize=256`;
 
-const makeIcon = (emoji: string, color: string) =>
-  L.divIcon({
+const iconCache = new Map<string, L.DivIcon>();
+const makeIcon = (emoji: string, color: string) => {
+  const cacheKey = `${emoji}-${color}`;
+  const cached = iconCache.get(cacheKey);
+  if (cached) return cached;
+
+  const icon = L.divIcon({
     html: `<div style="background:${color};width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3)">${emoji}</div>`,
     className: '', iconSize: [32, 32], iconAnchor: [16, 32], popupAnchor: [0, -32],
   });
+  iconCache.set(cacheKey, icon);
+  return icon;
+};
 
 const envIcon = L.divIcon({
   html: `<div style="background:#10B981;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3)">🌡️</div>`,
@@ -71,6 +80,66 @@ const RecenterButton: React.FC = () => {
   );
 };
 
+/**
+ * Chỉ tải marker nằm trong viewport. Kéo/zoom bản đồ sẽ huỷ request cũ và
+ * debounce request mới, tránh tình trạng response chậm ghi đè response mới.
+ */
+const MapIssueLoader: React.FC<{
+  onLoad: (issues: MapIssue[]) => void;
+  onLoading: (loading: boolean) => void;
+}> = ({ onLoad, onLoading }) => {
+  const map = useMap();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestRef = useRef<AbortController | null>(null);
+
+  const loadVisibleIssues = useCallback(async () => {
+    const currentBounds = map.getBounds();
+    const bounds = [
+      currentBounds.getWest(),
+      currentBounds.getSouth(),
+      currentBounds.getEast(),
+      currentBounds.getNorth(),
+    ].map((value) => value.toFixed(6)).join(',');
+
+    requestRef.current?.abort();
+    const controller = new AbortController();
+    requestRef.current = controller;
+    onLoading(true);
+
+    try {
+      const { data } = await issueApi.getMapIssues(
+        { bounds, limit: 500, sort: '-createdAt' },
+        controller.signal
+      );
+      onLoad(data.data.issues);
+    } catch {
+      if (!controller.signal.aborted) onLoad([]);
+    } finally {
+      if (requestRef.current === controller) onLoading(false);
+    }
+  }, [map, onLoad, onLoading]);
+
+  const scheduleLoad = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(loadVisibleIssues, 250);
+  }, [loadVisibleIssues]);
+
+  useMapEvents({
+    moveend: scheduleLoad,
+    zoomend: scheduleLoad,
+  });
+
+  useEffect(() => {
+    loadVisibleIssues();
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      requestRef.current?.abort();
+    };
+  }, [loadVisibleIssues]);
+
+  return null;
+};
+
 // Distance calculation (Haversine)
 const getDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
   const R = 6371;
@@ -83,8 +152,9 @@ const getDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number): 
 const MapPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { places } = useSelector((s: RootState) => s.places);
-  const { issues } = useSelector((s: RootState) => s.issues);
   const { environmentData } = useSelector((s: RootState) => s.environment);
+  const [issues, setIssues] = useState<MapIssue[]>([]);
+  const [issuesLoading, setIssuesLoading] = useState(false);
 
   const [showPlaces, setShowPlaces] = useState(true);
   const [showIssues, setShowIssues] = useState(true);
@@ -118,9 +188,21 @@ const MapPage: React.FC = () => {
 
   useEffect(() => {
     dispatch(fetchPlaces());
-    dispatch(fetchIssues({ limit: 200 }));
     dispatch(fetchEnvironment());
   }, [dispatch]);
+
+  useEffect(() => () => {
+    if (startTimerRef.current) clearTimeout(startTimerRef.current);
+    if (endTimerRef.current) clearTimeout(endTimerRef.current);
+  }, []);
+
+  const handleMapIssues = useCallback((nextIssues: MapIssue[]) => {
+    setIssues(nextIssues);
+  }, []);
+
+  const handleMapIssuesLoading = useCallback((loading: boolean) => {
+    setIssuesLoading(loading);
+  }, []);
 
   // Filtered places
   const filteredPlaces = useMemo(() => {
@@ -418,6 +500,7 @@ const MapPage: React.FC = () => {
                 </Stack>
                 <Typography variant="caption" color="text.secondary" mt={1.5} display="block">
                   📍 {filteredPlaces.length} địa điểm · {filteredIssues.length} sự cố
+                  {issuesLoading && <CircularProgress size={12} sx={{ ml: 1 }} />}
                 </Typography>
               </Box>
             </Collapse>
@@ -537,6 +620,10 @@ const MapPage: React.FC = () => {
         style={{ height: '100%', width: '100%' }}
         zoomControl={false}
       >
+        <MapIssueLoader
+          onLoad={handleMapIssues}
+          onLoading={handleMapIssuesLoading}
+        />
         <TileLayer
           attribution='&copy; Google Maps'
           url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=vi"
@@ -573,7 +660,7 @@ const MapPage: React.FC = () => {
         })}
 
         {/* Issue markers */}
-        {showIssues && filteredIssues.map((issue: Issue) => {
+        {showIssues && filteredIssues.map((issue: MapIssue) => {
           const cat = CATEGORY_MAP[issue.category] || CATEGORY_MAP.other;
           const st = STATUS_MAP[issue.status] || STATUS_MAP.reported;
           return (

@@ -11,12 +11,16 @@ const generateReport = async (type = 'weekly') => {
   if (type === 'weekly') startDate.setDate(now.getDate() - 7);
   else startDate.setMonth(now.getMonth() - 1);
 
+  // Bỏ qua sự cố đã xoá mềm trong mọi số liệu báo cáo.
+  const activeMatch = { isDeleted: false, mergedInto: null };
+  const periodMatch = { ...activeMatch, createdAt: { $gte: startDate } };
+
   const [totalAll, periodIssues, byStatus, byCategory, topVoted] = await Promise.all([
-    Issue.countDocuments(),
-    Issue.find({ createdAt: { $gte: startDate } }).lean(),
-    Issue.aggregate([{ $match: { createdAt: { $gte: startDate } } }, { $group: { _id: '$status', count: { $sum: 1 } } }]),
-    Issue.aggregate([{ $match: { createdAt: { $gte: startDate } } }, { $group: { _id: '$category', count: { $sum: 1 } } }]),
-    Issue.find().sort({ voteCount: -1 }).limit(5).select('title category voteCount location status').lean(),
+    Issue.countDocuments(activeMatch),
+    Issue.find(periodMatch).lean(),
+    Issue.aggregate([{ $match: periodMatch }, { $group: { _id: '$status', count: { $sum: 1 } } }]),
+    Issue.aggregate([{ $match: periodMatch }, { $group: { _id: '$category', count: { $sum: 1 } } }]),
+    Issue.find(activeMatch).sort({ voteCount: -1 }).limit(5).select('title category voteCount location status').lean(),
   ]);
 
   const resolved = periodIssues.filter(i => i.status === 'resolved');

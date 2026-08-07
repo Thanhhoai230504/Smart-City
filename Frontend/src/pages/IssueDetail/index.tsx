@@ -9,7 +9,7 @@ import {
   Box, Container, Typography, Chip, Card, CardContent, Stack, Button,
   Grid, Divider, Avatar, TextField, Stepper, Step, StepLabel, StepConnector,
   MenuItem, Select, FormControl, InputLabel, SelectChangeEvent, IconButton,
-  Rating,
+  Rating, Alert,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
@@ -23,19 +23,13 @@ import {
 } from '@mui/icons-material';
 import { CATEGORY_MAP, STATUS_MAP } from '../../utils/constants';
 import { formatDate } from '../../utils/helpers';
-import { Comment } from '../../types';
+import { Comment, Department, IssueStatus, Pagination } from '../../types';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import SlaBadge from '../../components/SlaBadge';
+import PriorityBadge from '../../components/PriorityBadge';
+import IssuePhotoComparison from './IssuePhotoComparison';
+import NearbyCameras from './NearbyCameras';
 import { toast } from 'react-toastify';
-
-// Đơn vị phụ trách theo loại sự cố
-const DEPARTMENT_CONTACTS: Record<string, { name: string; phone: string; email: string }> = {
-  pothole: { name: 'Phòng Quản lý Hạ tầng Giao thông', phone: '0236 3821 234', email: 'hatang.gt@danang.gov.vn' },
-  garbage: { name: 'Công ty Môi trường Đô thị Đà Nẵng', phone: '0236 3847 777', email: 'moitruong@danang.gov.vn' },
-  streetlight: { name: 'Công ty Chiếu sáng & Tín hiệu Đà Nẵng', phone: '0236 3891 555', email: 'chieusang@danang.gov.vn' },
-  flooding: { name: 'Phòng Quản lý Thoát nước', phone: '0236 3822 333', email: 'thoatnuoc@danang.gov.vn' },
-  tree: { name: 'Công ty Cây xanh Đà Nẵng', phone: '0236 3836 666', email: 'cayxanh@danang.gov.vn' },
-  other: { name: 'UBND Thành phố Đà Nẵng', phone: '0236 3822 111', email: 'ubnd@danang.gov.vn' },
-};
 
 const CATEGORY_LABELS_VN: Record<string, string> = {
   pothole: 'Ổ gà / Hư hỏng đường', garbage: 'Rác thải', streetlight: 'Đèn đường hỏng',
@@ -73,11 +67,13 @@ const IssueDetailPage: React.FC = () => {
   const { user, isAuthenticated } = useSelector((s: RootState) => s.auth);
 
   const [comments, setComments] = useState<Comment[]>([]);
+  const [commentPagination, setCommentPagination] = useState<Pagination | null>(null);
+  const [commentsLoading, setCommentsLoading] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   // Admin status update
-  const [newStatus, setNewStatus] = useState('');
+  const [newStatus, setNewStatus] = useState<IssueStatus | ''>('');
   const [statusNote, setStatusNote] = useState('');
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
@@ -92,8 +88,11 @@ const IssueDetailPage: React.FC = () => {
   const [submittingRating, setSubmittingRating] = useState(false);
 
   useEffect(() => {
-    if (id) dispatch(fetchIssueById(id));
-    return () => { dispatch(clearCurrentIssue()); };
+    const request = id ? dispatch(fetchIssueById(id)) : null;
+    return () => {
+      request?.abort();
+      dispatch(clearCurrentIssue());
+    };
   }, [dispatch, id]);
 
   useEffect(() => {
@@ -103,15 +102,24 @@ const IssueDetailPage: React.FC = () => {
     }
   }, [issue, user]);
 
-  const loadComments = useCallback(async () => {
+  const loadComments = useCallback(async (page = 1, signal?: AbortSignal) => {
     if (!id) return;
+    setCommentsLoading(true);
     try {
-      const { data } = await commentApi.getComments(id);
-      setComments(data.data.comments);
+      const { data } = await commentApi.getComments(id, page, signal);
+      setComments((previous) => page === 1
+        ? data.data.comments
+        : [...data.data.comments, ...previous]);
+      setCommentPagination(data.data.pagination);
     } catch { /* ignore */ }
+    setCommentsLoading(false);
   }, [id]);
 
-  useEffect(() => { loadComments(); }, [loadComments]);
+  useEffect(() => {
+    const controller = new AbortController();
+    loadComments(1, controller.signal);
+    return () => controller.abort();
+  }, [loadComments]);
 
   const handleSubmitComment = async () => {
     if (!newComment.trim() || !id || submitting) return;
@@ -119,6 +127,7 @@ const IssueDetailPage: React.FC = () => {
     try {
       const { data } = await commentApi.addComment(id, newComment.trim());
       setComments((prev) => [...prev, data.data.comment]);
+      setCommentPagination((prev) => prev ? { ...prev, total: prev.total + 1 } : prev);
       setNewComment('');
     } catch { /* ignore */ }
     setSubmitting(false);
@@ -171,10 +180,19 @@ const IssueDetailPage: React.FC = () => {
   const st = STATUS_MAP[issue.status] || STATUS_MAP.reported;
   const reporter = typeof issue.userId === 'object' ? issue.userId : null;
   const isAdmin = user?.role === 'admin';
-  const canChangeStatus = isAdmin && !['resolved', 'rejected'].includes(issue.status);
+  const mergedTarget = issue.mergedInto && typeof issue.mergedInto === 'object'
+    ? issue.mergedInto
+    : null;
+  const canChangeStatus = isAdmin
+    && !issue.mergedInto
+    && !['resolved', 'rejected'].includes(issue.status);
   const isOwner = user && reporter && user._id === reporter._id;
   const canRate = isOwner && issue.status === 'resolved' && !issue.rating?.score;
   const hasRated = !!issue.rating?.score;
+  // Đơn vị phụ trách lấy từ dữ liệu phân công thật (populate), không còn
+  // suy ra từ category bằng danh sách hardcode.
+  const dept = typeof issue.departmentId === 'object' ? (issue.departmentId as Department) : null;
+  const assignee = typeof issue.assigneeId === 'object' ? issue.assigneeId : null;
 
   const handleRating = async () => {
     if (!ratingScore || !id || submittingRating) return;
@@ -199,10 +217,31 @@ const IssueDetailPage: React.FC = () => {
 
       <Grid container spacing={4}>
         <Grid item xs={12} md={7}>
-          <Stack direction="row" spacing={1} mb={2}>
+          <Stack direction="row" spacing={1} mb={2} alignItems="center" flexWrap="wrap" useFlexGap>
             <Chip label={cat.label} icon={<span>{cat.icon}</span>} sx={{ bgcolor: `${cat.color}20`, color: cat.color, fontWeight: 600 }} />
             <Chip label={st.label} sx={{ bgcolor: `${st.color}20`, color: st.color, fontWeight: 600 }} />
+            <SlaBadge status={issue.slaStatus} dueAt={issue.dueAt} showRemaining />
+            <PriorityBadge issue={issue} />
           </Stack>
+
+          {issue.mergedInto && (
+            <Alert
+              severity="info"
+              sx={{ mb: 2.5 }}
+              action={mergedTarget ? (
+                <Button
+                  color="inherit"
+                  size="small"
+                  onClick={() => navigate(`/issues/${mergedTarget._id}`)}
+                >
+                  Xem sự cố gốc
+                </Button>
+              ) : undefined}
+            >
+              Báo cáo này đã được xác định là trùng lặp và được gộp
+              {mergedTarget ? ` vào “${mergedTarget.title}”` : ' vào một sự cố khác'}.
+            </Alert>
+          )}
 
           <Typography variant="h4" fontWeight={700} mb={1}>{issue.title}</Typography>
 
@@ -268,13 +307,7 @@ const IssueDetailPage: React.FC = () => {
           <Typography variant="h6" fontWeight={600} mb={1.5}>Mô tả</Typography>
           <Typography color="text.secondary" lineHeight={1.8} mb={3}>{issue.description}</Typography>
 
-          {issue.imageUrl && (
-            <>
-              <Typography variant="h6" fontWeight={600} mb={1.5}>Hình ảnh</Typography>
-              <Box component="img" src={issue.imageUrl} alt={issue.title}
-                sx={{ width: '100%', maxHeight: 400, objectFit: 'cover', borderRadius: 2, mb: 3 }} />
-            </>
-          )}
+          <IssuePhotoComparison issue={issue} />
 
           {/* STATUS TIMELINE */}
           {issue.statusHistory && issue.statusHistory.length > 0 && (
@@ -317,8 +350,20 @@ const IssueDetailPage: React.FC = () => {
           <Card sx={{ bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
             <CardContent>
               <Typography variant="h6" fontWeight={600} mb={2}>
-                💬 Bình luận ({comments.length})
+                💬 Bình luận ({commentPagination?.total ?? comments.length})
               </Typography>
+
+              {commentPagination && commentPagination.current < commentPagination.pages && (
+                <Button
+                  size="small"
+                  variant="text"
+                  disabled={commentsLoading}
+                  onClick={() => loadComments(commentPagination.current + 1)}
+                  sx={{ mb: 2 }}
+                >
+                  {commentsLoading ? 'Đang tải...' : 'Xem bình luận cũ hơn'}
+                </Button>
+              )}
 
               {comments.length === 0 ? (
                 <Typography variant="body2" color="text.secondary" mb={2}>
@@ -388,6 +433,8 @@ const IssueDetailPage: React.FC = () => {
             </Box>
           </Card>
 
+          <NearbyCameras latitude={issue.latitude} longitude={issue.longitude} />
+
           {/* ADMIN CONTROLS — chỉ hiện cho admin khi sự cố chưa xử lý xong */}
           {canChangeStatus && (
             <Card sx={{ mb: 3, bgcolor: 'rgba(14,165,233,0.06)', border: '1px solid rgba(14,165,233,0.2)' }}>
@@ -399,7 +446,7 @@ const IssueDetailPage: React.FC = () => {
                 <FormControl fullWidth size="small" sx={{ mb: 2 }}>
                   <InputLabel>Chuyển trạng thái</InputLabel>
                   <Select value={newStatus} label="Chuyển trạng thái"
-                    onChange={(e: SelectChangeEvent) => setNewStatus(e.target.value)}
+                    onChange={(e: SelectChangeEvent) => setNewStatus(e.target.value as IssueStatus)}
                     sx={{ borderRadius: '10px' }}>
                     {issue.status === 'reported' && <MenuItem value="processing">🔵 Đang xử lý</MenuItem>}
                     <MenuItem value="resolved">🟢 Đã xử lý</MenuItem>
@@ -423,32 +470,55 @@ const IssueDetailPage: React.FC = () => {
             </Card>
           )}
 
-          {/* LIÊN HỆ ĐƠN VỊ PHỤ TRÁCH */}
-          {isAdmin && (() => {
-            const dept = DEPARTMENT_CONTACTS[issue.category] || DEPARTMENT_CONTACTS.other;
-            return (
-              <Card sx={{ mb: 3, bgcolor: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)' }}>
-                <CardContent>
-                  <Typography fontWeight={600} color="#F59E0B" mb={1.5}>
-                    📞 Đơn vị phụ trách
+          {/* ĐƠN VỊ PHỤ TRÁCH — theo phân công thực tế */}
+          {isAdmin && (
+            <Card sx={{ mb: 3, bgcolor: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)' }}>
+              <CardContent>
+                <Typography fontWeight={600} color="#F59E0B" mb={1.5}>
+                  📞 Đơn vị phụ trách
+                </Typography>
+                {!dept ? (
+                  <Typography variant="body2" color="text.secondary">
+                    Chưa phân công. Hãy phân công sự cố cho một đơn vị để bắt đầu tính hạn xử lý.
                   </Typography>
-                  <Typography variant="body2" fontWeight={600} mb={1}>{dept.name}</Typography>
-                  <Stack spacing={1}>
-                    <Button size="small" startIcon={<Phone />}
-                      href={`tel:${dept.phone.replace(/\s/g, '')}`}
-                      sx={{ justifyContent: 'flex-start', color: '#10B981', textTransform: 'none' }}>
-                      {dept.phone}
-                    </Button>
-                    <Button size="small" startIcon={<Email />}
-                      href={`mailto:${dept.email}?subject=Yêu cầu xử lý sự cố: ${issue.title}&body=Kính gửi ${dept.name},%0A%0ASự cố: ${issue.title}%0AĐịa điểm: ${issue.location}%0AMô tả: ${issue.description}%0ATọa độ: ${issue.latitude}, ${issue.longitude}%0A%0AKính đề nghị quý đơn vị xử lý. Trân trọng.`}
-                      sx={{ justifyContent: 'flex-start', color: '#0EA5E9', textTransform: 'none' }}>
-                      {dept.email}
-                    </Button>
-                  </Stack>
-                </CardContent>
-              </Card>
-            );
-          })()}
+                ) : (
+                  <>
+                    <Stack direction="row" alignItems="center" spacing={1} mb={1}>
+                      <Typography variant="body2" fontWeight={600}>{dept.name}</Typography>
+                      <Chip label={dept.code} size="small"
+                        sx={{ height: 18, fontSize: '0.6rem', bgcolor: 'rgba(245,158,11,0.15)', color: '#FBBF24' }} />
+                    </Stack>
+                    {assignee && (
+                      <Typography variant="caption" color="text.secondary" display="block" mb={1}>
+                        Cán bộ phụ trách: {assignee.name}
+                      </Typography>
+                    )}
+                    <Stack spacing={1}>
+                      {dept.phone && (
+                        <Button size="small" startIcon={<Phone />}
+                          href={`tel:${dept.phone.replace(/\s/g, '')}`}
+                          sx={{ justifyContent: 'flex-start', color: '#10B981', textTransform: 'none' }}>
+                          {dept.phone}
+                        </Button>
+                      )}
+                      {dept.email && (
+                        <Button size="small" startIcon={<Email />}
+                          href={`mailto:${dept.email}?subject=Yêu cầu xử lý sự cố: ${issue.title}&body=Kính gửi ${dept.name},%0A%0ASự cố: ${issue.title}%0AĐịa điểm: ${issue.location}%0AMô tả: ${issue.description}%0ATọa độ: ${issue.latitude}, ${issue.longitude}%0A%0AKính đề nghị quý đơn vị xử lý. Trân trọng.`}
+                          sx={{ justifyContent: 'flex-start', color: '#0EA5E9', textTransform: 'none' }}>
+                          {dept.email}
+                        </Button>
+                      )}
+                      {!dept.phone && !dept.email && (
+                        <Typography variant="caption" color="text.secondary">
+                          Đơn vị chưa khai báo số điện thoại / email liên hệ.
+                        </Typography>
+                      )}
+                    </Stack>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* XUẤT CÔNG VĂN */}
           {isAdmin && (
@@ -458,11 +528,14 @@ const IssueDetailPage: React.FC = () => {
                   📄 Xuất công văn
                 </Typography>
                 <Typography variant="body2" color="text.secondary" mb={2}>
-                  Tạo công văn yêu cầu xử lý sự cố gửi đến đơn vị phụ trách
+                  {dept
+                    ? `Tạo công văn yêu cầu xử lý sự cố gửi đến ${dept.name}`
+                    : 'Cần phân công sự cố cho một đơn vị trước khi xuất công văn.'}
                 </Typography>
                 <Button fullWidth variant="outlined" startIcon={<Description />}
+                  disabled={!dept}
                   onClick={() => {
-                    const dept = DEPARTMENT_CONTACTS[issue.category] || DEPARTMENT_CONTACTS.other;
+                    if (!dept) return;
                     const catLabel = CATEGORY_LABELS_VN[issue.category] || issue.category;
                     const now = new Date();
                     const dateStr = `ngày ${now.getDate()} tháng ${now.getMonth() + 1} năm ${now.getFullYear()}`;
@@ -566,7 +639,9 @@ const IssueDetailPage: React.FC = () => {
             <Card sx={{ mb: 3, bgcolor: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)' }}>
               <CardContent>
                 <Typography fontWeight={600} color="success.main" mb={0.5}>Xử lý bởi Admin</Typography>
-                <Typography variant="body2" color="text.secondary">{issue.adminId.name} ({issue.adminId.email})</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {issue.adminId.name}{issue.adminId.email ? ` (${issue.adminId.email})` : ''}
+                </Typography>
                 {issue.resolvedAt && <Typography variant="body2" color="text.secondary" mt={0.5}>Hoàn thành: {formatDate(issue.resolvedAt)}</Typography>}
               </CardContent>
             </Card>
