@@ -55,6 +55,10 @@ const signalPulse = keyframes`
   0%, 100% { box-shadow: 0 0 0 0 rgba(111,182,154,.26); }
   50% { box-shadow: 0 0 0 5px rgba(111,182,154,0); }
 `;
+const counterReveal = keyframes`
+  from { opacity: 0; }
+  to { opacity: 1; }
+`;
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 const MONO: React.CSSProperties = {
@@ -68,6 +72,13 @@ const LIGHT_TEXT = {
   body: '#465B67',
   muted: '#657985',
 } as const;
+
+// Shared landing-page accents keep the data surfaces tied to the civic palette.
+const CIVIC_SURFACE = '#174A63';
+const CIVIC_LINE = 'rgba(184,216,210,.22)';
+const CIVIC_CYAN = '#8CC8D1';
+const CIVIC_MINT = '#6FB69A';
+const CIVIC_GOLD = '#D2AE6D';
 
 const LIGHT_SECTION_BACKGROUND = `
   radial-gradient(circle at 72% 28%, rgba(45,140,168,.13), transparent 28rem),
@@ -225,33 +236,33 @@ const EnvVisual = () => {
 const CameraVisual = () => (
   <svg viewBox="0 0 360 300" width="100%" height="100%" aria-hidden="true">
     {/* viewport frame */}
-    <rect x="20" y="20" width="320" height="260" rx="4" fill="rgba(14,165,233,.04)" stroke="rgba(56,189,248,.22)" strokeWidth="1" />
+    <rect x="20" y="20" width="320" height="260" rx="4" fill="rgba(140,200,209,.05)" stroke="rgba(140,200,209,.34)" strokeWidth="1" />
     {/* corner brackets */}
     {[[20,20],[320,20],[20,260],[320,260]].map(([x,y],i) => {
       const sx = i % 2 === 0 ? 1 : -1; const sy = i < 2 ? 1 : -1;
       return (
         <path key={i} d={`M${x+sx*2},${y+sy*18} L${x+sx*2},${y+sy*2} L${x+sx*18},${y+sy*2}`}
-          fill="none" stroke="rgba(56,189,248,.7)" strokeWidth="2" />
+          fill="none" stroke={CIVIC_CYAN} strokeWidth="2" />
       );
     })}
     {/* scan line */}
-    <line x1="20" y1="20" x2="340" y2="20" stroke="rgba(56,189,248,.55)" strokeWidth="1.5"
+    <line x1="20" y1="20" x2="340" y2="20" stroke={CIVIC_GOLD} strokeOpacity=".72" strokeWidth="1.5"
       style={{ animation: `${scan} 3.5s linear infinite` }} />
     {/* subject */}
-    <rect x="130" y="90" width="100" height="90" rx="3" fill="rgba(56,189,248,.06)" stroke="rgba(56,189,248,.3)" strokeWidth="1" strokeDasharray="4 4" />
-    <text x="180" y="141" fontSize="8" fontFamily="JetBrains Mono, monospace" fill="rgba(56,189,248,.6)" textAnchor="middle" letterSpacing=".5">PHÁT HIỆN</text>
+    <rect x="130" y="90" width="100" height="90" rx="3" fill="rgba(111,182,154,.08)" stroke="rgba(111,182,154,.42)" strokeWidth="1" strokeDasharray="4 4" />
+    <text x="180" y="141" fontSize="8" fontFamily="JetBrains Mono, monospace" fill="rgba(168,211,198,.82)" textAnchor="middle" letterSpacing=".5">PHÁT HIỆN</text>
     {/* REC indicator */}
-    <circle cx="45" cy="42" r="5" fill="#EF4444" style={{ animation: `${breathe} 1.5s ease infinite` }} />
-    <text x="55" y="46" fontSize="9" fontFamily="JetBrains Mono, monospace" fill="rgba(239,68,68,.8)" letterSpacing="1">REC</text>
+    <circle cx="45" cy="42" r="5" fill="#E56B5D" style={{ animation: `${breathe} 1.5s ease infinite` }} />
+    <text x="55" y="46" fontSize="9" fontFamily="JetBrains Mono, monospace" fill="rgba(239,164,154,.88)" letterSpacing="1">REC</text>
     {/* timestamp */}
-    <text x="320" y="46" fontSize="9" fontFamily="JetBrains Mono, monospace" fill="rgba(148,163,184,.5)" textAnchor="end">
+    <text x="320" y="46" fontSize="9" fontFamily="JetBrains Mono, monospace" fill="rgba(184,216,210,.62)" textAnchor="end">
       {new Date().toLocaleTimeString('vi-VN', { hour12: false })}
     </text>
     {/* grid overlay */}
-    <line x1="140" y1="20" x2="140" y2="280" stroke="rgba(56,189,248,.05)" strokeWidth=".8" />
-    <line x1="220" y1="20" x2="220" y2="280" stroke="rgba(56,189,248,.05)" strokeWidth=".8" />
-    <line x1="20" y1="120" x2="340" y2="120" stroke="rgba(56,189,248,.05)" strokeWidth=".8" />
-    <line x1="20" y1="180" x2="340" y2="180" stroke="rgba(56,189,248,.05)" strokeWidth=".8" />
+    <line x1="140" y1="20" x2="140" y2="280" stroke="rgba(184,216,210,.08)" strokeWidth=".8" />
+    <line x1="220" y1="20" x2="220" y2="280" stroke="rgba(184,216,210,.08)" strokeWidth=".8" />
+    <line x1="20" y1="120" x2="340" y2="120" stroke="rgba(184,216,210,.08)" strokeWidth=".8" />
+    <line x1="20" y1="180" x2="340" y2="180" stroke="rgba(184,216,210,.08)" strokeWidth=".8" />
   </svg>
 );
 
@@ -432,7 +443,7 @@ const HomePage: React.FC = () => {
 
   // ─── SECTION 1: HERO ────────────────────────────────────────────────────────
   return (
-    <Box sx={{ bgcolor: '#F5F7F9', color: LIGHT_TEXT.ink, overflow: 'hidden' }}>
+    <Box sx={{ bgcolor: '#F5F7F9', color: LIGHT_TEXT.ink, overflowX: 'clip' }}>
       <Box sx={{
         position: 'relative',
         minHeight: { xs: 'auto', md: 'calc(100svh - 64px)' },
@@ -585,30 +596,30 @@ const HomePage: React.FC = () => {
             <Box sx={{ width: { xs: '100%', md: '50%' }, display: 'flex', alignItems: 'center' }}>
               <Reveal visible={heroVisible} delay={1100}>
                 <Box sx={{
-                  width: '100%', maxWidth: 480,
+                  width: '100%', maxWidth: 540,
                   borderRadius: { xs: 5, md: 6 }, overflow: 'hidden',
-                  bgcolor: 'rgba(11,41,66,.94)',
-                  border: '1px solid rgba(148,163,184,.16)',
-                  boxShadow: '0 20px 50px rgba(0,0,0,.18)',
+                  bgcolor: CIVIC_SURFACE,
+                  border: `1px solid ${CIVIC_LINE}`,
+                  boxShadow: '0 20px 50px rgba(17,56,74,.18)',
                   backdropFilter: 'blur(12px)',
                 }}>
                   {/* header */}
                   <Stack direction="row" justifyContent="space-between" alignItems="center"
-                    sx={{ px: 2.5, py: 1.8, borderBottom: '1px solid rgba(148,163,184,.1)' }}>
+                    sx={{ px: 2.5, py: 1.8, borderBottom: `1px solid ${CIVIC_LINE}` }}>
                     <Stack direction="row" spacing={1.2} alignItems="center">
-                      <Box sx={{ w: 8, h: 8, borderRadius: '50%', bgcolor: '#34D399', boxShadow: '0 0 12px #34D399', animation: `${breathe} 2s ease infinite` }} />
-                      <Typography sx={{ fontSize: '10px', ...MONO, fontWeight: 700, letterSpacing: '.14em', color: '#CBE9F8' }}>
+                      <Box sx={{ w: 8, h: 8, borderRadius: '50%', bgcolor: CIVIC_MINT, boxShadow: `0 0 12px ${CIVIC_MINT}`, animation: `${breathe} 2s ease infinite` }} />
+                      <Typography sx={{ fontSize: '10px', ...MONO, fontWeight: 700, letterSpacing: '.14em', color: '#D7E7E6' }}>
                         SỰ CỐ ĐANG XỬ LÝ
                       </Typography>
                     </Stack>
                     <Chip label="REALTIME" size="small" sx={{
-                      height: 22, fontSize: '9px', fontWeight: 800, color: '#6EE7B7',
-                      bgcolor: 'rgba(16,185,129,.08)', border: '1px solid rgba(52,211,153,.16)',
+                      height: 22, fontSize: '9px', fontWeight: 800, color: '#93D1B5',
+                      bgcolor: 'rgba(111,182,154,.14)', border: '1px solid rgba(111,182,154,.3)',
                     }} />
                   </Stack>
 
                   {/* stats grid */}
-                  <Stack direction="row" sx={{ borderBottom: '1px solid rgba(148,163,184,.1)' }}>
+                  <Stack direction="row" sx={{ borderBottom: `1px solid ${CIVIC_LINE}` }}>
                     {[
                       { value: overview ? overview.totalIssues.toLocaleString('vi-VN') : '—', label: 'Tổng phản ánh' },
                       { value: overview ? overview.resolvedCount.toLocaleString('vi-VN') : '—', label: 'Đã xử lý' },
@@ -616,12 +627,12 @@ const HomePage: React.FC = () => {
                     ].map((item, i) => (
                       <Box key={item.label} sx={{
                         flex: 1, py: 2.2, textAlign: 'center',
-                        borderLeft: i ? '1px solid rgba(148,163,184,.08)' : 'none',
+                        borderLeft: i ? `1px solid ${CIVIC_LINE}` : 'none',
                       }}>
-                        <Typography sx={{ fontSize: { xs: '1.1rem', sm: '1.35rem' }, fontWeight: 750, color: '#F0F9FF' }}>
+                        <Typography sx={{ fontSize: { xs: '1.1rem', sm: '1.35rem' }, fontWeight: 750, color: '#F4F7F8' }}>
                           {item.value}
                         </Typography>
-                        <Typography sx={{ fontSize: '10px', color: '#7F96AE', ...MONO, letterSpacing: '.08em' }}>
+                        <Typography sx={{ fontSize: '10px', color: '#A3BCC3', ...MONO, letterSpacing: '.08em' }}>
                           {item.label}
                         </Typography>
                       </Box>
@@ -636,8 +647,9 @@ const HomePage: React.FC = () => {
                       onClick={() => navigate('/statistics')}
                       sx={{
                         fontSize: '10px', ...MONO, textTransform: 'uppercase', letterSpacing: '.12em',
-                        color: '#7DD3FC', fontWeight: 700,
-                        '&:hover': { bgcolor: 'rgba(125,211,252,.08)' },
+                        color: '#FFFFFF', fontWeight: 700,
+                        '& .MuiButton-endIcon': { color: CIVIC_GOLD },
+                        '&:hover': { bgcolor: 'rgba(210,174,109,.12)' },
                       }}
                     >
                       Xem chi tiết
@@ -834,7 +846,7 @@ const HomePage: React.FC = () => {
           </Box>
 
           {/* chapter showcase */}
-          <Stack direction={{ xs: 'column', lg: 'row' }} spacing={0} sx={{ borderTop: '1px solid #D8E1E7' }}>
+          <Stack direction={{ xs: 'column', lg: 'row' }} spacing={0} sx={{ borderTop: '1px solid #D8E1E7', overflow: 'visible' }}>
             {/* left panel — visual */}
             <Box sx={{
               width: { xs: '100%', lg: '38%' },
@@ -842,13 +854,13 @@ const HomePage: React.FC = () => {
               borderRight: { xs: 'none', lg: '1px solid #D8E1E7' },
               borderBottom: { xs: '1px solid #D8E1E7', lg: 'none' },
               display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-              p: 4,
+              p: 4, overflow: 'visible',
             }}>
               {/* visual container */}
               <Box sx={{
                 position: 'relative', width: '100%', maxWidth: 360, aspectRatio: '360/300',
-                bgcolor: '#0B2942', border: '1px solid #C8D6DE', borderRadius: 2,
-                boxShadow: '0 18px 40px rgba(23,43,58,.10)', overflow: 'hidden',
+                bgcolor: CIVIC_SURFACE, border: `1px solid ${CIVIC_LINE}`, borderRadius: 2,
+                boxShadow: '0 18px 40px rgba(17,56,74,.14)', overflow: 'hidden',
               }}>
                 {/* prev layer (exiting) */}
                 {phase.prev != null && (
@@ -867,15 +879,12 @@ const HomePage: React.FC = () => {
               </Box>
 
               {/* chapter counter */}
-              <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mt: 4, fontSize: '10px', ...MONO, letterSpacing: '.15em', color: LIGHT_TEXT.muted }}>
-                <Box sx={{ overflow: 'hidden', height: '1em', position: 'relative' }}>
+              <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mt: 4, minHeight: '1.65em', overflow: 'visible', fontSize: '10px', ...MONO, letterSpacing: '.15em', color: LIGHT_TEXT.muted }}>
+                <Box sx={{ minWidth: '2.2ch', minHeight: '1.65em', display: 'inline-flex', alignItems: 'center', position: 'relative', overflow: 'visible', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
                   <Box key={activeChapter} sx={{
                     color: '#0B5E8E',
-                    animation: 'slideUp 0.4s ease-out',
-                    '@keyframes slideUp': {
-                      '0%': { transform: 'translateY(100%)', opacity: 0 },
-                      '100%': { transform: 'translateY(0)', opacity: 1 },
-                    },
+                    lineHeight: 1.65,
+                    animation: `${counterReveal} 520ms ${CUBIC}`,
                   }}>
                     {String(activeChapter + 1).padStart(2, '0')}
                   </Box>
@@ -886,18 +895,16 @@ const HomePage: React.FC = () => {
             </Box>
 
             {/* right panel — chapter list */}
-            <Box sx={{ width: { xs: '100%', lg: '62%' }, display: 'flex', flexDirection: 'column' }}>
+            <Box sx={{ width: { xs: '100%', lg: '62%' }, display: 'flex', flexDirection: 'column', overflow: 'visible' }}>
               {/* top bar */}
-              <Stack direction="row" justifyContent="space-between" alignItems="center"
-                sx={{ px: 4, py: 2.5, borderBottom: '1px solid #D8E1E7', fontSize: '10px', ...MONO, color: LIGHT_TEXT.muted, letterSpacing: '.12em' }}>
-                <Box>Báo cáo nhanh. Xử lý minh bạch. Dữ liệu công khai.</Box>
-                <Box sx={{ overflow: 'hidden', height: '1em', position: 'relative' }}>
+              <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }}
+                spacing={{ xs: 1, sm: 0 }}
+                sx={{ px: { xs: 2, sm: 4 }, py: { xs: 2, sm: 2.5 }, borderBottom: '1px solid #D8E1E7', overflow: 'visible', fontSize: '10px', ...MONO, color: LIGHT_TEXT.muted, letterSpacing: '.12em' }}>
+                <Box sx={{ lineHeight: 1.5, maxWidth: { xs: '100%', sm: '72%' } }}>Báo cáo nhanh. Xử lý minh bạch. Dữ liệu công khai.</Box>
+                <Box sx={{ minHeight: '1.65em', display: 'inline-flex', alignItems: 'center', position: 'relative', overflow: 'visible', whiteSpace: 'nowrap', alignSelf: { xs: 'flex-end', sm: 'auto' } }}>
                   <Box key={activeChapter} sx={{
-                    animation: 'slideUp 0.4s ease-out',
-                    '@keyframes slideUp': {
-                      '0%': { transform: 'translateY(100%)', opacity: 0 },
-                      '100%': { transform: 'translateY(0)', opacity: 1 },
-                    },
+                    lineHeight: 1.65,
+                    animation: `${counterReveal} 520ms ${CUBIC}`,
                   }}>
                     PHÂN HỆ {String(activeChapter + 1).padStart(2, '0')}
                   </Box>
@@ -912,22 +919,22 @@ const HomePage: React.FC = () => {
                     key={ch.id}
                     onClick={() => setActiveChapter(i)}
                     sx={{
-                      py: 4, px: 4, cursor: 'pointer',
+                      py: { xs: 2.25, md: 2.7 }, px: { xs: 2, sm: 4 }, cursor: 'pointer',
                       borderBottom: '1px solid #D8E1E7',
                       color: isActive ? LIGHT_TEXT.ink : '#6F818C',
-                      transition: 'all 300ms ease',
+                      transition: 'background-color 300ms ease, color 300ms ease',
                       '&:hover': { color: LIGHT_TEXT.ink, bgcolor: '#EDF3F6' },
                     }}
                   >
-                    <Stack direction="row" justifyContent="space-between" alignItems="center">
-                      <Box>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ minWidth: 0 }}>
+                      <Box sx={{ minWidth: 0 }}>
                         <Typography sx={{
                           fontSize: { xs: '1.5rem', md: '1.85rem' },
-                          fontWeight: 600, letterSpacing: '-0.02em', mb: 0.5,
+                          fontWeight: 600, letterSpacing: '-0.02em', lineHeight: 1.2, mb: 0.7,
                         }}>
                           {ch.name}
                         </Typography>
-                        <Typography sx={{ fontSize: '11px', ...MONO, color: isActive ? '#0B5E8E' : '#768995', letterSpacing: '.08em' }}>
+                        <Typography sx={{ fontSize: '11px', ...MONO, color: isActive ? '#0B5E8E' : '#768995', letterSpacing: '.08em', lineHeight: 1.45 }}>
                           {ch.sub}
                         </Typography>
                       </Box>
