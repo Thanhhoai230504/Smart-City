@@ -60,7 +60,7 @@ const Header: React.FC = () => {
 
   return (
     <>
-      <AppBar position="sticky" elevation={0}>
+      <AppBar position="fixed" elevation={0}>
         <Toolbar sx={{ maxWidth: 1400, width: '100%', mx: 'auto', px: { xs: 1, md: 3 }, overflow: 'hidden' }}>
           {isMobile && (
             <IconButton color="inherit" onClick={() => setDrawerOpen(true)} sx={{ mr: 1 }}>
@@ -71,11 +71,11 @@ const Header: React.FC = () => {
           <Box component={RouterLink} to="/" sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none', color: 'inherit', gap: 1.5 }}>
             <Box sx={{
               width: 36, height: 36, borderRadius: '10px',
-              background: 'linear-gradient(135deg, #0EA5E9, #10B981)',
+              background: '#176B87',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: '1.2rem', fontWeight: 800,
             }}>🏙️</Box>
-            <Typography variant="h6" sx={{ fontWeight: 700, display: { xs: 'none', sm: 'block' }, background: 'linear-gradient(135deg, #0EA5E9, #10B981)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            <Typography variant="h6" sx={{ fontWeight: 750, display: { xs: 'none', sm: 'block' }, color: '#18323F' }}>
               Smart City Đà Nẵng
             </Typography>
           </Box>
@@ -91,7 +91,7 @@ const Header: React.FC = () => {
                   sx={{
                     color: location.pathname === item.path ? 'primary.main' : 'text.secondary',
                     fontWeight: location.pathname === item.path ? 600 : 400,
-                    '&:hover': { color: 'primary.light', bgcolor: 'rgba(14,165,233,0.08)' },
+                    '&:hover': { color: 'primary.dark', bgcolor: '#EFF7F9' },
                   }}
                 >
                   {item.label}
@@ -132,15 +132,15 @@ const Header: React.FC = () => {
                 </Avatar>
               </IconButton>
               <Menu anchorEl={anchorEl} open={!!anchorEl} onClose={() => setAnchorEl(null)}
-                PaperProps={{ sx: { mt: 1.5, minWidth: 200, bgcolor: 'background.paper', border: '1px solid rgba(255,255,255,0.08)' } }}>
+                PaperProps={{ sx: { mt: 1.5, minWidth: 200, bgcolor: 'background.paper', border: '1px solid #DCE7EB', boxShadow: '0 12px 30px rgba(32,71,83,.14)' } }}>
                 <Box sx={{ px: 2, py: 1.5 }}>
                   <Typography fontWeight={600}>{user?.name}</Typography>
                   <Typography variant="caption" color="text.secondary">{user?.email}</Typography>
                 </Box>
-                <Divider sx={{ borderColor: 'rgba(255,255,255,0.06)' }} />
+                <Divider sx={{ borderColor: '#E4ECEE' }} />
                 <MenuItem onClick={() => { setAnchorEl(null); navigate('/profile'); }}><ListItemIcon><Person fontSize="small" /></ListItemIcon>Hồ sơ</MenuItem>
                 <MenuItem onClick={() => { setAnchorEl(null); navigate('/my-issues'); }}><ListItemIcon><ListAlt fontSize="small" /></ListItemIcon>Sự cố của tôi</MenuItem>
-                <Divider sx={{ borderColor: 'rgba(255,255,255,0.06)' }} />
+                <Divider sx={{ borderColor: '#E4ECEE' }} />
                 <MenuItem onClick={() => { setAnchorEl(null); setLogoutOpen(true); }} sx={{ color: 'error.main' }}><ListItemIcon><Logout fontSize="small" sx={{ color: 'error.main' }} /></ListItemIcon>Đăng xuất</MenuItem>
               </Menu>
             </Box>
@@ -161,11 +161,11 @@ const Header: React.FC = () => {
       <Drawer anchor="left" open={drawerOpen} onClose={() => setDrawerOpen(false)}
         PaperProps={{ sx: { width: 280, bgcolor: 'background.paper' } }}>
         <Box sx={{ p: 2 }}>
-          <Typography variant="h6" fontWeight={700} sx={{ background: 'linear-gradient(135deg, #0EA5E9, #10B981)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+          <Typography variant="h6" fontWeight={750} sx={{ color: '#18323F' }}>
             🏙️ Smart City Đà Nẵng
           </Typography>
         </Box>
-        <Divider sx={{ borderColor: 'rgba(255,255,255,0.06)' }} />
+        <Divider sx={{ borderColor: '#E4ECEE' }} />
         <List>
           {NAV_ITEMS.map((item) => (
             <ListItem key={item.path} disablePadding>
@@ -198,7 +198,7 @@ const Header: React.FC = () => {
 
       {/* Logout confirmation dialog */}
       <Dialog open={logoutOpen} onClose={() => setLogoutOpen(false)}
-        PaperProps={{ sx: { bgcolor: '#1A2332', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', minWidth: 320 } }}>
+        PaperProps={{ sx: { bgcolor: '#FFFFFF', border: '1px solid #DCE7EB', borderRadius: '14px', minWidth: 320, boxShadow: '0 20px 50px rgba(32,71,83,.18)' } }}>
         <DialogTitle sx={{ pb: 1 }}>⚠️ Xác nhận đăng xuất</DialogTitle>
         <DialogContent>
           <Typography color="text.secondary">Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?</Typography>

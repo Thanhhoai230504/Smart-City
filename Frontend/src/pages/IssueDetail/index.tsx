@@ -14,6 +14,7 @@ import {
 import { styled } from '@mui/material/styles';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import * as L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import {
   ArrowBack, LocationOn, Person, CalendarMonth, Send,
   FiberManualRecord, CheckCircle, Pending, Cancel,
@@ -39,7 +40,7 @@ const CATEGORY_LABELS_VN: Record<string, string> = {
 // Timeline connector
 const TimelineConnector = styled(StepConnector)(() => ({
   '& .MuiStepConnector-line': {
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: '#C8D9DE',
     borderLeftWidth: 2,
     minHeight: 28,
   },
@@ -302,7 +303,7 @@ const IssueDetailPage: React.FC = () => {
             </Stack>
           </Stack>
 
-          <Divider sx={{ mb: 3, borderColor: 'rgba(255,255,255,0.06)' }} />
+          <Divider sx={{ mb: 3, borderColor: '#DCE7EB' }} />
 
           <Typography variant="h6" fontWeight={600} mb={1.5}>Mô tả</Typography>
           <Typography color="text.secondary" lineHeight={1.8} mb={3}>{issue.description}</Typography>
@@ -311,7 +312,7 @@ const IssueDetailPage: React.FC = () => {
 
           {/* STATUS TIMELINE */}
           {issue.statusHistory && issue.statusHistory.length > 0 && (
-            <Card sx={{ mb: 3, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <Card sx={{ mb: 3, bgcolor: '#FFFFFF', border: '1px solid #DCE7EB' }}>
               <CardContent>
                 <Typography variant="h6" fontWeight={600} mb={2}>📋 Timeline trạng thái</Typography>
                 <Stepper orientation="vertical" connector={<TimelineConnector />}
@@ -326,7 +327,7 @@ const IssueDetailPage: React.FC = () => {
                         )}
                       >
                         <Stack direction="row" alignItems="center" spacing={1}>
-                          <Typography fontWeight={600} sx={{ color: STATUS_MAP[entry.status]?.color || '#fff' }}>
+                          <Typography fontWeight={600} sx={{ color: STATUS_MAP[entry.status]?.color || '#18323F' }}>
                             {statusLabels[entry.status] || entry.status}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
@@ -347,7 +348,7 @@ const IssueDetailPage: React.FC = () => {
           )}
 
           {/* COMMENTS */}
-          <Card sx={{ bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <Card sx={{ bgcolor: '#FFFFFF', border: '1px solid #DCE7EB' }}>
             <CardContent>
               <Typography variant="h6" fontWeight={600} mb={2}>
                 💬 Bình luận ({commentPagination?.total ?? comments.length})
@@ -374,9 +375,9 @@ const IssueDetailPage: React.FC = () => {
                   {comments.map((c) => (
                     <Box key={c._id} sx={{
                       p: 2, borderRadius: '12px',
-                      bgcolor: c.userId.role === 'admin' ? 'rgba(14,165,233,0.06)' : 'rgba(255,255,255,0.03)',
+                      bgcolor: c.userId.role === 'admin' ? '#EFF7F9' : '#F7FAFA',
                       borderLeft: '3px solid',
-                      borderColor: c.userId.role === 'admin' ? 'primary.main' : 'rgba(255,255,255,0.1)',
+                      borderColor: c.userId.role === 'admin' ? 'primary.main' : '#C8D9DE',
                     }}>
                       <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
                         <Avatar sx={{ width: 28, height: 28, fontSize: '0.75rem', bgcolor: c.userId.role === 'admin' ? 'primary.main' : 'secondary.main' }}>
@@ -400,7 +401,7 @@ const IssueDetailPage: React.FC = () => {
                     fullWidth size="small" placeholder="Viết bình luận..."
                     value={newComment} onChange={(e) => setNewComment(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSubmitComment()}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px', bgcolor: 'rgba(255,255,255,0.05)' } }}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', bgcolor: '#FFFFFF' } }}
                   />
                   <Button variant="contained" onClick={handleSubmitComment} disabled={!newComment.trim() || submitting}
                     sx={{ borderRadius: '12px', minWidth: 44 }}>
@@ -418,7 +419,7 @@ const IssueDetailPage: React.FC = () => {
             <Typography variant="subtitle1" fontWeight={600} sx={{ p: 2, pb: 1 }}>📍 Vị trí trên bản đồ</Typography>
             <Box sx={{ height: 350 }}>
               <MapContainer center={[issue.latitude, issue.longitude]} zoom={15} style={{ height: '100%', width: '100%' }} zoomControl={false}>
-                <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap contributors" />
                 <Marker position={[issue.latitude, issue.longitude]}
                   icon={L.divIcon({
                     html: `<div style="background:#EF4444;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3)">${cat.icon}</div>`,

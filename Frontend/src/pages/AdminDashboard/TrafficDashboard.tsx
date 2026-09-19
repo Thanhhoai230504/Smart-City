@@ -1,19 +1,27 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
-  Box, Typography, Stack, Chip, Grid, LinearProgress,
-  ToggleButton, ToggleButtonGroup, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, Tooltip,
+  Box,
+  Button,
+  Grid,
+  LinearProgress,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  ToggleButton,
+  ToggleButtonGroup,
+  Tooltip,
+  Typography,
 } from '@mui/material';
 import {
-  Speed, TrendingUp, TrendingDown, DirectionsCar,
-} from '@mui/icons-material';
-import {
-  BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, ResponsiveContainer, Legend,
-} from 'recharts';
-import {
-  TrafficStats, TrafficRoad, GlassCard, ChartTooltip,
-  TRAFFIC_LEVEL_COLORS, TRAFFIC_LEVEL_LABELS,
+  GlassCard,
+  TRAFFIC_LEVEL_COLORS,
+  TRAFFIC_LEVEL_LABELS,
+  TrafficRoad,
+  TrafficStats,
 } from './types';
 
 interface Props {
@@ -22,278 +30,351 @@ interface Props {
 
 type ViewMode = 'overview' | 'roads';
 
+const getRoadRatio = (road: TrafficRoad) => (
+  road.freeFlowSpeed > 0
+    ? Math.round((road.currentSpeed / road.freeFlowSpeed) * 100)
+    : 0
+);
+
+const TrafficStatus: React.FC<{ level: string }> = ({ level }) => (
+  <Stack direction="row" spacing={0.75} alignItems="center">
+    <Box
+      sx={{
+        width: 7,
+        height: 7,
+        borderRadius: '50%',
+        bgcolor: TRAFFIC_LEVEL_COLORS[level] || '#6B7280',
+      }}
+    />
+    <Typography variant="body2" color="text.secondary" whiteSpace="nowrap">
+      {TRAFFIC_LEVEL_LABELS[level] || level}
+    </Typography>
+  </Stack>
+);
+
 const TrafficDashboard: React.FC<Props> = ({ traffic }) => {
   const [view, setView] = useState<ViewMode>('overview');
   const [levelFilter, setLevelFilter] = useState<string>('all');
 
-  const congestionColor = traffic.congestionIndex > 60 ? '#EF4444' : traffic.congestionIndex > 35 ? '#F97316' : traffic.congestionIndex > 15 ? '#F59E0B' : '#10B981';
+  const congestionColor = traffic.congestionIndex > 60
+    ? '#C62828'
+    : traffic.congestionIndex > 35
+      ? '#B26A00'
+      : traffic.congestionIndex > 15
+        ? '#B26A00'
+        : '#2F7D64';
 
-  // Pie chart data
-  const pieData = Object.entries(traffic.summary).map(([key, value]) => ({
-    name: TRAFFIC_LEVEL_LABELS[key] || key,
-    value,
-    color: TRAFFIC_LEVEL_COLORS[key] || '#666',
-  }));
-
-  // Speed comparison bar chart (worst roads)
-  const speedChartData = traffic.worstRoads.slice(0, 5).map((r) => ({
-    name: r.name.replace('Đường ', '').substring(0, 18),
-    'Tốc độ hiện tại': r.currentSpeed,
-    'Tốc độ tự do': r.freeFlowSpeed,
-    level: r.level,
-  }));
-
-  // All roads filtered
-  const filteredRoads = (traffic.roads || []).filter(
-    (r) => levelFilter === 'all' || r.level === levelFilter
+  const trafficLevels = useMemo(
+    () => Object.entries(traffic.summary).map(([key, value]) => ({
+      key,
+      label: TRAFFIC_LEVEL_LABELS[key] || key,
+      value,
+      color: TRAFFIC_LEVEL_COLORS[key] || '#6B7280',
+      percentage: traffic.totalRoads > 0
+        ? Math.round((value / traffic.totalRoads) * 100)
+        : 0,
+    })),
+    [traffic.summary, traffic.totalRoads],
   );
 
-  const getRoadIcon = (level: string) => {
-    switch (level) {
-      case 'heavy': return '🔴';
-      case 'congested': return '🟠';
-      case 'slow': return '🟡';
-      default: return '🟢';
-    }
-  };
+  const filteredRoads = (traffic.roads || []).filter(
+    (road) => levelFilter === 'all' || road.level === levelFilter,
+  );
+
+  const summaryItems = [
+    {
+      label: 'Chỉ số tắc nghẽn',
+      value: `${traffic.congestionIndex}%`,
+      note: 'mức độ toàn mạng lưới',
+      color: congestionColor,
+    },
+    {
+      label: 'Tốc độ trung bình',
+      value: `${traffic.averageSpeed} km/h`,
+      note: `${traffic.totalRoads} tuyến đang theo dõi`,
+      color: '#172B3A',
+    },
+    {
+      label: 'Kẹt cứng',
+      value: traffic.summary.heavy || 0,
+      note: 'tuyến cần ưu tiên',
+      color: (traffic.summary.heavy || 0) > 0 ? '#C62828' : '#172B3A',
+    },
+    {
+      label: 'Thông thoáng',
+      value: traffic.summary.normal || 0,
+      note: 'tuyến vận hành ổn định',
+      color: '#2F7D64',
+    },
+  ];
 
   return (
-    <GlassCard>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2.5} flexWrap="wrap" gap={1}>
-        <Stack direction="row" alignItems="center" spacing={1.5}>
-          <DirectionsCar sx={{ color: '#3B82F6' }} />
-          <Typography fontWeight={700} fontSize="1.1rem">🚗 Giao thông Đà Nẵng</Typography>
-          <Chip size="small" label={`${traffic.totalRoads} tuyến đường`}
-            sx={{ bgcolor: 'rgba(59,130,246,0.12)', color: '#60A5FA', fontWeight: 600 }} />
-        </Stack>
-        <ToggleButtonGroup value={view} exclusive onChange={(_, v) => v && setView(v)} size="small">
-          <ToggleButton value="overview" sx={{ fontSize: '0.75rem', px: 1.5, borderRadius: '8px !important', border: '1px solid rgba(255,255,255,0.1) !important' }}>
+    <GlassCard sx={{ p: 0, overflow: 'hidden' }}>
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        justifyContent="space-between"
+        alignItems={{ sm: 'center' }}
+        spacing={1.5}
+        sx={{ px: 2.5, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}
+      >
+        <Box>
+          <Typography variant="h6" component="h2">Tình hình giao thông</Typography>
+          <Typography variant="caption" color="text.secondary">
+            Theo dõi tốc độ và mức độ lưu thông trên các tuyến đường chính
+          </Typography>
+        </Box>
+        <ToggleButtonGroup
+          value={view}
+          exclusive
+          onChange={(_, nextView) => nextView && setView(nextView)}
+          size="small"
+          aria-label="Chế độ xem giao thông"
+        >
+          <ToggleButton value="overview" sx={{ px: 1.75, textTransform: 'none' }}>
             Tổng quan
           </ToggleButton>
-          <ToggleButton value="roads" sx={{ fontSize: '0.75rem', px: 1.5, borderRadius: '8px !important', border: '1px solid rgba(255,255,255,0.1) !important' }}>
-            Chi tiết đường
+          <ToggleButton value="roads" sx={{ px: 1.75, textTransform: 'none' }}>
+            Chi tiết tuyến
           </ToggleButton>
         </ToggleButtonGroup>
       </Stack>
 
       {view === 'overview' ? (
         <>
-          {/* ═══ STATS ROW ═══ */}
-          <Grid container spacing={2} mb={3}>
-            <Grid item xs={6} sm={3}>
-              <Box sx={{ textAlign: 'center', p: 1.5, borderRadius: '12px', bgcolor: 'rgba(255,255,255,0.03)' }}>
-                <Typography variant="h3" fontWeight={800} sx={{ color: congestionColor, lineHeight: 1.2 }}>
-                  {traffic.congestionIndex}%
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' },
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+            }}
+          >
+            {summaryItems.map((item) => (
+              <Box
+                key={item.label}
+                sx={{
+                  p: 2.25,
+                  borderRight: '1px solid',
+                  borderBottom: { xs: '1px solid', md: 0 },
+                  borderColor: 'divider',
+                }}
+              >
+                <Typography variant="caption" color="text.secondary">{item.label}</Typography>
+                <Typography variant="h5" component="p" color={item.color} my={0.25}>
+                  {item.value}
                 </Typography>
-                <Typography variant="caption" color="text.secondary">Chỉ số tắc nghẽn</Typography>
+                <Typography variant="caption" color="text.disabled">{item.note}</Typography>
               </Box>
-            </Grid>
-            <Grid item xs={6} sm={3}>
-              <Box sx={{ textAlign: 'center', p: 1.5, borderRadius: '12px', bgcolor: 'rgba(255,255,255,0.03)' }}>
-                <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.5}>
-                  <Speed sx={{ color: '#3B82F6', fontSize: 20 }} />
-                  <Typography variant="h4" fontWeight={700}>{traffic.averageSpeed}</Typography>
-                </Stack>
-                <Typography variant="caption" color="text.secondary">TB km/h</Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={6} sm={3}>
-              <Box sx={{ textAlign: 'center', p: 1.5, borderRadius: '12px', bgcolor: 'rgba(255,255,255,0.03)' }}>
-                <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.5}>
-                  <TrendingDown sx={{ color: '#EF4444', fontSize: 20 }} />
-                  <Typography variant="h4" fontWeight={700}>{traffic.summary.heavy || 0}</Typography>
-                </Stack>
-                <Typography variant="caption" color="text.secondary">Đường kẹt cứng</Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={6} sm={3}>
-              <Box sx={{ textAlign: 'center', p: 1.5, borderRadius: '12px', bgcolor: 'rgba(255,255,255,0.03)' }}>
-                <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.5}>
-                  <TrendingUp sx={{ color: '#10B981', fontSize: 20 }} />
-                  <Typography variant="h4" fontWeight={700}>{traffic.summary.normal || 0}</Typography>
-                </Stack>
-                <Typography variant="caption" color="text.secondary">Đường thông thoáng</Typography>
-              </Box>
-            </Grid>
-          </Grid>
+            ))}
+          </Box>
 
-          {/* ═══ CHARTS ═══ */}
-          <Grid container spacing={2.5} mb={2.5}>
-            {/* Pie Chart - Phân bổ tình trạng */}
-            <Grid item xs={12} md={5}>
-              <Typography variant="body2" fontWeight={600} mb={1.5} color="text.secondary">
-                📊 Phân bổ tình trạng giao thông
+          <Grid container>
+            <Grid
+              item
+              xs={12}
+              md={5}
+              sx={{
+                p: 2.5,
+                borderRight: { md: '1px solid #D8E1E7' },
+                borderBottom: { xs: '1px solid #D8E1E7', md: 0 },
+              }}
+            >
+              <Typography variant="body2" fontWeight={700} mb={0.25}>
+                Phân bố trạng thái
               </Typography>
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%"
-                    innerRadius={50} outerRadius={80} paddingAngle={3} strokeWidth={0}>
-                    {pieData.map((d, i) => <Cell key={i} fill={d.color} />)}
-                  </Pie>
-                  <RTooltip content={<ChartTooltip />} />
-                  <Legend wrapperStyle={{ fontSize: 11, color: '#9CA3AF' }} />
-                </PieChart>
-              </ResponsiveContainer>
-              {/* Progress bars */}
-              <Stack spacing={1} mt={1}>
-                {Object.entries(traffic.summary).map(([level, count]) => {
-                  const pct = traffic.totalRoads > 0 ? Math.round((count / traffic.totalRoads) * 100) : 0;
-                  return (
-                    <Stack key={level} direction="row" alignItems="center" spacing={1}>
-                      <Typography variant="caption" sx={{ width: 85, color: TRAFFIC_LEVEL_COLORS[level], fontWeight: 600 }}>
-                        {TRAFFIC_LEVEL_LABELS[level]}
-                      </Typography>
-                      <LinearProgress variant="determinate" value={pct}
-                        sx={{ flex: 1, height: 6, borderRadius: 3, bgcolor: 'rgba(255,255,255,0.05)',
-                          '& .MuiLinearProgress-bar': { bgcolor: TRAFFIC_LEVEL_COLORS[level], borderRadius: 3 } }} />
-                      <Typography variant="caption" fontWeight={600} sx={{ width: 50, textAlign: 'right' }}>
-                        {count} ({pct}%)
+              <Typography variant="caption" color="text.secondary">
+                Tỷ trọng các tuyến theo mức độ lưu thông
+              </Typography>
+
+              <Stack spacing={1.8} mt={2.25}>
+                {trafficLevels.map((item) => (
+                  <Box key={item.key}>
+                    <Stack direction="row" justifyContent="space-between" mb={0.65}>
+                      <Stack direction="row" spacing={0.8} alignItems="center">
+                        <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: item.color }} />
+                        <Typography variant="body2">{item.label}</Typography>
+                      </Stack>
+                      <Typography variant="body2" fontWeight={700}>
+                        {item.value}
+                        <Typography component="span" variant="caption" color="text.secondary" ml={0.65}>
+                          {item.percentage}%
+                        </Typography>
                       </Typography>
                     </Stack>
-                  );
-                })}
+                    <LinearProgress
+                      variant="determinate"
+                      value={item.percentage}
+                      sx={{
+                        height: 5,
+                        bgcolor: '#E8EDF0',
+                        '& .MuiLinearProgress-bar': { bgcolor: item.color },
+                      }}
+                    />
+                  </Box>
+                ))}
               </Stack>
             </Grid>
 
-            {/* Bar Chart - So sánh tốc độ */}
             <Grid item xs={12} md={7}>
-              <Typography variant="body2" fontWeight={600} mb={1.5} color="text.secondary">
-                🔴 Top đường kẹt nhất — So sánh tốc độ
-              </Typography>
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={speedChartData} layout="vertical" margin={{ left: 10 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis type="number" tick={{ fill: '#9CA3AF', fontSize: 10 }} unit=" km/h" />
-                  <YAxis type="category" dataKey="name" tick={{ fill: '#9CA3AF', fontSize: 10 }} width={100} />
-                  <RTooltip content={<ChartTooltip />} />
-                  <Bar dataKey="Tốc độ hiện tại" fill="#EF4444" radius={[0, 4, 4, 0]} barSize={10} />
-                  <Bar dataKey="Tốc độ tự do" fill="#3B82F6" radius={[0, 4, 4, 0]} barSize={10} />
-                  <Legend wrapperStyle={{ fontSize: 11 }} />
-                </BarChart>
-              </ResponsiveContainer>
-            </Grid>
-          </Grid>
-
-          {/* ═══ BEST & WORST ROADS ═══ */}
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
-              <Typography variant="body2" fontWeight={600} mb={1} color="text.secondary">🔴 Đường kẹt nhất</Typography>
-              <Stack spacing={0.5}>
-                {traffic.worstRoads.slice(0, 5).map((r, i) => (
-                  <RoadRow key={i} road={r} index={i + 1} />
-                ))}
-              </Stack>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Typography variant="body2" fontWeight={600} mb={1} color="text.secondary">🟢 Đường thông thoáng nhất</Typography>
-              <Stack spacing={0.5}>
-                {(traffic.bestRoads || []).slice(0, 5).map((r, i) => (
-                  <RoadRow key={i} road={r} index={i + 1} />
-                ))}
-              </Stack>
+              <Box sx={{ px: 2.5, pt: 2.5, pb: 1.25 }}>
+                <Typography variant="body2" fontWeight={700}>Tuyến cần chú ý</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Các tuyến có tốc độ thấp nhất so với điều kiện thông thoáng
+                </Typography>
+              </Box>
+              <TableContainer>
+                <Table size="small" aria-label="Các tuyến đường cần chú ý">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ color: 'text.secondary', fontWeight: 700 }}>Tuyến đường</TableCell>
+                      <TableCell align="right" sx={{ color: 'text.secondary', fontWeight: 700 }}>Hiện tại</TableCell>
+                      <TableCell align="right" sx={{ color: 'text.secondary', fontWeight: 700 }}>Tự do</TableCell>
+                      <TableCell sx={{ color: 'text.secondary', fontWeight: 700 }}>Hiệu suất</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {traffic.worstRoads.slice(0, 5).map((road) => {
+                      const ratio = getRoadRatio(road);
+                      return (
+                        <TableRow key={road.name} hover>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={600} noWrap>{road.name}</Typography>
+                            <TrafficStatus level={road.level} />
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography variant="body2" fontWeight={700} color={TRAFFIC_LEVEL_COLORS[road.level]}>
+                              {road.currentSpeed}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography variant="body2" color="text.secondary">{road.freeFlowSpeed}</Typography>
+                          </TableCell>
+                          <TableCell sx={{ minWidth: 110 }}>
+                            <Stack direction="row" alignItems="center" spacing={0.8}>
+                              <LinearProgress
+                                variant="determinate"
+                                value={ratio}
+                                sx={{
+                                  flex: 1,
+                                  height: 5,
+                                  bgcolor: '#E8EDF0',
+                                  '& .MuiLinearProgress-bar': {
+                                    bgcolor: TRAFFIC_LEVEL_COLORS[road.level],
+                                  },
+                                }}
+                              />
+                              <Typography variant="caption" fontWeight={700}>{ratio}%</Typography>
+                            </Stack>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
             </Grid>
           </Grid>
         </>
       ) : (
-        /* ═══ ROADS TABLE VIEW ═══ */
-        <>
-          <Stack direction="row" spacing={0.5} mb={2} flexWrap="wrap" gap={0.5}>
-            <Chip label="Tất cả" size="small"
+        <Box>
+          <Stack
+            direction="row"
+            spacing={0.75}
+            alignItems="center"
+            flexWrap="wrap"
+            useFlexGap
+            sx={{ px: 2.5, py: 1.75, borderBottom: '1px solid', borderColor: 'divider' }}
+          >
+            <Button
+              size="small"
+              variant={levelFilter === 'all' ? 'contained' : 'text'}
               onClick={() => setLevelFilter('all')}
-              sx={{ fontSize: '0.7rem', fontWeight: levelFilter === 'all' ? 700 : 400,
-                bgcolor: levelFilter === 'all' ? 'primary.main' : 'rgba(255,255,255,0.05)',
-                color: levelFilter === 'all' ? '#fff' : 'text.secondary' }} />
+            >
+              Tất cả
+            </Button>
             {Object.entries(TRAFFIC_LEVEL_LABELS).map(([key, label]) => (
-              <Chip key={key} label={`${getRoadIcon(key)} ${label}`} size="small"
+              <Button
+                key={key}
+                size="small"
+                variant={levelFilter === key ? 'outlined' : 'text'}
                 onClick={() => setLevelFilter(key)}
-                sx={{ fontSize: '0.7rem', fontWeight: levelFilter === key ? 700 : 400,
-                  bgcolor: levelFilter === key ? TRAFFIC_LEVEL_COLORS[key] : 'rgba(255,255,255,0.05)',
-                  color: levelFilter === key ? '#fff' : 'text.secondary' }} />
+                startIcon={(
+                  <Box
+                    sx={{
+                      width: 7,
+                      height: 7,
+                      borderRadius: '50%',
+                      bgcolor: TRAFFIC_LEVEL_COLORS[key],
+                    }}
+                  />
+                )}
+              >
+                {label}
+              </Button>
             ))}
-            <Typography variant="caption" color="text.secondary" sx={{ ml: 1, alignSelf: 'center' }}>
-              Hiển thị: {filteredRoads.length} / {traffic.roads?.length || 0} đường
+            <Typography variant="caption" color="text.secondary" sx={{ ml: { sm: 'auto' } }}>
+              {filteredRoads.length}/{traffic.roads?.length || 0} tuyến
             </Typography>
           </Stack>
 
-          <TableContainer sx={{ maxHeight: 420, '&::-webkit-scrollbar': { width: 4 }, '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.1)', borderRadius: 2 } }}>
-            <Table size="small" stickyHeader>
+          <TableContainer sx={{ maxHeight: 460 }}>
+            <Table size="small" stickyHeader aria-label="Chi tiết tình hình các tuyến đường">
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ bgcolor: 'rgba(17,24,39,0.95)', color: '#9CA3AF', fontWeight: 600 }}>#</TableCell>
-                  <TableCell sx={{ bgcolor: 'rgba(17,24,39,0.95)', color: '#9CA3AF', fontWeight: 600 }}>Tên đường</TableCell>
-                  <TableCell sx={{ bgcolor: 'rgba(17,24,39,0.95)', color: '#9CA3AF', fontWeight: 600 }} align="center">Tốc độ</TableCell>
-                  <TableCell sx={{ bgcolor: 'rgba(17,24,39,0.95)', color: '#9CA3AF', fontWeight: 600 }} align="center">Tốc độ tự do</TableCell>
-                  <TableCell sx={{ bgcolor: 'rgba(17,24,39,0.95)', color: '#9CA3AF', fontWeight: 600 }} align="center">Tỷ lệ</TableCell>
-                  <TableCell sx={{ bgcolor: 'rgba(17,24,39,0.95)', color: '#9CA3AF', fontWeight: 600 }} align="center">Trạng thái</TableCell>
+                  <TableCell sx={{ bgcolor: '#F2F5F7', color: 'text.secondary', fontWeight: 700 }}>#</TableCell>
+                  <TableCell sx={{ bgcolor: '#F2F5F7', color: 'text.secondary', fontWeight: 700 }}>Tên đường</TableCell>
+                  <TableCell align="right" sx={{ bgcolor: '#F2F5F7', color: 'text.secondary', fontWeight: 700 }}>Tốc độ</TableCell>
+                  <TableCell align="right" sx={{ bgcolor: '#F2F5F7', color: 'text.secondary', fontWeight: 700 }}>Tốc độ tự do</TableCell>
+                  <TableCell sx={{ bgcolor: '#F2F5F7', color: 'text.secondary', fontWeight: 700 }}>Hiệu suất</TableCell>
+                  <TableCell sx={{ bgcolor: '#F2F5F7', color: 'text.secondary', fontWeight: 700 }}>Trạng thái</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredRoads.map((road, i) => {
-                  const ratio = road.freeFlowSpeed > 0 ? Math.round((road.currentSpeed / road.freeFlowSpeed) * 100) : 0;
+                {filteredRoads.map((road, index) => {
+                  const ratio = getRoadRatio(road);
                   return (
-                    <TableRow key={i} hover sx={{ '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' } }}>
-                      <TableCell sx={{ borderColor: 'rgba(255,255,255,0.04)', color: '#9CA3AF' }}>{i + 1}</TableCell>
-                      <TableCell sx={{ borderColor: 'rgba(255,255,255,0.04)' }}>
-                        <Typography variant="body2" fontWeight={500}>{road.name}</Typography>
+                    <TableRow key={`${road.name}-${index}`} hover>
+                      <TableCell sx={{ color: 'text.secondary' }}>{index + 1}</TableCell>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={600}>{road.name}</Typography>
                       </TableCell>
-                      <TableCell align="center" sx={{ borderColor: 'rgba(255,255,255,0.04)' }}>
-                        <Typography variant="body2" fontWeight={700} sx={{ color: TRAFFIC_LEVEL_COLORS[road.level] }}>
+                      <TableCell align="right">
+                        <Typography variant="body2" fontWeight={700} color={TRAFFIC_LEVEL_COLORS[road.level]}>
                           {road.currentSpeed} km/h
                         </Typography>
                       </TableCell>
-                      <TableCell align="center" sx={{ borderColor: 'rgba(255,255,255,0.04)', color: '#9CA3AF' }}>
-                        {road.freeFlowSpeed} km/h
+                      <TableCell align="right">
+                        <Typography variant="body2" color="text.secondary">{road.freeFlowSpeed} km/h</Typography>
                       </TableCell>
-                      <TableCell align="center" sx={{ borderColor: 'rgba(255,255,255,0.04)' }}>
+                      <TableCell sx={{ minWidth: 135 }}>
                         <Tooltip title={`${ratio}% so với tốc độ tự do`}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
-                            <LinearProgress variant="determinate" value={ratio}
-                              sx={{ width: 50, height: 5, borderRadius: 3, bgcolor: 'rgba(255,255,255,0.08)',
-                                '& .MuiLinearProgress-bar': { bgcolor: TRAFFIC_LEVEL_COLORS[road.level], borderRadius: 3 } }} />
-                            <Typography variant="caption" fontWeight={600}>{ratio}%</Typography>
-                          </Box>
+                          <Stack direction="row" alignItems="center" spacing={0.8}>
+                            <LinearProgress
+                              variant="determinate"
+                              value={ratio}
+                              sx={{
+                                width: 70,
+                                height: 5,
+                                bgcolor: '#E8EDF0',
+                                '& .MuiLinearProgress-bar': {
+                                  bgcolor: TRAFFIC_LEVEL_COLORS[road.level],
+                                },
+                              }}
+                            />
+                            <Typography variant="caption" fontWeight={700}>{ratio}%</Typography>
+                          </Stack>
                         </Tooltip>
                       </TableCell>
-                      <TableCell align="center" sx={{ borderColor: 'rgba(255,255,255,0.04)' }}>
-                        <Chip size="small"
-                          label={`${getRoadIcon(road.level)} ${TRAFFIC_LEVEL_LABELS[road.level]}`}
-                          sx={{ height: 22, fontSize: '0.65rem', fontWeight: 600,
-                            bgcolor: `${TRAFFIC_LEVEL_COLORS[road.level]}20`,
-                            color: TRAFFIC_LEVEL_COLORS[road.level],
-                            border: `1px solid ${TRAFFIC_LEVEL_COLORS[road.level]}40` }} />
-                      </TableCell>
+                      <TableCell><TrafficStatus level={road.level} /></TableCell>
                     </TableRow>
                   );
                 })}
               </TableBody>
             </Table>
           </TableContainer>
-        </>
+        </Box>
       )}
     </GlassCard>
-  );
-};
-
-// Road row sub-component
-const RoadRow: React.FC<{ road: TrafficRoad; index: number }> = ({ road, index }) => {
-  const ratio = road.freeFlowSpeed > 0 ? Math.round((road.currentSpeed / road.freeFlowSpeed) * 100) : 0;
-  return (
-    <Stack direction="row" alignItems="center" justifyContent="space-between"
-      sx={{ py: 0.8, px: 1.5, borderRadius: '8px', bgcolor: 'rgba(255,255,255,0.03)',
-        transition: 'all 0.2s', '&:hover': { bgcolor: 'rgba(255,255,255,0.06)' } }}>
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ flex: 1, minWidth: 0 }}>
-        <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 600, width: 18 }}>{index}</Typography>
-        <Typography variant="body2" fontWeight={500} noWrap>{road.name}</Typography>
-      </Stack>
-      <Stack direction="row" alignItems="center" spacing={1}>
-        <Typography variant="caption" sx={{ color: TRAFFIC_LEVEL_COLORS[road.level], fontWeight: 700 }}>
-          {road.currentSpeed}/{road.freeFlowSpeed}
-        </Typography>
-        <Chip size="small" label={`${ratio}%`}
-          sx={{ height: 20, fontSize: '0.6rem', fontWeight: 700,
-            bgcolor: TRAFFIC_LEVEL_COLORS[road.level], color: '#fff', minWidth: 42 }} />
-      </Stack>
-    </Stack>
   );
 };
 

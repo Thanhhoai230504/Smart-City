@@ -168,7 +168,7 @@ const ProfilePage: React.FC = () => {
                 }}
               />
 
-              <Divider sx={{ my: 3, borderColor: 'rgba(255,255,255,0.06)' }} />
+              <Divider sx={{ my: 3, borderColor: '#DCE7EB' }} />
 
               <Stack spacing={2.5} textAlign="left">
                 <Box display="flex" alignItems="center" gap={2}>
@@ -282,8 +282,8 @@ const ProfilePage: React.FC = () => {
                     <Tooltip key={b.id} title={`${b.description} (≥ ${b.threshold} báo cáo)`}>
                       <Box sx={{
                         textAlign: 'center', p: 1.5, borderRadius: '14px', minWidth: 90,
-                        bgcolor: b.earned ? 'rgba(245,158,11,0.08)' : 'rgba(255,255,255,0.03)',
-                        border: `1px solid ${b.earned ? 'rgba(245,158,11,0.25)' : 'rgba(255,255,255,0.06)'}`,
+                        bgcolor: b.earned ? 'rgba(183,121,31,0.10)' : '#F7FAFA',
+                        border: `1px solid ${b.earned ? 'rgba(183,121,31,0.28)' : '#DCE7EB'}`,
                         opacity: b.earned ? 1 : 0.4,
                         transition: 'all 0.3s',
                         '&:hover': { transform: b.earned ? 'scale(1.05)' : 'none' },
@@ -299,7 +299,7 @@ const ProfilePage: React.FC = () => {
                 </Stack>
 
                 {badgeData.nextBadge && (
-                  <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <Box sx={{ p: 2, borderRadius: '12px', bgcolor: '#F7FAFA', border: '1px solid #DCE7EB' }}>
                     <Stack direction="row" justifyContent="space-between" mb={0.5}>
                       <Typography variant="body2" color="text.secondary">
                         Tiếp theo: {badgeData.nextBadge.icon} {badgeData.nextBadge.label}
@@ -312,7 +312,7 @@ const ProfilePage: React.FC = () => {
                       variant="determinate"
                       value={(badgeData.issueCount / badgeData.nextBadge.threshold) * 100}
                       sx={{
-                        height: 8, borderRadius: 4, bgcolor: 'rgba(255,255,255,0.06)',
+                        height: 8, borderRadius: 4, bgcolor: '#EAF3F4',
                         '& .MuiLinearProgress-bar': { borderRadius: 4, background: 'linear-gradient(90deg, #F59E0B, #FBBF24)' },
                       }}
                     />
@@ -359,12 +359,12 @@ const ProfilePage: React.FC = () => {
                       }}
                       sx={{
                         fontWeight: active ? 600 : 400,
-                        bgcolor: active ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.04)',
-                        color: active ? '#60A5FA' : 'text.secondary',
-                        border: `1px solid ${active ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.08)'}`,
+                        bgcolor: active ? '#EAF3F4' : '#F7FAFA',
+                        color: active ? '#176B87' : 'text.secondary',
+                        border: `1px solid ${active ? '#9EC6D0' : '#DCE7EB'}`,
                         cursor: 'pointer',
                         transition: 'all 0.2s',
-                        '&:hover': { bgcolor: active ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.08)' },
+                        '&:hover': { bgcolor: active ? '#DCEEF2' : '#EFF7F9' },
                       }}
                     />
                   );

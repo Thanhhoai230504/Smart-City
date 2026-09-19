@@ -36,7 +36,7 @@ const App: React.FC = () => {
   return (
     <BrowserRouter>
       <AppRouter />
-      <ToastContainer theme="dark" toastStyle={{ background: '#1A2332', borderRadius: 12, border: '1px solid rgba(255,255,255,0.06)' }} />
+      <ToastContainer theme="light" toastStyle={{ background: '#FFFFFF', color: '#18323F', borderRadius: 10, border: '1px solid #DCE7EB', boxShadow: '0 8px 24px rgba(32,71,83,.12)' }} />
     </BrowserRouter>
   );
 };

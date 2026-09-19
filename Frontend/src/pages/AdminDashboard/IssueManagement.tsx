@@ -133,7 +133,7 @@ const IssueManagement: React.FC<Props> = ({ onDataChange }) => {
           <FormControl size="small" sx={{ minWidth: 150 }}>
             <InputLabel sx={{ color: 'text.secondary' }}>Trạng thái</InputLabel>
             <Select value={filter} label="Trạng thái" onChange={(e: SelectChangeEvent) => setFilter(e.target.value)}
-              sx={{ borderRadius: '10px', '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.1)' } }}>
+              sx={{ borderRadius: '10px', '& .MuiOutlinedInput-notchedOutline': { borderColor: '#C8D9DE' } }}>
               <MenuItem value="">Tất cả</MenuItem>
               <MenuItem value="reported">🟡 Mới</MenuItem>
               <MenuItem value="processing">🔵 Đang xử lý</MenuItem>
@@ -144,13 +144,13 @@ const IssueManagement: React.FC<Props> = ({ onDataChange }) => {
           <FormControl size="small" sx={{ minWidth: 150 }}>
             <InputLabel sx={{ color: 'text.secondary' }}>Sắp xếp</InputLabel>
             <Select value={sortBy} label="Sắp xếp" onChange={(e: SelectChangeEvent) => setSortBy(e.target.value)}
-              sx={{ borderRadius: '10px', '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.1)' } }}>
+              sx={{ borderRadius: '10px', '& .MuiOutlinedInput-notchedOutline': { borderColor: '#C8D9DE' } }}>
               <MenuItem value="-createdAt">🕐 Mới nhất</MenuItem>
               <MenuItem value="createdAt">🕐 Cũ nhất</MenuItem>
               <MenuItem value="-voteCount">🔥 Ủng hộ nhiều nhất</MenuItem>
             </Select>
           </FormControl>
-          <Chip label={`${pag.total} sự cố`} sx={{ bgcolor: 'rgba(14,165,233,0.15)', color: '#A5B4FC', fontWeight: 600 }} />
+          <Chip label={`${pag.total} sự cố`} sx={{ bgcolor: '#EAF3F4', color: '#176B87', fontWeight: 600 }} />
         </Stack>
       </Stack>
 
@@ -168,7 +168,7 @@ const IssueManagement: React.FC<Props> = ({ onDataChange }) => {
                   <TableCell key={j} sx={cellSx}>
                     <Skeleton variant="rounded" height={j === 0 ? 32 : j === 2 || j === 4 ? 22 : 14}
                       width={j === 0 ? '85%' : j === 1 ? '60%' : j === 5 ? '70%' : '50%'}
-                      sx={{ bgcolor: 'transparent', background: 'linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.08) 40%, rgba(255,255,255,0.03) 80%)', backgroundSize: '800px 100%', animation: `shimmer 1.8s ease-in-out infinite`, animationDelay: `${j * 0.1}s`, borderRadius: j === 2 || j === 4 ? '10px' : '6px' }} />
+                      sx={{ bgcolor: 'transparent', background: 'linear-gradient(90deg, #F7FAFA 0%, #E8F0F2 40%, #F7FAFA 80%)', backgroundSize: '800px 100%', animation: `shimmer 1.8s ease-in-out infinite`, animationDelay: `${j * 0.1}s`, borderRadius: j === 2 || j === 4 ? '10px' : '6px' }} />
                   </TableCell>
                 ))}
               </TableRow>
@@ -187,7 +187,7 @@ const IssueManagement: React.FC<Props> = ({ onDataChange }) => {
                 </TableCell>
                 <TableCell sx={cellSx}>
                   <Chip size="small" label={CATEGORY_LABELS[issue.category] || issue.category}
-                    sx={{ height: 22, fontSize: '0.7rem', bgcolor: 'rgba(14,165,233,0.15)', color: '#A5B4FC' }} />
+                    sx={{ height: 22, fontSize: '0.7rem', bgcolor: '#EAF3F4', color: '#176B87' }} />
                 </TableCell>
                 <TableCell sx={cellSx}>
                   <Stack direction="row" alignItems="center" spacing={0.5}>
@@ -244,7 +244,7 @@ const IssueManagement: React.FC<Props> = ({ onDataChange }) => {
 
       {/* Delete Dialog */}
       <Dialog open={!!deleteId} onClose={() => setDeleteId(null)}
-        PaperProps={{ sx: { bgcolor: '#1A2332', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px' } }}>
+        PaperProps={{ sx: { bgcolor: '#FFFFFF', border: '1px solid #DCE7EB', borderRadius: '14px' } }}>
         <DialogTitle>⚠️ Xác nhận xoá</DialogTitle>
         <DialogContent><Typography color="text.secondary">Bạn có chắc muốn xoá sự cố này?</Typography></DialogContent>
         <DialogActions>
@@ -258,7 +258,7 @@ const IssueManagement: React.FC<Props> = ({ onDataChange }) => {
         onClose={merging ? undefined : () => setMergeSource(null)}
         fullWidth
         maxWidth="sm"
-        PaperProps={{ sx: { bgcolor: '#1A2332', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px' } }}
+        PaperProps={{ sx: { bgcolor: '#FFFFFF', border: '1px solid #DCE7EB', borderRadius: '14px' } }}
       >
         <DialogTitle>Gộp báo cáo trùng lặp</DialogTitle>
         <DialogContent>
@@ -309,7 +309,7 @@ const IssueManagement: React.FC<Props> = ({ onDataChange }) => {
             </FormControl>
 
             {selectedMergeCandidate && mergeSource && (
-              <Box sx={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: 2, p: 1.5 }}>
+              <Box sx={{ border: '1px solid #DCE7EB', bgcolor: '#F7FAFA', borderRadius: 2, p: 1.5 }}>
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap mb={1.25}>
                   <Chip
                     size="small"

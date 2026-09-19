@@ -1,154 +1,87 @@
 import React from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { Box, Typography, Stack, IconButton, Link, Container, Grid, Divider } from '@mui/material';
+import { Box, Typography, Stack, IconButton, Link, Container, Grid, Divider, Chip } from '@mui/material';
 import {
   Map, BugReport, BarChart, Phone, Email, Language,
-  LocationOn, Facebook, YouTube, AccessTime,
+  LocationOn, Facebook, YouTube, AccessTime, Videocam, AddLocationAlt,
 } from '@mui/icons-material';
 
-const quickLinks = [
-  { label: 'Bản đồ', path: '/map', icon: <Map sx={{ fontSize: 15 }} /> },
-  { label: 'Sự cố', path: '/issues', icon: <BugReport sx={{ fontSize: 15 }} /> },
-  { label: 'Thống kê', path: '/statistics', icon: <BarChart sx={{ fontSize: 15 }} /> },
+const discoveryLinks = [
+  { label: 'Bản đồ đô thị', path: '/map', icon: <Map sx={{ fontSize: 16 }} /> },
+  { label: 'Danh sách sự cố', path: '/issues', icon: <BugReport sx={{ fontSize: 16 }} /> },
+  { label: 'Thống kê', path: '/statistics', icon: <BarChart sx={{ fontSize: 16 }} /> },
+  { label: 'Camera công cộng', path: '/cameras', icon: <Videocam sx={{ fontSize: 16 }} /> },
 ];
 
-const Footer: React.FC = () => {
-  return (
-    <Box component="footer" sx={{
-      pt: 6, pb: 3, mt: 'auto',
-      borderTop: '1px solid rgba(255,255,255,0.06)',
-      background: 'linear-gradient(180deg, rgba(15,23,42,0.85) 0%, rgba(15,23,42,0.98) 100%)',
-      backdropFilter: 'blur(16px)',
-    }}>
-      <Container maxWidth="lg">
-        <Grid container spacing={4} mb={4}>
-          {/* Brand */}
-          <Grid item xs={12} md={4}>
-            <Typography fontWeight={800} fontSize="1.15rem" mb={1.5} sx={{
-              background: 'linear-gradient(135deg, #F1F5F9, #94A3B8)',
-              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-            }}>
-              🏙️ Smart City Đà Nẵng
-            </Typography>
-            <Typography variant="body2" color="text.secondary" lineHeight={1.8} mb={2} maxWidth={340}>
-              Hệ thống giám sát đô thị thông minh — tiếp nhận và xử lý phản ánh của người dân
-              về hạ tầng, môi trường và các vấn đề đô thị tại thành phố Đà Nẵng.
-            </Typography>
-            <Stack direction="row" spacing={0.5}>
-              <IconButton size="small" href="https://www.facebook.com/ubabornd.danang" target="_blank"
-                sx={{ color: '#64748B', '&:hover': { color: '#3B82F6', bgcolor: 'rgba(59,130,246,0.08)' } }}>
-                <Facebook fontSize="small" />
-              </IconButton>
-              <IconButton size="small" href="https://www.youtube.com/@thaborandha" target="_blank"
-                sx={{ color: '#64748B', '&:hover': { color: '#EF4444', bgcolor: 'rgba(239,68,68,0.08)' } }}>
-                <YouTube fontSize="small" />
-              </IconButton>
-              <IconButton size="small" href="https://danang.gov.vn" target="_blank"
-                sx={{ color: '#64748B', '&:hover': { color: '#10B981', bgcolor: 'rgba(16,185,129,0.08)' } }}>
-                <Language fontSize="small" />
-              </IconButton>
-            </Stack>
-          </Grid>
+const citizenLinks = [
+  { label: 'Báo cáo sự cố', path: '/report', icon: <AddLocationAlt sx={{ fontSize: 16 }} /> },
+  { label: 'Sự cố của tôi', path: '/my-issues', icon: <BugReport sx={{ fontSize: 16 }} /> },
+];
 
-          {/* Quick links */}
-          <Grid item xs={6} sm={3} md={2}>
-            <Typography variant="overline" sx={{
-              color: '#94A3B8', fontWeight: 700, letterSpacing: 2,
-              mb: 1.5, display: 'block', fontSize: '0.7rem',
-            }}>
-              Truy cập nhanh
-            </Typography>
-            <Stack spacing={1}>
-              {quickLinks.map((link) => (
-                <Link key={link.path} component={RouterLink} to={link.path} underline="none"
-                  sx={{
-                    display: 'flex', alignItems: 'center', gap: 0.8,
-                    color: '#64748B', fontSize: '0.85rem', fontWeight: 500,
-                    transition: 'all 0.2s ease',
-                    '&:hover': { color: '#3B82F6', transform: 'translateX(4px)' },
-                  }}>
-                  {link.icon} {link.label}
-                </Link>
-              ))}
-            </Stack>
-          </Grid>
+const FooterLink: React.FC<{ label: string; path: string; icon: React.ReactNode }> = ({ label, path, icon }) => (
+  <Link component={RouterLink} to={path} underline="none" sx={{
+    display: 'flex', alignItems: 'center', gap: 1,
+    color: 'rgba(238,247,248,.72)', fontSize: 13, fontWeight: 550,
+    transition: 'color .18s ease, transform .18s ease',
+    '&:hover': { color: '#FFFFFF', transform: 'translateX(3px)' },
+  }}>
+    <Box sx={{ color: '#79C5C0', display: 'flex' }}>{icon}</Box>
+    {label}
+  </Link>
+);
 
-          {/* Contact info */}
-          <Grid item xs={6} sm={4} md={3}>
-            <Typography variant="overline" sx={{
-              color: '#94A3B8', fontWeight: 700, letterSpacing: 2,
-              mb: 1.5, display: 'block', fontSize: '0.7rem',
-            }}>
-              Liên hệ
-            </Typography>
-            <Stack spacing={1.2}>
-              <Stack direction="row" alignItems="center" spacing={1}>
-                <Phone sx={{ fontSize: 15, color: '#3B82F6' }} />
-                <Typography variant="body2" color="text.secondary">0394 727 005</Typography>
-              </Stack>
-              <Stack direction="row" alignItems="center" spacing={1}>
-                <Email sx={{ fontSize: 15, color: '#3B82F6' }} />
-                <Typography variant="body2" color="text.secondary" sx={{ wordBreak: 'break-all' }}>nguyenthanhhoai230504@gmail.com</Typography>
-              </Stack>
-              <Stack direction="row" alignItems="flex-start" spacing={1}>
-                <LocationOn sx={{ fontSize: 15, color: '#3B82F6', mt: 0.3 }} />
-                <Typography variant="body2" color="text.secondary" lineHeight={1.6}>
-                  38 Bùi Vịnh, Cẩm Lệ,<br />TP. Đà Nẵng
-                </Typography>
-              </Stack>
+const Footer: React.FC = () => (
+  <Box component="footer" sx={{ mt: 'auto', color: '#EEF7F8', background: '#173B51', borderTop: '4px solid #79C5C0' }}>
+    <Container maxWidth="lg" sx={{ py: { xs: 5, md: 6 } }}>
+      <Grid container spacing={{ xs: 4, md: 5 }}>
+        <Grid item xs={12} md={4}>
+          <Stack spacing={1.8}>
+            <Stack direction="row" alignItems="center" spacing={1.2}>
+              <Box sx={{ width: 38, height: 38, display: 'grid', placeItems: 'center', borderRadius: 1.5, bgcolor: '#79C5C0', color: '#173B51', fontSize: 21 }}>🏙️</Box>
+              <Box>
+                <Typography fontWeight={800} fontSize={17}>Smart City Đà Nẵng</Typography>
+                <Typography sx={{ color: 'rgba(238,247,248,.62)', fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase' }}>Cổng phản ánh đô thị</Typography>
+              </Box>
             </Stack>
-          </Grid>
-
-          {/* Operating hours */}
-          <Grid item xs={12} sm={5} md={3}>
-            <Typography variant="overline" sx={{
-              color: '#94A3B8', fontWeight: 700, letterSpacing: 2,
-              mb: 1.5, display: 'block', fontSize: '0.7rem',
-            }}>
-              Thời gian hoạt động
+            <Typography variant="body2" sx={{ color: 'rgba(238,247,248,.72)', lineHeight: 1.75, maxWidth: 360 }}>
+              Kết nối người dân, cán bộ và cơ quan quản lý để những vấn đề trên đường phố được ghi nhận và xử lý minh bạch.
             </Typography>
-            <Stack spacing={1.2}>
-              <Stack direction="row" alignItems="center" spacing={1}>
-                <AccessTime sx={{ fontSize: 15, color: '#10B981' }} />
-                <Box>
-                  <Typography variant="body2" color="text.secondary">Thứ 2 – Chủ nhật</Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ opacity: 0.7 }}>
-                    Tiếp nhận trực tuyến 24/7
-                  </Typography>
-                </Box>
-              </Stack>
-
+            <Stack direction="row" spacing={.5}>
+              <IconButton size="small" href="https://www.facebook.com/" target="_blank" aria-label="Facebook" sx={{ color: 'rgba(238,247,248,.62)', '&:hover': { color: '#FFFFFF', bgcolor: 'rgba(255,255,255,.1)' } }}><Facebook fontSize="small" /></IconButton>
+              <IconButton size="small" href="https://www.youtube.com/" target="_blank" aria-label="YouTube" sx={{ color: 'rgba(238,247,248,.62)', '&:hover': { color: '#FFFFFF', bgcolor: 'rgba(255,255,255,.1)' } }}><YouTube fontSize="small" /></IconButton>
+              <IconButton size="small" href="https://danang.gov.vn" target="_blank" aria-label="Cổng thông tin Đà Nẵng" sx={{ color: 'rgba(238,247,248,.62)', '&:hover': { color: '#FFFFFF', bgcolor: 'rgba(255,255,255,.1)' } }}><Language fontSize="small" /></IconButton>
             </Stack>
-          </Grid>
+          </Stack>
         </Grid>
 
-        {/* Bottom bar */}
-        <Divider sx={{ borderColor: 'rgba(255,255,255,0.05)', mb: 2.5 }} />
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          justifyContent="space-between"
-          alignItems="center"
-          spacing={1}
-        >
-          <Typography variant="caption" color="text.secondary" sx={{ opacity: 0.6 }}>
-            © {new Date().getFullYear()} UBND TP. Đà Nẵng — Cổng phản ánh đô thị thông minh
-          </Typography>
-          <Stack direction="row" spacing={2}>
-            <Typography variant="caption" color="text.secondary" sx={{
-              opacity: 0.5, cursor: 'pointer', '&:hover': { opacity: 0.8 },
-            }}>
-              Điều khoản sử dụng
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{
-              opacity: 0.5, cursor: 'pointer', '&:hover': { opacity: 0.8 },
-            }}>
-              Chính sách bảo mật
-            </Typography>
+        <Grid item xs={6} sm={4} md={2.2}>
+          <Typography sx={{ color: '#FFFFFF', fontSize: 12, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', mb: 2 }}>Khám phá</Typography>
+          <Stack spacing={1.35}>{discoveryLinks.map((link) => <FooterLink key={link.path} {...link} />)}</Stack>
+        </Grid>
+
+        <Grid item xs={6} sm={4} md={2.2}>
+          <Typography sx={{ color: '#FFFFFF', fontSize: 12, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', mb: 2 }}>Dành cho người dân</Typography>
+          <Stack spacing={1.35}>{citizenLinks.map((link) => <FooterLink key={link.path} {...link} />)}</Stack>
+        </Grid>
+
+        <Grid item xs={12} sm={4} md={3.6}>
+          <Typography sx={{ color: '#FFFFFF', fontSize: 12, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', mb: 2 }}>Thông tin liên hệ</Typography>
+          <Stack spacing={1.25}>
+            <Stack direction="row" alignItems="center" spacing={1}><Phone sx={{ fontSize: 17, color: '#79C5C0' }} /><Typography variant="body2" sx={{ color: 'rgba(238,247,248,.78)' }}>0236 1022</Typography></Stack>
+            <Stack direction="row" alignItems="center" spacing={1}><Email sx={{ fontSize: 17, color: '#79C5C0' }} /><Typography variant="body2" sx={{ color: 'rgba(238,247,248,.78)', wordBreak: 'break-word' }}>support@smartcity.danang.vn</Typography></Stack>
+            <Stack direction="row" alignItems="flex-start" spacing={1}><LocationOn sx={{ fontSize: 17, color: '#79C5C0', mt: .25 }} /><Typography variant="body2" sx={{ color: 'rgba(238,247,248,.78)', lineHeight: 1.6 }}>Trung tâm điều hành đô thị thông minh<br />Thành phố Đà Nẵng</Typography></Stack>
+            <Chip icon={<AccessTime sx={{ color: '#79C5C0 !important' }} />} label="Tiếp nhận trực tuyến 24/7" size="small" sx={{ width: 'fit-content', color: '#D9F0EE', border: '1px solid rgba(121,197,192,.35)', bgcolor: 'rgba(121,197,192,.1)' }} />
           </Stack>
-        </Stack>
-      </Container>
-    </Box>
-  );
-};
+        </Grid>
+      </Grid>
+
+      <Divider sx={{ my: 4, borderColor: 'rgba(238,247,248,.14)' }} />
+      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={1.5}>
+        <Typography variant="caption" sx={{ color: 'rgba(238,247,248,.55)' }}>© {new Date().getFullYear()} Smart City Đà Nẵng · Hệ thống quản lý đô thị thông minh</Typography>
+        <Typography variant="caption" sx={{ color: 'rgba(238,247,248,.55)' }}>Dữ liệu được cập nhật theo thời gian thực</Typography>
+      </Stack>
+    </Container>
+  </Box>
+);
 
 export default Footer;

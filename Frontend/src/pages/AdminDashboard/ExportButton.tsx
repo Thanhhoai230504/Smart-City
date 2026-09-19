@@ -156,7 +156,7 @@ const ExportButton: React.FC = () => {
         Xuất báo cáo
       </Button>
       <Menu anchorEl={anchorEl} open={!!anchorEl} onClose={() => setAnchorEl(null)}
-        PaperProps={{ sx: { bgcolor: 'background.paper', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px' } }}>
+        PaperProps={{ sx: { bgcolor: 'background.paper', border: '1px solid #DCE7EB', borderRadius: '12px' } }}>
         <MenuItem onClick={handleExportExcel}>
           <ListItemIcon><TableChart sx={{ color: '#10B981' }} /></ListItemIcon>
           <ListItemText primary="Excel (.xlsx)" secondary="Xuất danh sách chi tiết" />

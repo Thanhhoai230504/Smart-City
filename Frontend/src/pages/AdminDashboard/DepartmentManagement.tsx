@@ -314,7 +314,7 @@ const DepartmentManagement: React.FC = () => {
           <Stack direction="row" spacing={1} alignItems="center">
             <Chip
               label={`${activeCount}/${departments.length} hoạt động`}
-              sx={{ bgcolor: 'rgba(16,185,129,0.15)', color: '#6EE7B7', fontWeight: 600 }}
+              sx={{ bgcolor: '#E0F1EB', color: '#286653', fontWeight: 600 }}
             />
             <Button
               variant="contained"
@@ -479,8 +479,8 @@ const DepartmentManagement: React.FC = () => {
         maxWidth="sm"
         PaperProps={{
           sx: {
-            bgcolor: '#1A2332',
-            border: '1px solid rgba(255,255,255,0.1)',
+            bgcolor: '#FFFFFF',
+            border: '1px solid #DCE7EB',
             borderRadius: '16px',
           },
         }}
@@ -524,8 +524,8 @@ const DepartmentManagement: React.FC = () => {
                   sx={{
                     p: 1.5,
                     borderRadius: '10px',
-                    bgcolor: 'rgba(255,255,255,0.025)',
-                    border: '1px solid rgba(255,255,255,0.06)',
+                    bgcolor: '#F7FAFA',
+                    border: '1px solid #DCE7EB',
                   }}
                 >
                   <Avatar sx={{ width: 38, height: 38, bgcolor: '#10B981', fontSize: '0.85rem' }}>
@@ -557,8 +557,8 @@ const DepartmentManagement: React.FC = () => {
         maxWidth="md"
         PaperProps={{
           sx: {
-            bgcolor: '#1A2332',
-            border: '1px solid rgba(255,255,255,0.1)',
+            bgcolor: '#FFFFFF',
+            border: '1px solid #DCE7EB',
             borderRadius: '16px',
           },
         }}
@@ -692,8 +692,8 @@ const DepartmentManagement: React.FC = () => {
         }}
         PaperProps={{
           sx: {
-            bgcolor: '#1A2332',
-            border: '1px solid rgba(255,255,255,0.1)',
+            bgcolor: '#FFFFFF',
+            border: '1px solid #DCE7EB',
             borderRadius: '16px',
           },
         }}

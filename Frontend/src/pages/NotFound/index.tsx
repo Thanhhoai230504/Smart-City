@@ -27,7 +27,7 @@ const NotFoundPage: React.FC = () => {
         </Typography>
         <Stack direction="row" spacing={2}>
           <Button variant="outlined" startIcon={<ArrowBack />} onClick={() => navigate(-1)}
-            sx={{ borderColor: 'rgba(255,255,255,0.2)', color: 'text.primary', '&:hover': { borderColor: 'primary.main' } }}>
+            sx={{ borderColor: '#BFD2D9', color: 'text.primary', '&:hover': { borderColor: 'primary.main' } }}>
             Quay lại
           </Button>
           <Button variant="contained" startIcon={<Home />} onClick={() => navigate('/')}>

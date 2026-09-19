@@ -175,8 +175,8 @@ const UpdateStatusDialog: React.FC<Props> = ({
       PaperProps={{
         sx: {
           borderRadius: 3,
-          bgcolor: '#141B2D',
-          border: '1px solid rgba(255,255,255,0.08)',
+          bgcolor: '#FFFFFF',
+          border: '1px solid #DCE7EB',
         },
       }}
     >
@@ -308,7 +308,7 @@ const UpdateStatusDialog: React.FC<Props> = ({
                             height: 88,
                             objectFit: 'cover',
                             borderRadius: 1.5,
-                            border: '1px solid rgba(255,255,255,0.08)',
+                            border: '1px solid #DCE7EB',
                           }}
                         />
                       ))}
@@ -340,7 +340,7 @@ const UpdateStatusDialog: React.FC<Props> = ({
                               height: 88,
                               objectFit: 'cover',
                               borderRadius: 1.5,
-                              border: '1px solid rgba(255,255,255,0.08)',
+                              border: '1px solid #DCE7EB',
                             }}
                           />
                           <Tooltip title="Bỏ ảnh">
@@ -351,8 +351,9 @@ const UpdateStatusDialog: React.FC<Props> = ({
                                 position: 'absolute',
                                 top: 4,
                                 right: 4,
-                                bgcolor: 'rgba(12,18,34,0.85)',
-                                '&:hover': { bgcolor: 'rgba(239,68,68,0.9)' },
+                                bgcolor: 'rgba(24,50,63,0.82)',
+                                color: '#FFFFFF',
+                                '&:hover': { bgcolor: '#C95757' },
                               }}
                             >
                               <DeleteOutline fontSize="small" />

@@ -111,7 +111,7 @@ const NotificationCenter: React.FC = () => {
         PaperProps={{
           sx: {
             width: { xs: 'calc(100vw - 32px)', sm: 380 }, maxHeight: 480, mt: 1,
-            bgcolor: 'background.paper', border: '1px solid rgba(255,255,255,0.08)',
+            bgcolor: 'background.paper', border: '1px solid #DCE7EB',
             borderRadius: '16px', overflow: 'hidden',
           },
         }}
@@ -131,7 +131,7 @@ const NotificationCenter: React.FC = () => {
             sx={{ mx: 2, mb: 1, bgcolor: 'rgba(239,68,68,0.1)', color: 'error.main', fontSize: '0.7rem' }} />
         )}
 
-        <Divider sx={{ borderColor: 'rgba(255,255,255,0.06)' }} />
+        <Divider sx={{ borderColor: '#DCE7EB' }} />
 
         <Box sx={{ maxHeight: 380, overflowY: 'auto' }}>
           {notifications.length === 0 ? (
@@ -148,7 +148,7 @@ const NotificationCenter: React.FC = () => {
                     bgcolor: notif.isRead ? 'transparent' : 'rgba(14,165,233,0.04)',
                     borderLeft: notif.isRead ? 'none' : '3px solid',
                     borderColor: 'primary.main',
-                    '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' },
+                    '&:hover': { bgcolor: '#F2F7F8' },
                   }}>
                   <ListItemIcon sx={{ minWidth: 36 }}>
                     {typeIcons[notif.type] || <Notifications sx={{ fontSize: 18 }} />}

@@ -74,7 +74,7 @@ export const STATUS_LABELS: Record<string, string> = {
 export const CATEGORY_LABELS: Record<string, string> = {
   pothole: 'Ổ gà', garbage: 'Rác thải', streetlight: 'Đèn đường', flooding: 'Ngập nước', tree: 'Cây đổ', other: 'Khác',
 };
-export const BAR_COLORS = ['#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#EC4899'];
+export const BAR_COLORS = ['#0B5E8E', '#2F7D64', '#B26A00', '#C62828', '#397DA5', '#6B7F8C'];
 export const TRAFFIC_LEVEL_COLORS: Record<string, string> = {
   normal: '#10B981', slow: '#F59E0B', congested: '#F97316', heavy: '#EF4444',
 };
@@ -87,17 +87,18 @@ export const PLACE_TYPE_LABELS: Record<string, string> = {
 };
 export const PLACE_TYPES = ['hospital', 'school', 'bus_stop', 'park', 'police'];
 
-export const cellSx = { borderColor: 'rgba(255,255,255,0.04)' };
-export const headCellSx = { color: 'text.secondary', fontWeight: 600, borderColor: 'rgba(255,255,255,0.06)', whiteSpace: 'nowrap' as const };
+export const cellSx = { borderColor: 'divider' };
+export const headCellSx = { color: 'text.secondary', fontWeight: 700, borderColor: 'divider', whiteSpace: 'nowrap' as const };
 
 // ─── Glass Card ───
 export const GlassCard: React.FC<{ children: React.ReactNode; sx?: object }> = ({ children, sx }) => (
   <Paper elevation={0} sx={{
-    p: 2.5, borderRadius: '16px',
-    bgcolor: 'rgba(17,24,39,0.7)', backdropFilter: 'blur(16px)',
-    border: '1px solid rgba(255,255,255,0.06)',
-    transition: 'border-color 0.3s, box-shadow 0.3s',
-    '&:hover': { borderColor: 'rgba(14,165,233,0.3)', boxShadow: '0 0 20px rgba(14,165,233,0.08)' },
+    p: 2.5,
+    borderRadius: 1.5,
+    bgcolor: 'background.paper',
+    border: '1px solid',
+    borderColor: 'divider',
+    boxShadow: 'none',
     ...sx,
   }}>
     {children}
@@ -107,15 +108,14 @@ export const GlassCard: React.FC<{ children: React.ReactNode; sx?: object }> = (
 // ─── Stat Card ───
 export const StatCard: React.FC<{
   icon: React.ReactElement; label: string; value: number | string;
-  gradient: string; sub?: string;
-}> = ({ icon, label, value, gradient, sub }) => (
-  <GlassCard sx={{ position: 'relative', overflow: 'hidden' }}>
-    <Box sx={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: gradient, opacity: 0.12 }} />
-    <Stack direction="row" alignItems="center" spacing={2}>
-      <Avatar sx={{ width: 48, height: 48, background: gradient }}>{icon}</Avatar>
+  accent: string; sub?: string;
+}> = ({ icon, label, value, accent, sub }) => (
+  <GlassCard sx={{ borderTop: `3px solid ${accent}`, minHeight: 116 }}>
+    <Stack direction="row" alignItems="center" spacing={1.5}>
+      <Avatar sx={{ width: 42, height: 42, bgcolor: `${accent}14`, color: accent }}>{icon}</Avatar>
       <Box>
-        <Typography variant="caption" color="text.secondary" fontWeight={500}>{label}</Typography>
-        <Typography variant="h4" fontWeight={700} sx={{ lineHeight: 1.2 }}>{value}</Typography>
+        <Typography variant="caption" color="text.secondary" fontWeight={600}>{label}</Typography>
+        <Typography variant="h5" fontWeight={750} sx={{ lineHeight: 1.25 }}>{value}</Typography>
         {sub && <Typography variant="caption" color="text.secondary">{sub}</Typography>}
       </Box>
     </Stack>
@@ -126,7 +126,7 @@ export const StatCard: React.FC<{
 export const ChartTooltip: React.FC<any> = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <Box sx={{ bgcolor: 'rgba(17,24,39,0.95)', p: 1.5, borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+    <Box sx={{ bgcolor: 'background.paper', p: 1.5, borderRadius: 1, border: '1px solid', borderColor: 'divider', boxShadow: '0 8px 22px rgba(23,43,58,0.12)' }}>
       <Typography variant="caption" color="text.secondary">{label}</Typography>
       {payload.map((p: any, i: number) => (
         <Typography key={i} variant="body2" fontWeight={600} sx={{ color: p.color }}>{p.name}: {p.value}</Typography>

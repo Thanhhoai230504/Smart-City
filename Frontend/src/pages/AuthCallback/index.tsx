@@ -33,7 +33,7 @@ const AuthCallbackPage: React.FC = () => {
     <Box sx={{
       minHeight: 'calc(100vh - 70px)', display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
-      background: 'linear-gradient(135deg, #0A0E1A 0%, #111827 100%)',
+      background: 'linear-gradient(135deg, #F4F7F8 0%, #EAF2F4 100%)',
     }}>
       <CircularProgress size={48} sx={{ mb: 3, color: '#0EA5E9' }} />
       <Typography variant="h6" fontWeight={600}>Đang xác thực...</Typography>

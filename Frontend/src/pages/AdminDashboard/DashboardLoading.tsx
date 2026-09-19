@@ -24,7 +24,7 @@ const ShimmerBlock: React.FC<{
 }> = ({ width = '100%', height, borderRadius = '12px', mb = 0, delay = 0 }) => (
   <Box sx={{
     width, height, borderRadius, mb,
-    background: 'linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.08) 40%, rgba(255,255,255,0.03) 80%)',
+    background: 'linear-gradient(90deg, #F3F7F8 0%, #E5EFF1 40%, #F3F7F8 80%)',
     backgroundSize: '800px 100%',
     animation: `${shimmer} 1.8s ease-in-out infinite`,
     animationDelay: `${delay}s`,
@@ -35,18 +35,18 @@ const ShimmerBlock: React.FC<{
 const StatCardSkeleton: React.FC<{ delay: number }> = ({ delay }) => (
   <Box sx={{
     p: 2.5, borderRadius: '16px',
-    bgcolor: 'rgba(17,24,39,0.7)', border: '1px solid rgba(255,255,255,0.06)',
+    bgcolor: '#FFFFFF', border: '1px solid #DCE7EB',
     position: 'relative', overflow: 'hidden',
     animation: `${fadeIn} 0.5s ease-out ${delay}s both`,
   }}>
     <Box sx={{
       position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%',
-      background: 'rgba(255,255,255,0.02)', animation: `${pulse} 2s ease-in-out infinite`,
+      background: '#F3F7F8', animation: `${pulse} 2s ease-in-out infinite`,
     }} />
     <Stack direction="row" alignItems="center" spacing={2}>
       <Box sx={{
         width: 48, height: 48, borderRadius: '50%',
-        background: 'linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))',
+        background: 'linear-gradient(135deg, #E3EFF1, #F3F7F8)',
         animation: `${pulse} 2s ease-in-out infinite`,
         animationDelay: `${delay}s`,
       }} />
@@ -62,7 +62,7 @@ const StatCardSkeleton: React.FC<{ delay: number }> = ({ delay }) => (
 const ChartSkeleton: React.FC<{ height?: number; delay: number; title: string }> = ({ height = 320, delay, title }) => (
   <Box sx={{
     p: 2.5, borderRadius: '16px',
-    bgcolor: 'rgba(17,24,39,0.7)', border: '1px solid rgba(255,255,255,0.06)',
+    bgcolor: '#FFFFFF', border: '1px solid #DCE7EB',
     animation: `${fadeIn} 0.6s ease-out ${delay}s both`,
     height: '100%',
   }}>
@@ -75,7 +75,7 @@ const ChartSkeleton: React.FC<{ height?: number; delay: number; title: string }>
         {[65, 40, 80, 55, 70, 45, 90, 60, 75, 50].map((h, i) => (
           <Box key={i} sx={{
             flex: 1, height: `${h}%`, borderRadius: '4px 4px 0 0',
-            background: 'rgba(255,255,255,0.04)',
+            background: '#EAF2F4',
             animation: `${pulse} 2s ease-in-out infinite`,
             animationDelay: `${(i * 0.1) + delay}s`,
           }} />
@@ -84,7 +84,7 @@ const ChartSkeleton: React.FC<{ height?: number; delay: number; title: string }>
       {/* X-axis line */}
       <Box sx={{
         position: 'absolute', bottom: 0, left: 0, right: 0, height: '1px',
-        background: 'rgba(255,255,255,0.06)',
+        background: '#DCE7EB',
       }} />
     </Box>
   </Box>
@@ -94,7 +94,7 @@ const ChartSkeleton: React.FC<{ height?: number; delay: number; title: string }>
 const TableSkeleton: React.FC<{ delay: number; title: string; rows?: number }> = ({ delay, title, rows = 5 }) => (
   <Box sx={{
     p: 2.5, borderRadius: '16px',
-    bgcolor: 'rgba(17,24,39,0.7)', border: '1px solid rgba(255,255,255,0.06)',
+    bgcolor: '#FFFFFF', border: '1px solid #DCE7EB',
     animation: `${fadeIn} 0.6s ease-out ${delay}s both`,
   }}>
     <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
@@ -102,7 +102,7 @@ const TableSkeleton: React.FC<{ delay: number; title: string; rows?: number }> =
       <ShimmerBlock height={28} width={100} borderRadius="8px" delay={delay + 0.1} />
     </Stack>
     {/* Header row */}
-    <Stack direction="row" spacing={2} mb={1.5} sx={{ pb: 1, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+    <Stack direction="row" spacing={2} mb={1.5} sx={{ pb: 1, borderBottom: '1px solid #DCE7EB' }}>
       {[80, 140, 70, 70, 60, 50].map((w, i) => (
         <ShimmerBlock key={i} height={12} width={w} borderRadius="4px" delay={delay + 0.05 * i} />
       ))}
@@ -110,13 +110,13 @@ const TableSkeleton: React.FC<{ delay: number; title: string; rows?: number }> =
     {/* Data rows */}
     {Array.from({ length: rows }).map((_, row) => (
       <Stack key={row} direction="row" spacing={2} alignItems="center"
-        sx={{ py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+        sx={{ py: 1.5, borderBottom: '1px solid #E8EFF1' }}>
         <Stack direction="row" spacing={1} alignItems="center" sx={{ width: 80 }}>
           <Box sx={{
             width: 28, height: 28, borderRadius: '50%',
             animation: `${pulse} 2s ease-in-out infinite`,
             animationDelay: `${row * 0.1 + delay}s`,
-            background: 'rgba(255,255,255,0.05)',
+            background: '#EAF2F4',
           }} />
           <ShimmerBlock height={12} width={45} borderRadius="4px" delay={delay + row * 0.08} />
         </Stack>
@@ -134,14 +134,14 @@ const TableSkeleton: React.FC<{ delay: number; title: string; rows?: number }> =
 const DonutSkeleton: React.FC<{ delay: number }> = ({ delay }) => (
   <Box sx={{
     p: 2.5, borderRadius: '16px', height: '100%',
-    bgcolor: 'rgba(17,24,39,0.7)', border: '1px solid rgba(255,255,255,0.06)',
+    bgcolor: '#FFFFFF', border: '1px solid #DCE7EB',
     animation: `${fadeIn} 0.6s ease-out ${delay}s both`,
   }}>
     <ShimmerBlock height={18} width={140} borderRadius="8px" mb={2} delay={delay} />
     <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}>
       <Box sx={{
         width: 160, height: 160, borderRadius: '50%',
-        border: '16px solid rgba(255,255,255,0.04)',
+        border: '16px solid #EAF2F4',
         borderTopColor: 'rgba(14,165,233,0.15)',
         borderRightColor: 'rgba(59,130,246,0.12)',
         animation: `${pulse} 2s ease-in-out infinite`,
@@ -156,7 +156,7 @@ const DonutSkeleton: React.FC<{ delay: number }> = ({ delay }) => (
             width: 10, height: 10, borderRadius: '3px',
             animation: `${pulse} 2s ease-in-out infinite`,
             animationDelay: `${i * 0.15 + delay}s`,
-            bgcolor: 'rgba(255,255,255,0.06)',
+            bgcolor: '#DCE7EB',
           }} />
           <ShimmerBlock height={10} width={w} borderRadius="4px" delay={delay + i * 0.1} />
         </Stack>

@@ -87,10 +87,10 @@ const VerifyEmailPage: React.FC = () => {
       minHeight: 'calc(100vh - 70px)',
       display: 'flex',
       alignItems: 'center',
-      background: 'linear-gradient(135deg, #0A0E1A 0%, #111827 100%)',
+      background: 'linear-gradient(135deg, #F4F7F8 0%, #EAF2F4 100%)',
     }}>
       <Container maxWidth="sm">
-        <Card sx={{ p: { xs: 2, md: 4 }, bgcolor: 'rgba(17,24,39,0.88)' }}>
+        <Card sx={{ p: { xs: 2, md: 4 }, bgcolor: '#FFFFFF' }}>
           <CardContent>
             <Box textAlign="center" mb={3}>
               <MarkEmailRead color="primary" sx={{ fontSize: 58, mb: 1.5 }} />

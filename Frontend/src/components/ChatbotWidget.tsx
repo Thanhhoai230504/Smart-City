@@ -54,9 +54,9 @@ const ChatbotWidget: React.FC = () => {
           sx={{
             position: 'fixed', bottom: 75, right: { xs: 16, sm: 24 }, zIndex: 1300,
             width: 56, height: 56,
-            background: 'linear-gradient(135deg, #0EA5E9, #3B82F6)',
-            color: '#fff', boxShadow: '0 4px 20px rgba(14,165,233,0.4)',
-            '&:hover': { background: 'linear-gradient(135deg, #0284C7, #2563EB)', transform: 'scale(1.1)' },
+            background: '#176B87',
+            color: '#fff', boxShadow: '0 6px 18px rgba(23,107,135,0.28)',
+            '&:hover': { background: '#0E4F67', transform: 'scale(1.06)' },
             transition: 'all 0.3s',
           }}
         >
@@ -71,18 +71,18 @@ const ChatbotWidget: React.FC = () => {
           width: { xs: 'calc(100vw - 32px)', sm: 380 }, height: { xs: 480, sm: 520 },
           borderRadius: '16px', overflow: 'hidden', display: isOpen ? 'flex' : 'none',
           flexDirection: 'column',
-          bgcolor: 'rgba(17,24,39,0.97)', backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(14,165,233,0.2)',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+          bgcolor: '#FFFFFF',
+          border: '1px solid #DCE7EB',
+          boxShadow: '0 18px 42px rgba(32,71,83,0.18)',
         }}>
           {/* Header */}
           <Stack direction="row" alignItems="center" justifyContent="space-between"
-            sx={{ px: 2, py: 1.5, background: 'linear-gradient(135deg, #0EA5E9, #3B82F6)' }}>
+            sx={{ px: 2, py: 1.5, bgcolor: '#176B87' }}>
             <Stack direction="row" alignItems="center" spacing={1}>
               <SmartToy sx={{ fontSize: 22 }} />
               <Box>
                 <Typography fontWeight={700} fontSize={14} color="#fff">Trợ lý AI Đà Nẵng</Typography>
-                <Typography fontSize={10} color="rgba(255,255,255,0.7)">Smart City Dashboard</Typography>
+              <Typography fontSize={10} color="rgba(255,255,255,0.78)">Smart City Dashboard</Typography>
               </Box>
             </Stack>
             <IconButton size="small" onClick={() => setIsOpen(false)} sx={{ color: '#fff' }}>
@@ -94,7 +94,7 @@ const ChatbotWidget: React.FC = () => {
           <Box sx={{
             flex: 1, overflowY: 'auto', px: 2, py: 1.5,
             '&::-webkit-scrollbar': { width: 4 },
-            '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.1)', borderRadius: 2 },
+            '&::-webkit-scrollbar-thumb': { bgcolor: '#BFD2D9', borderRadius: 2 },
           }}>
             {messages.map((msg, i) => (
               <Stack key={i} direction="row" justifyContent={msg.role === 'user' ? 'flex-end' : 'flex-start'}
@@ -106,8 +106,8 @@ const ChatbotWidget: React.FC = () => {
                 )}
                 <Box sx={{
                   maxWidth: '78%', px: 1.5, py: 1, borderRadius: '12px',
-                  bgcolor: msg.role === 'user' ? 'rgba(14,165,233,0.2)' : 'rgba(255,255,255,0.06)',
-                  border: msg.role === 'user' ? '1px solid rgba(14,165,233,0.3)' : '1px solid rgba(255,255,255,0.06)',
+                  bgcolor: msg.role === 'user' ? '#EAF3F4' : '#F7FAFA',
+                  border: msg.role === 'user' ? '1px solid #CDE2E7' : '1px solid #E1EAED',
                 }}>
                   <Typography variant="body2" fontSize={13} sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
                     {msg.content}
@@ -125,8 +125,8 @@ const ChatbotWidget: React.FC = () => {
                 <Avatar sx={{ width: 28, height: 28, mr: 1, bgcolor: '#0EA5E9' }}>
                   <SmartToy sx={{ fontSize: 16 }} />
                 </Avatar>
-                <Box sx={{ px: 1.5, py: 1, borderRadius: '12px', bgcolor: 'rgba(255,255,255,0.06)' }}>
-                  <Typography variant="body2" fontSize={13} sx={{ color: '#9CA3AF' }}>
+                <Box sx={{ px: 1.5, py: 1, borderRadius: '12px', bgcolor: '#F7FAFA', border: '1px solid #E1EAED' }}>
+                  <Typography variant="body2" fontSize={13} color="text.secondary">
                     Đang suy nghĩ...
                   </Typography>
                 </Box>
@@ -142,26 +142,26 @@ const ChatbotWidget: React.FC = () => {
                 <Chip key={i} label={qa.label} size="small"
                   onClick={() => sendMessage(qa.msg)}
                   sx={{
-                    fontSize: '0.7rem', bgcolor: 'rgba(14,165,233,0.1)', color: '#A5B4FC',
-                    border: '1px solid rgba(14,165,233,0.2)', cursor: 'pointer',
-                    '&:hover': { bgcolor: 'rgba(14,165,233,0.2)' }
+                    fontSize: '0.7rem', bgcolor: '#EFF7F9', color: '#176B87',
+                    border: '1px solid #CDE2E7', cursor: 'pointer',
+                    '&:hover': { bgcolor: '#E2F0F3' }
                   }} />
               ))}
             </Stack>
           )}
 
           {/* Input */}
-          <Stack direction="row" spacing={1} sx={{ p: 1.5, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <Stack direction="row" spacing={1} sx={{ p: 1.5, borderTop: '1px solid #DCE7EB' }}>
             <TextField
               fullWidth size="small" placeholder="Nhập tin nhắn..."
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendMessage(input))}
               disabled={loading}
-              sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'rgba(255,255,255,0.05)', borderRadius: '10px', fontSize: 13 } }}
+              sx={{ '& .MuiOutlinedInput-root': { bgcolor: '#F7FAFA', borderRadius: '10px', fontSize: 13 } }}
             />
             <IconButton onClick={() => sendMessage(input)} disabled={loading || !input.trim()}
-              sx={{ bgcolor: 'rgba(14,165,233,0.2)', color: '#0EA5E9', '&:hover': { bgcolor: 'rgba(14,165,233,0.3)' } }}>
+              sx={{ bgcolor: '#EAF3F4', color: '#176B87', '&:hover': { bgcolor: '#DCEEF2' } }}>
               <Send fontSize="small" />
             </IconButton>
           </Stack>

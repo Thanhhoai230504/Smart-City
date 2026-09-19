@@ -366,10 +366,10 @@ const MapPage: React.FC = () => {
   // Suggestion list style
   const suggestionBoxSx = {
     maxHeight: 160, overflowY: 'auto' as const, borderRadius: '8px',
-    bgcolor: 'rgba(30,41,59,0.95)', border: '1px solid rgba(255,255,255,0.1)',
+    bgcolor: '#FFFFFF', border: '1px solid #DCE7EB', color: '#18323F',
     '& > div': {
       px: 1.5, py: 0.8, cursor: 'pointer', fontSize: '0.75rem',
-      '&:hover': { bgcolor: 'rgba(59,130,246,0.15)' },
+      '&:hover': { bgcolor: '#EFF7F9' },
     },
   };
 
@@ -378,13 +378,14 @@ const MapPage: React.FC = () => {
       {/* Layer Control Panel */}
       <Paper sx={{
         position: 'absolute', top: 16, left: 16, zIndex: 1000,
-        bgcolor: 'rgba(17,24,39,0.92)', backdropFilter: 'blur(16px)',
-        border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px',
+        bgcolor: 'rgba(255,255,255,.96)', backdropFilter: 'blur(12px)',
+        border: '1px solid #DCE7EB', borderRadius: '12px',
+        boxShadow: '0 8px 24px rgba(32,71,83,.12)',
         width: { xs: 220, sm: 250, md: 280 },
         maxHeight: showLayerPanel ? { xs: 'calc(100vh - 200px)', md: 'calc(100vh - 120px)' } : 'auto',
         overflowY: showLayerPanel ? 'auto' : 'hidden',
         '&::-webkit-scrollbar': { width: 4 },
-        '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.1)', borderRadius: 2 },
+        '&::-webkit-scrollbar-thumb': { bgcolor: '#AFC5CC', borderRadius: 2 },
       }}>
         {/* Toggle Header */}
         <Box sx={{ p: 1.5, cursor: 'pointer', userSelect: 'none' }} onClick={() => setShowLayerPanel(!showLayerPanel)}>
@@ -404,7 +405,7 @@ const MapPage: React.FC = () => {
               InputProps={{
                 startAdornment: <InputAdornment position="start"><Search sx={{ color: 'text.secondary', fontSize: 18 }} /></InputAdornment>,
               }}
-              sx={{ mb: 1.5, '& .MuiOutlinedInput-root': { bgcolor: 'rgba(255,255,255,0.05)', borderRadius: '10px', fontSize: '0.85rem' } }}
+              sx={{ mb: 1.5, '& .MuiOutlinedInput-root': { bgcolor: '#FFFFFF', borderRadius: '9px', fontSize: '0.85rem' } }}
             />
 
             <FormControlLabel control={<Switch checked={showPlaces} onChange={(_, c) => setShowPlaces(c)} size="small" />}
@@ -413,7 +414,7 @@ const MapPage: React.FC = () => {
               <Box sx={{ ml: 4, mb: 1.5 }}>
                 <ToggleButtonGroup size="small" value={placeFilter} onChange={(_, v) => setPlaceFilter(v)} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
                   {Object.entries(PLACE_TYPE_MAP).map(([key, val]) => (
-                    <ToggleButton key={key} value={key} sx={{ borderRadius: '8px !important', fontSize: '0.7rem', py: 0.3, px: 1, border: '1px solid rgba(255,255,255,0.1) !important' }}>
+                    <ToggleButton key={key} value={key} sx={{ borderRadius: '8px !important', fontSize: '0.7rem', py: 0.3, px: 1, border: '1px solid #D6E5E9 !important' }}>
                       {val.icon} {val.label}
                     </ToggleButton>
                   ))}
@@ -450,7 +451,7 @@ const MapPage: React.FC = () => {
 
             {/* Advanced Filters */}
             <Box
-              sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid rgba(255,255,255,0.06)', cursor: 'pointer' }}
+              sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid #DCE7EB', cursor: 'pointer' }}
               onClick={() => setShowAdvanced(!showAdvanced)}
             >
               <Stack direction="row" alignItems="center" justifyContent="space-between">
@@ -490,10 +491,10 @@ const MapPage: React.FC = () => {
                       onClick={() => setIssueTimeFilter(opt.value)}
                       sx={{
                         fontSize: '0.7rem',
-                        bgcolor: issueTimeFilter === opt.value ? 'primary.main' : 'rgba(255,255,255,0.05)',
+                        bgcolor: issueTimeFilter === opt.value ? 'primary.main' : '#EAF2F4',
                         color: issueTimeFilter === opt.value ? '#fff' : 'text.secondary',
                         fontWeight: issueTimeFilter === opt.value ? 600 : 400,
-                        '&:hover': { bgcolor: issueTimeFilter === opt.value ? 'primary.dark' : 'rgba(255,255,255,0.1)' },
+                        '&:hover': { bgcolor: issueTimeFilter === opt.value ? 'primary.dark' : '#DCEEF2' },
                       }}
                     />
                   ))}
@@ -517,8 +518,9 @@ const MapPage: React.FC = () => {
         left: { xs: 16, md: 'auto' },
         zIndex: 1000,
         width: { xs: 'calc(100% - 32px)', sm: 300, md: 300 },
-        bgcolor: 'rgba(17,24,39,0.95)', backdropFilter: 'blur(16px)',
-        border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px',
+        bgcolor: 'rgba(255,255,255,.97)', backdropFilter: 'blur(12px)',
+        border: '1px solid #DCE7EB', borderRadius: '12px',
+        boxShadow: '0 8px 24px rgba(32,71,83,.12)',
         overflow: 'hidden',
         maxHeight: { xs: '60vh', md: 'none' },
         overflowY: 'auto',
@@ -549,7 +551,7 @@ const MapPage: React.FC = () => {
                     </InputAdornment>
                   ),
                 }}
-                sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'rgba(255,255,255,0.05)', borderRadius: '10px', fontSize: '0.8rem' } }}
+                sx={{ '& .MuiOutlinedInput-root': { bgcolor: '#FFFFFF', borderRadius: '9px', fontSize: '0.8rem' } }}
               />
               {startSuggestions.length > 0 && (
                 <Box sx={{ ...suggestionBoxSx, position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, mt: 0.5 }}>
@@ -566,7 +568,7 @@ const MapPage: React.FC = () => {
               <TextField size="small" placeholder="Điểm đến..." value={routeEnd} fullWidth
                 onChange={(e) => handleEndChange(e.target.value)}
                 InputProps={{ startAdornment: <InputAdornment position="start"><Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#EF4444' }} /></InputAdornment> }}
-                sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'rgba(255,255,255,0.05)', borderRadius: '10px', fontSize: '0.8rem' } }}
+                sx={{ '& .MuiOutlinedInput-root': { bgcolor: '#FFFFFF', borderRadius: '9px', fontSize: '0.8rem' } }}
               />
               {endSuggestions.length > 0 && (
                 <Box sx={{ ...suggestionBoxSx, position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, mt: 0.5 }}>

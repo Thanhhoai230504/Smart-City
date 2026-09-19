@@ -373,7 +373,7 @@ const AssignmentManagement: React.FC = () => {
         <Tabs
           value={panel}
           onChange={(_, value: number) => setPanel(value)}
-          sx={{ mt: 2, borderBottom: '1px solid rgba(255,255,255,0.07)' }}
+          sx={{ mt: 2, borderBottom: '1px solid #DCE7EB' }}
         >
           <Tab label={`Chờ phân công (${queuePagination.total})`} />
           <Tab label={`Đã phân công (${assignedPagination.total})`} />
@@ -446,7 +446,7 @@ const AssignmentManagement: React.FC = () => {
                             sx={{
                               height: 23,
                               fontWeight: 700,
-                              bgcolor: priority <= 3 ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.05)',
+                              bgcolor: priority <= 3 ? 'rgba(239,68,68,0.12)' : '#EAF2F4',
                               color: priority <= 3 ? '#FCA5A5' : 'text.secondary',
                             }}
                           />
@@ -644,8 +644,8 @@ const AssignmentManagement: React.FC = () => {
         maxWidth="sm"
         PaperProps={{
           sx: {
-            bgcolor: '#1A2332',
-            border: '1px solid rgba(255,255,255,0.1)',
+            bgcolor: '#FFFFFF',
+            border: '1px solid #DCE7EB',
             borderRadius: '16px',
           },
         }}
@@ -658,8 +658,8 @@ const AssignmentManagement: React.FC = () => {
                 sx={{
                   p: 1.5,
                   borderRadius: '10px',
-                  bgcolor: 'rgba(255,255,255,0.025)',
-                  border: '1px solid rgba(255,255,255,0.06)',
+                  bgcolor: '#F7FAFA',
+                  border: '1px solid #DCE7EB',
                 }}
               >
                 <Typography fontWeight={600}>{assignTarget.title}</Typography>
@@ -779,8 +779,8 @@ const AssignmentManagement: React.FC = () => {
         maxWidth="xs"
         PaperProps={{
           sx: {
-            bgcolor: '#1A2332',
-            border: '1px solid rgba(255,255,255,0.1)',
+            bgcolor: '#FFFFFF',
+            border: '1px solid #DCE7EB',
             borderRadius: '16px',
           },
         }}

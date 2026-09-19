@@ -94,8 +94,8 @@ const IssuePhotoComparison: React.FC<Props> = ({ issue }) => {
             display: 'grid',
             placeItems: 'center',
             borderRadius: 2.5,
-            border: '1px dashed rgba(255,255,255,0.13)',
-            bgcolor: 'rgba(255,255,255,0.018)',
+            border: '1px dashed #BFD2D9',
+            bgcolor: '#F7FAFA',
           }}
         >
           <Stack alignItems="center" spacing={1}>
@@ -122,8 +122,8 @@ const IssuePhotoComparison: React.FC<Props> = ({ issue }) => {
             height: { xs: 250, md: 330 },
             overflow: 'hidden',
             borderRadius: 2.5,
-            border: '1px solid rgba(255,255,255,0.08)',
-            bgcolor: 'rgba(0,0,0,0.25)',
+            border: '1px solid #DCE7EB',
+            bgcolor: '#F2F6F7',
             cursor: 'zoom-in',
           }}
         >
@@ -166,7 +166,7 @@ const IssuePhotoComparison: React.FC<Props> = ({ issue }) => {
                   borderRadius: 1.25,
                   border: index === selectedIndex
                     ? '2px solid #0EA5E9'
-                    : '1px solid rgba(255,255,255,0.08)',
+                    : '1px solid #DCE7EB',
                   bgcolor: 'transparent',
                   cursor: 'pointer',
                 }}
@@ -191,8 +191,8 @@ const IssuePhotoComparison: React.FC<Props> = ({ issue }) => {
         sx={{
           mb: 3,
           p: { xs: 1.5, md: 2 },
-          bgcolor: 'rgba(255,255,255,0.02)',
-          border: '1px solid rgba(255,255,255,0.06)',
+          bgcolor: '#FFFFFF',
+          border: '1px solid #DCE7EB',
         }}
       >
         <Stack
@@ -273,9 +273,9 @@ const IssuePhotoComparison: React.FC<Props> = ({ issue }) => {
         fullWidth
         PaperProps={{
           sx: {
-            bgcolor: 'rgba(7,12,24,0.97)',
+            bgcolor: '#FFFFFF',
             backgroundImage: 'none',
-            border: '1px solid rgba(255,255,255,0.1)',
+            border: '1px solid #DCE7EB',
           },
         }}
       >

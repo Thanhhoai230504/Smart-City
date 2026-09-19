@@ -387,7 +387,7 @@ const AuditLogManagement: React.FC = () => {
           spacing={1}
           justifyContent="space-between"
           alignItems="center"
-          sx={{ px: 2.5, py: 2, borderTop: '1px solid rgba(255,255,255,0.06)' }}
+          sx={{ px: 2.5, py: 2, borderTop: '1px solid #DCE7EB' }}
         >
           <Typography variant="caption" color="text.secondary">
             Tổng cộng {pagination.total} bản ghi

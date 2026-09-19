@@ -70,7 +70,7 @@ const NearbyCameras: React.FC<Props> = ({ latitude, longitude }) => {
                   label={`${camera.distance} m`}
                   size="small"
                   sx={{
-                    bgcolor: 'rgba(255,255,255,0.06)',
+                    bgcolor: '#EAF2F4',
                     color: 'text.secondary',
                     fontWeight: 600,
                   }}

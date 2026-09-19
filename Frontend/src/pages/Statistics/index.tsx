@@ -1,279 +1,632 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Box, Container, Typography, Grid, Card, CardContent, Stack,
-  LinearProgress, Skeleton, Rating,
+  Alert,
+  Box,
+  Button,
+  Container,
+  Grid,
+  LinearProgress,
+  Rating,
+  Skeleton,
+  Stack,
+  Typography,
 } from '@mui/material';
 import {
-  TrendingUp, CheckCircle, AccessTime, Star,
+  Refresh,
+  ScheduleOutlined,
+  SourceOutlined,
 } from '@mui/icons-material';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, AreaChart, Area, Legend,
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from 'recharts';
 import { statisticsApi } from '../../api/statisticsApi';
 import { CATEGORY_MAP, STATUS_MAP } from '../../utils/constants';
 
-interface DistrictStat { district: string; total: number; resolved: number; rate: number; }
+interface DistrictStat {
+  district: string;
+  total: number;
+  resolved: number;
+  rate: number;
+}
 
 interface StatsData {
-  overview: { totalIssues: number; resolvedCount: number; resolutionRate: number; avgResolutionHours: number; };
+  overview: {
+    totalIssues: number;
+    resolvedCount: number;
+    resolutionRate: number;
+    avgResolutionHours: number;
+  };
   issuesByStatus: Record<string, number>;
   issuesByCategory: { category: string; label: string; count: number }[];
   issuesTrend: { date: string; count: number }[];
   issuesByDistrict: DistrictStat[];
-  rating: { average: number; total: number; distribution: Record<number, number> };
+  rating: {
+    average: number;
+    total: number;
+    distribution: Record<number, number>;
+  };
 }
 
-const STAT_COLORS = ['#0EA5E9', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+const FALLBACK_COLORS = ['#0B5E8E', '#397DA5', '#2F7D64', '#B26A00', '#C62828', '#6B7F8C'];
+
+const numberFormatter = new Intl.NumberFormat('vi-VN');
+const decimalFormatter = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 });
 
 const StatisticsPage: React.FC = () => {
   const [data, setData] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await statisticsApi.getPublicStatistics();
+      setData(response.data.data);
+    } catch {
+      setError('Không thể tải dữ liệu thống kê lúc này. Vui lòng kiểm tra kết nối máy chủ và thử lại.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const res = await statisticsApi.getPublicStatistics();
-        setData(res.data.data);
-      } catch { /* ignore */ }
-      setLoading(false);
-    };
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   if (loading) {
     return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Skeleton variant="text" width={300} height={50} />
-        <Grid container spacing={3} mt={1}>
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Grid item xs={12} sm={6} md={3} key={i}>
-              <Skeleton variant="rounded" height={120} sx={{ borderRadius: '16px' }} />
-            </Grid>
+      <Container maxWidth="lg" sx={{ py: { xs: 2.5, md: 4 } }}>
+        <Skeleton variant="text" width={210} height={24} />
+        <Skeleton variant="text" width={390} height={52} />
+        <Skeleton variant="text" width="62%" height={28} />
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' },
+            mt: 3,
+            border: '1px solid',
+            borderColor: 'divider',
+          }}
+        >
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Box key={index} sx={{ p: 2.5, borderRight: index < 3 ? '1px solid #D8E1E7' : 0 }}>
+              <Skeleton width="55%" />
+              <Skeleton height={44} width="70%" />
+              <Skeleton width="80%" />
+            </Box>
           ))}
-          <Grid item xs={12} md={8}><Skeleton variant="rounded" height={350} sx={{ borderRadius: '16px' }} /></Grid>
-          <Grid item xs={12} md={4}><Skeleton variant="rounded" height={350} sx={{ borderRadius: '16px' }} /></Grid>
+        </Box>
+        <Grid container spacing={2.5} mt={0.5}>
+          <Grid item xs={12} md={8}><Skeleton variant="rounded" height={360} /></Grid>
+          <Grid item xs={12} md={4}><Skeleton variant="rounded" height={360} /></Grid>
         </Grid>
       </Container>
     );
   }
 
-  if (!data) return null;
+  if (!data) {
+    return (
+      <Container maxWidth="lg" sx={{ py: { xs: 2.5, md: 4 }, minHeight: '55vh' }}>
+        <Typography variant="body2" color="primary.main" fontWeight={700} mb={0.75}>
+          Dữ liệu công khai
+        </Typography>
+        <Typography variant="h3" component="h1" mb={1}>Thống kê sự cố đô thị</Typography>
+        <Typography color="text.secondary" mb={3}>
+          Tổng hợp tình hình tiếp nhận và xử lý phản ánh trên địa bàn thành phố Đà Nẵng.
+        </Typography>
+        <Alert
+          severity="warning"
+          action={(
+            <Button color="inherit" size="small" startIcon={<Refresh />} onClick={fetchData}>
+              Thử lại
+            </Button>
+          )}
+        >
+          {error || 'Chưa có dữ liệu thống kê để hiển thị.'}
+        </Alert>
+      </Container>
+    );
+  }
 
   const statusData = Object.entries(data.issuesByStatus).map(([key, value]) => ({
+    key,
     name: STATUS_MAP[key]?.label || key,
     value,
     color: STATUS_MAP[key]?.color || '#6B7280',
   }));
 
-  const trendData = data.issuesTrend.map(item => ({
+  const statusTotal = Math.max(
+    statusData.reduce((sum, item) => sum + item.value, 0),
+    1,
+  );
+
+  const trendData = data.issuesTrend.map((item) => ({
     ...item,
-    date: new Date(item.date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }),
+    date: new Date(item.date).toLocaleDateString('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+    }),
   }));
 
-  const maxDistrict = Math.max(...data.issuesByDistrict.map(d => d.total), 1);
+  const maxCategory = Math.max(...data.issuesByCategory.map((item) => item.count), 1);
+
+  const metrics = [
+    {
+      index: '01',
+      label: 'Tổng phản ánh',
+      value: numberFormatter.format(data.overview.totalIssues),
+      note: 'đã được ghi nhận',
+    },
+    {
+      index: '02',
+      label: 'Đã xử lý',
+      value: numberFormatter.format(data.overview.resolvedCount),
+      note: 'phản ánh đã hoàn tất',
+    },
+    {
+      index: '03',
+      label: 'Tỷ lệ xử lý',
+      value: `${decimalFormatter.format(data.overview.resolutionRate)}%`,
+      note: 'trên tổng phản ánh',
+    },
+    {
+      index: '04',
+      label: 'Thời gian trung bình',
+      value: `${decimalFormatter.format(data.overview.avgResolutionHours)} giờ`,
+      note: 'từ tiếp nhận đến hoàn tất',
+    },
+  ];
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      {/* Header */}
-      <Box mb={4}>
-        <Typography variant="h4" fontWeight={700} mb={1}>
-          📊 Thống kê sự cố đô thị
-        </Typography>
-        <Typography color="text.secondary">
-          Dữ liệu công khai về tình hình sự cố tại thành phố Đà Nẵng — cập nhật realtime
-        </Typography>
+    <Container maxWidth="lg" sx={{ py: { xs: 2.5, md: 4 } }}>
+      <Box
+        component="header"
+        sx={{
+          pb: 3,
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          justifyContent="space-between"
+          alignItems={{ sm: 'flex-end' }}
+          spacing={2}
+        >
+          <Box>
+            <Typography variant="body2" color="primary.main" fontWeight={700} mb={0.75}>
+              Dữ liệu công khai
+            </Typography>
+            <Typography variant="h3" component="h1" mb={0.75}>
+              Thống kê sự cố đô thị
+            </Typography>
+            <Typography color="text.secondary" sx={{ maxWidth: 680 }}>
+              Tổng hợp tình hình tiếp nhận và xử lý phản ánh trên địa bàn thành phố Đà Nẵng.
+            </Typography>
+          </Box>
+          <Button
+            variant="outlined"
+            startIcon={<Refresh />}
+            onClick={fetchData}
+            sx={{ alignSelf: { xs: 'flex-start', sm: 'flex-end' }, whiteSpace: 'nowrap' }}
+          >
+            Cập nhật dữ liệu
+          </Button>
+        </Stack>
       </Box>
 
-      {/* Overview cards */}
-      <Grid container spacing={3} mb={4}>
-        {[
-          { label: 'Tổng sự cố', value: data.overview.totalIssues, icon: <TrendingUp />, color: '#3B82F6', bg: 'rgba(59,130,246,0.1)' },
-          { label: 'Đã xử lý', value: data.overview.resolvedCount, icon: <CheckCircle />, color: '#10B981', bg: 'rgba(16,185,129,0.1)' },
-          { label: 'Tỷ lệ xử lý', value: `${data.overview.resolutionRate}%`, icon: <TrendingUp />, color: '#0EA5E9', bg: 'rgba(14,165,233,0.1)' },
-          { label: 'TB thời gian xử lý', value: `${data.overview.avgResolutionHours}h`, icon: <AccessTime />, color: '#F59E0B', bg: 'rgba(245,158,11,0.1)' },
-        ].map((card, i) => (
-          <Grid item xs={6} md={3} key={i}>
-            <Card sx={{
-              background: `linear-gradient(135deg, ${card.bg}, transparent)`,
-              border: `1px solid ${card.color}20`,
-              transition: 'transform 0.2s',
-              '&:hover': { transform: 'translateY(-4px)' },
-            }}>
-              <CardContent>
-                <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
-                  <Box sx={{ p: 1, borderRadius: '10px', bgcolor: `${card.color}15`, color: card.color }}>
-                    {card.icon}
-                  </Box>
-                </Stack>
-                <Typography variant="h4" fontWeight={800} color={card.color}>{card.value}</Typography>
-                <Typography variant="body2" color="text.secondary">{card.label}</Typography>
-              </CardContent>
-            </Card>
-          </Grid>
+      <Box
+        component="section"
+        aria-label="Tổng quan số liệu"
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' },
+          mb: 3,
+          bgcolor: 'background.paper',
+          borderLeft: '1px solid',
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        {metrics.map((metric, index) => (
+          <Box
+            key={metric.label}
+            sx={{
+              minWidth: 0,
+              p: { xs: 2, md: 2.5 },
+              borderTop: '1px solid',
+              borderRight: '1px solid',
+              borderColor: 'divider',
+            }}
+          >
+            <Stack direction="row" justifyContent="space-between" alignItems="baseline" mb={1.25}>
+              <Typography variant="body2" fontWeight={700} color="text.secondary">
+                {metric.label}
+              </Typography>
+              <Typography variant="caption" color="text.disabled">
+                {metric.index}
+              </Typography>
+            </Stack>
+            <Typography
+              variant="h4"
+              component="p"
+              color={index === 2 ? 'secondary.dark' : 'text.primary'}
+              sx={{ whiteSpace: 'nowrap' }}
+            >
+              {metric.value}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {metric.note}
+            </Typography>
+          </Box>
         ))}
-      </Grid>
+      </Box>
 
-      {/* Charts row 1: Trend + Pie */}
-      <Grid container spacing={3} mb={4}>
+      <Grid container spacing={2.5} mb={2.5}>
         <Grid item xs={12} md={8}>
-          <Card>
-            <CardContent>
-              <Typography fontWeight={600} mb={2}>📈 Xu hướng báo cáo (30 ngày)</Typography>
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={trendData}>
-                  <defs>
-                    <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0EA5E9" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#0EA5E9" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                  <XAxis dataKey="date" tick={{ fill: '#9CA3AF', fontSize: 11 }} />
-                  <YAxis tick={{ fill: '#9CA3AF', fontSize: 11 }} allowDecimals={false} />
-                  <Tooltip
-                    contentStyle={{ background: '#1A2332', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12 }}
-                    labelStyle={{ color: '#F1F5F9' }}
-                  />
-                  <Area type="monotone" dataKey="count" stroke="#0EA5E9" fill="url(#trendGrad)" strokeWidth={2} name="Sự cố" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+          <Box
+            component="section"
+            sx={{
+              height: '100%',
+              bgcolor: 'background.paper',
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 1.5,
+              overflow: 'hidden',
+            }}
+          >
+            <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+              <Typography variant="h6" component="h2">Diễn biến phản ánh</Typography>
+              <Typography variant="caption" color="text.secondary">
+                Số phản ánh mới được ghi nhận trong 30 ngày gần nhất
+              </Typography>
+            </Box>
+            <Box sx={{ px: { xs: 0.5, sm: 1.5 }, pt: 2, pb: 1 }}>
+              {trendData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={280}>
+                  <AreaChart data={trendData} margin={{ top: 8, right: 18, left: -12, bottom: 2 }}>
+                    <defs>
+                      <linearGradient id="publicTrendFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#0B5E8E" stopOpacity={0.16} />
+                        <stop offset="95%" stopColor="#0B5E8E" stopOpacity={0.01} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid vertical={false} stroke="#E3E9ED" />
+                    <XAxis
+                      dataKey="date"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: '#627481', fontSize: 11 }}
+                      minTickGap={24}
+                    />
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: '#627481', fontSize: 11 }}
+                      allowDecimals={false}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: '#FFFFFF',
+                        border: '1px solid #D4DFE5',
+                        borderRadius: 8,
+                        boxShadow: '0 6px 18px rgba(23,43,58,0.08)',
+                      }}
+                      labelStyle={{ color: '#172B3A', fontWeight: 650 }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="count"
+                      name="Phản ánh"
+                      stroke="#0B5E8E"
+                      fill="url(#publicTrendFill)"
+                      strokeWidth={2}
+                      dot={trendData.length <= 10 ? { r: 3, fill: '#0B5E8E' } : false}
+                      activeDot={{ r: 4 }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <Stack alignItems="center" justifyContent="center" sx={{ height: 280 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Chưa có dữ liệu trong 30 ngày gần nhất
+                  </Typography>
+                </Stack>
+              )}
+            </Box>
+          </Box>
         </Grid>
+
         <Grid item xs={12} md={4}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Typography fontWeight={600} mb={2}>🎯 Theo trạng thái</Typography>
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart>
-                  <Pie data={statusData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={4} dataKey="value">
-                    {statusData.map((entry, i) => (
-                      <Cell key={i} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={{ background: '#1A2332', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12 }} />
-                  <Legend formatter={(value) => <span style={{ color: '#9CA3AF', fontSize: 12 }}>{value}</span>} />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+          <Box
+            component="section"
+            sx={{
+              height: '100%',
+              bgcolor: 'background.paper',
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 1.5,
+              overflow: 'hidden',
+            }}
+          >
+            <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+              <Typography variant="h6" component="h2">Tiến độ xử lý</Typography>
+              <Typography variant="caption" color="text.secondary">
+                Phân bố phản ánh theo trạng thái hiện tại
+              </Typography>
+            </Box>
+            <Stack spacing={2.15} sx={{ p: 2.5 }}>
+              {statusData.map((item) => {
+                const percentage = (item.value / statusTotal) * 100;
+                return (
+                  <Box key={item.key}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="baseline" mb={0.75}>
+                      <Stack direction="row" alignItems="center" spacing={0.9}>
+                        <Box sx={{ width: 8, height: 8, bgcolor: item.color, borderRadius: '50%' }} />
+                        <Typography variant="body2" fontWeight={600}>{item.name}</Typography>
+                      </Stack>
+                      <Typography variant="body2" fontWeight={700}>
+                        {item.value}
+                        <Typography component="span" variant="caption" color="text.secondary" ml={0.7}>
+                          {decimalFormatter.format(percentage)}%
+                        </Typography>
+                      </Typography>
+                    </Stack>
+                    <LinearProgress
+                      variant="determinate"
+                      value={percentage}
+                      sx={{
+                        height: 5,
+                        bgcolor: '#E8EDF0',
+                        '& .MuiLinearProgress-bar': { bgcolor: item.color },
+                      }}
+                    />
+                  </Box>
+                );
+              })}
+            </Stack>
+          </Box>
         </Grid>
       </Grid>
 
-      {/* Charts row 2: Category + District */}
-      <Grid container spacing={3} mb={4}>
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Typography fontWeight={600} mb={2}>📂 Theo danh mục</Typography>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={data.issuesByCategory} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                  <XAxis type="number" tick={{ fill: '#9CA3AF', fontSize: 11 }} allowDecimals={false} />
-                  <YAxis type="category" dataKey="label" tick={{ fill: '#E2E8F0', fontSize: 12 }} width={120} />
-                  <Tooltip contentStyle={{ background: '#1A2332', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12 }} />
-                  <Bar dataKey="count" name="Số lượng" radius={[0, 6, 6, 0]}>
-                    {data.issuesByCategory.map((entry, i) => (
-                      <Cell key={i} fill={CATEGORY_MAP[entry.category]?.color || STAT_COLORS[i % STAT_COLORS.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+      <Grid container spacing={2.5} mb={2.5}>
+        <Grid item xs={12} md={5}>
+          <Box
+            component="section"
+            sx={{
+              height: '100%',
+              bgcolor: 'background.paper',
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 1.5,
+              overflow: 'hidden',
+            }}
+          >
+            <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+              <Typography variant="h6" component="h2">Nhóm vấn đề</Typography>
+              <Typography variant="caption" color="text.secondary">
+                Số lượng phản ánh theo danh mục
+              </Typography>
+            </Box>
+            <Stack spacing={1.7} sx={{ p: 2.5 }}>
+              {data.issuesByCategory.map((item, index) => {
+                const itemColor = CATEGORY_MAP[item.category]?.color
+                  || FALLBACK_COLORS[index % FALLBACK_COLORS.length];
+                return (
+                  <Box key={item.category}>
+                    <Stack direction="row" justifyContent="space-between" mb={0.65}>
+                      <Stack direction="row" spacing={0.9} alignItems="center">
+                        <Box sx={{ width: 3, height: 16, bgcolor: itemColor }} />
+                        <Typography variant="body2">{item.label}</Typography>
+                      </Stack>
+                      <Typography variant="body2" fontWeight={700}>{item.count}</Typography>
+                    </Stack>
+                    <LinearProgress
+                      variant="determinate"
+                      value={(item.count / maxCategory) * 100}
+                      sx={{
+                        height: 4,
+                        bgcolor: '#E8EDF0',
+                        '& .MuiLinearProgress-bar': { bgcolor: itemColor },
+                      }}
+                    />
+                  </Box>
+                );
+              })}
+            </Stack>
+          </Box>
         </Grid>
 
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Typography fontWeight={600} mb={2}>📍 Theo quận/huyện</Typography>
-              <Stack spacing={1.5}>
-                {data.issuesByDistrict.map((d, i) => (
-                  <Box key={d.district}>
-                    <Stack direction="row" justifyContent="space-between" alignItems="center" mb={0.5}>
-                      <Typography variant="body2" fontWeight={500}>{d.district}</Typography>
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <Typography variant="caption" color="text.secondary">
-                          {d.resolved}/{d.total} đã xử lý
-                        </Typography>
-                        <Typography variant="caption" fontWeight={600}
-                          color={d.rate >= 70 ? '#10B981' : d.rate >= 40 ? '#F59E0B' : '#EF4444'}>
-                          {d.rate}%
-                        </Typography>
-                      </Stack>
-                    </Stack>
-                    <Box sx={{ position: 'relative' }}>
+        <Grid item xs={12} md={7}>
+          <Box
+            component="section"
+            sx={{
+              height: '100%',
+              bgcolor: 'background.paper',
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 1.5,
+              overflow: 'hidden',
+            }}
+          >
+            <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+              <Typography variant="h6" component="h2">Kết quả theo địa bàn</Typography>
+              <Typography variant="caption" color="text.secondary">
+                So sánh số lượng và tỷ lệ xử lý giữa các quận, huyện
+              </Typography>
+            </Box>
+
+            <Box
+              sx={{
+                display: { xs: 'none', sm: 'grid' },
+                gridTemplateColumns: 'minmax(140px, 1fr) 80px 90px 150px',
+                gap: 1.5,
+                px: 2.5,
+                py: 1.25,
+                bgcolor: '#F4F7F8',
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+              }}
+            >
+              {['Địa bàn', 'Phản ánh', 'Đã xử lý', 'Tỷ lệ'].map((label) => (
+                <Typography key={label} variant="caption" fontWeight={700} color="text.secondary">
+                  {label}
+                </Typography>
+              ))}
+            </Box>
+
+            <Stack divider={<Box sx={{ borderTop: '1px solid #E6EBEE' }} />}>
+              {data.issuesByDistrict.map((districtItem) => {
+                const rateColor = districtItem.rate >= 70
+                  ? '#2F7D64'
+                  : districtItem.rate >= 40
+                    ? '#B26A00'
+                    : '#C62828';
+                return (
+                  <Box
+                    key={districtItem.district}
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: { xs: '1fr auto', sm: 'minmax(140px, 1fr) 80px 90px 150px' },
+                      gap: { xs: 0.75, sm: 1.5 },
+                      alignItems: 'center',
+                      px: 2.5,
+                      py: 1.35,
+                    }}
+                  >
+                    <Typography variant="body2" fontWeight={600}>{districtItem.district}</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
+                      {districtItem.total}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
+                      {districtItem.resolved}
+                    </Typography>
+                    <Stack direction="row" alignItems="center" spacing={1}>
                       <LinearProgress
                         variant="determinate"
-                        value={(d.total / maxDistrict) * 100}
+                        value={districtItem.rate}
                         sx={{
-                          height: 8, borderRadius: 4,
-                          bgcolor: 'rgba(255,255,255,0.06)',
-                          '& .MuiLinearProgress-bar': {
-                            borderRadius: 4,
-                            background: `linear-gradient(90deg, ${STAT_COLORS[i % STAT_COLORS.length]}, ${STAT_COLORS[(i + 1) % STAT_COLORS.length]})`,
-                          },
+                          flex: 1,
+                          minWidth: { xs: 85, sm: 88 },
+                          height: 5,
+                          bgcolor: '#E8EDF0',
+                          '& .MuiLinearProgress-bar': { bgcolor: rateColor },
                         }}
                       />
-                    </Box>
+                      <Typography variant="caption" fontWeight={700} color={rateColor} sx={{ minWidth: 36 }}>
+                        {districtItem.rate}%
+                      </Typography>
+                    </Stack>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: { xs: 'block', sm: 'none' }, gridColumn: '1 / -1' }}
+                    >
+                      {districtItem.resolved}/{districtItem.total} phản ánh đã xử lý
+                    </Typography>
                   </Box>
-                ))}
-              </Stack>
-            </CardContent>
-          </Card>
+                );
+              })}
+            </Stack>
+          </Box>
         </Grid>
       </Grid>
 
-      {/* Rating summary */}
       {data.rating.total > 0 && (
-        <Card sx={{ bgcolor: 'rgba(245,158,11,0.04)', border: '1px solid rgba(245,158,11,0.15)' }}>
-          <CardContent>
-            <Typography fontWeight={600} mb={2}>⭐ Đánh giá chất lượng xử lý</Typography>
-            <Grid container spacing={3} alignItems="center">
-              <Grid item xs={12} sm={4} textAlign="center">
-                <Typography variant="h2" fontWeight={800} color="#F59E0B">
-                  {data.rating.average}
-                </Typography>
-                <Rating value={data.rating.average} readOnly precision={0.1}
-                  sx={{ '& .MuiRating-iconFilled': { color: '#F59E0B' }, fontSize: '1.8rem' }} />
-                <Typography variant="body2" color="text.secondary" mt={0.5}>
-                  {data.rating.total} đánh giá
-                </Typography>
-              </Grid>
-              <Grid item xs={12} sm={8}>
-                <Stack spacing={1}>
-                  {[5, 4, 3, 2, 1].map((star) => {
-                    const count = data.rating.distribution[star] || 0;
-                    const pct = data.rating.total > 0 ? (count / data.rating.total) * 100 : 0;
-                    return (
-                      <Stack key={star} direction="row" alignItems="center" spacing={1.5}>
-                        <Typography variant="body2" fontWeight={500} sx={{ minWidth: 20 }}>{star}⭐</Typography>
-                        <LinearProgress
-                          variant="determinate" value={pct}
-                          sx={{
-                            flex: 1, height: 8, borderRadius: 4,
-                            bgcolor: 'rgba(255,255,255,0.06)',
-                            '& .MuiLinearProgress-bar': { borderRadius: 4, bgcolor: '#F59E0B' },
-                          }}
-                        />
-                        <Typography variant="caption" color="text.secondary" sx={{ minWidth: 30 }}>{count}</Typography>
-                      </Stack>
-                    );
-                  })}
-                </Stack>
-              </Grid>
+        <Box
+          component="section"
+          sx={{
+            mb: 2.5,
+            bgcolor: 'background.paper',
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: 1.5,
+            overflow: 'hidden',
+          }}
+        >
+          <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+            <Typography variant="h6" component="h2">Đánh giá chất lượng xử lý</Typography>
+            <Typography variant="caption" color="text.secondary">
+              Phản hồi của người dân sau khi sự cố được hoàn tất
+            </Typography>
+          </Box>
+          <Grid container>
+            <Grid
+              item
+              xs={12}
+              sm={4}
+              sx={{
+                p: 3,
+                textAlign: 'center',
+                borderRight: { sm: '1px solid #D8E1E7' },
+                borderBottom: { xs: '1px solid #D8E1E7', sm: 0 },
+              }}
+            >
+              <Typography variant="h2" fontWeight={750} color="text.primary">
+                {decimalFormatter.format(data.rating.average)}
+              </Typography>
+              <Rating
+                value={data.rating.average}
+                readOnly
+                precision={0.1}
+                sx={{ '& .MuiRating-iconFilled': { color: '#B26A00' }, fontSize: '1.65rem' }}
+              />
+              <Typography variant="body2" color="text.secondary" mt={0.5}>
+                {data.rating.total} lượt đánh giá
+              </Typography>
             </Grid>
-          </CardContent>
-        </Card>
+            <Grid item xs={12} sm={8} sx={{ p: 3 }}>
+              <Stack spacing={1.2}>
+                {[5, 4, 3, 2, 1].map((star) => {
+                  const count = data.rating.distribution[star] || 0;
+                  const percentage = data.rating.total > 0 ? (count / data.rating.total) * 100 : 0;
+                  return (
+                    <Stack key={star} direction="row" alignItems="center" spacing={1.5}>
+                      <Typography variant="body2" sx={{ minWidth: 42 }}>{star} sao</Typography>
+                      <LinearProgress
+                        variant="determinate"
+                        value={percentage}
+                        sx={{
+                          flex: 1,
+                          height: 5,
+                          bgcolor: '#E8EDF0',
+                          '& .MuiLinearProgress-bar': { bgcolor: '#B26A00' },
+                        }}
+                      />
+                      <Typography variant="caption" color="text.secondary" sx={{ minWidth: 28, textAlign: 'right' }}>
+                        {count}
+                      </Typography>
+                    </Stack>
+                  );
+                })}
+              </Stack>
+            </Grid>
+          </Grid>
+        </Box>
       )}
 
-      {/* Footer note */}
-      <Box textAlign="center" mt={4}>
-        <Typography variant="caption" color="text.secondary">
-          Dữ liệu thống kê từ hệ thống Smart City Đà Nẵng • Cập nhật theo thời gian thực
-        </Typography>
-      </Box>
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        justifyContent="space-between"
+        spacing={1}
+        sx={{ pt: 1, color: 'text.secondary' }}
+      >
+        <Stack direction="row" alignItems="center" spacing={0.75}>
+          <SourceOutlined sx={{ fontSize: 16 }} />
+          <Typography variant="caption">Nguồn: Hệ thống Smart City Đà Nẵng</Typography>
+        </Stack>
+        <Stack direction="row" alignItems="center" spacing={0.75}>
+          <ScheduleOutlined sx={{ fontSize: 16 }} />
+          <Typography variant="caption">Số liệu được cập nhật theo thời gian thực</Typography>
+        </Stack>
+      </Stack>
     </Container>
   );
 };

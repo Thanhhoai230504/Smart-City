@@ -122,14 +122,14 @@ const UserManagement: React.FC<Props> = ({ onDataChange }) => {
           <FormControl size="small" sx={{ minWidth: 130 }}>
             <InputLabel sx={{ color: 'text.secondary' }}>Vai trò</InputLabel>
             <Select value={filter} label="Vai trò" onChange={(e: SelectChangeEvent) => setFilter(e.target.value)}
-              sx={{ borderRadius: '10px', '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.1)' } }}>
+              sx={{ borderRadius: '10px', '& .MuiOutlinedInput-notchedOutline': { borderColor: '#C8D9DE' } }}>
               <MenuItem value="">Tất cả</MenuItem>
               <MenuItem value="admin">👑 Admin</MenuItem>
               <MenuItem value="staff">🛠️ Cán bộ</MenuItem>
               <MenuItem value="user">👤 User</MenuItem>
             </Select>
           </FormControl>
-          <Chip label={`${pag.total} người dùng`} sx={{ bgcolor: 'rgba(16,185,129,0.15)', color: '#6EE7B7', fontWeight: 600 }} />
+          <Chip label={`${pag.total} người dùng`} sx={{ bgcolor: '#E0F1EB', color: '#286653', fontWeight: 600 }} />
         </Stack>
       </Stack>
 
@@ -147,14 +147,14 @@ const UserManagement: React.FC<Props> = ({ onDataChange }) => {
                   <TableCell key={j} sx={cellSx}>
                     {j === 0 ? (
                       <Stack direction="row" alignItems="center" spacing={1}>
-                        <Skeleton variant="circular" width={30} height={30} sx={{ bgcolor: 'rgba(255,255,255,0.06)' }} />
-                        <Skeleton variant="rounded" height={14} width={80} sx={{ bgcolor: 'transparent', background: 'linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.08) 40%, rgba(255,255,255,0.03) 80%)', backgroundSize: '800px 100%', animation: `shimmer 1.8s ease-in-out infinite`, animationDelay: `${i * 0.1}s`, borderRadius: '6px' }} />
+                        <Skeleton variant="circular" width={30} height={30} sx={{ bgcolor: '#E8F0F2' }} />
+                        <Skeleton variant="rounded" height={14} width={80} sx={{ bgcolor: 'transparent', background: 'linear-gradient(90deg, #F7FAFA 0%, #E8F0F2 40%, #F7FAFA 80%)', backgroundSize: '800px 100%', animation: `shimmer 1.8s ease-in-out infinite`, animationDelay: `${i * 0.1}s`, borderRadius: '6px' }} />
                       </Stack>
                     ) : (
                       <Skeleton variant="rounded"
                         height={j === 2 || j === 3 || j === 4 || j === 6 ? 22 : 14}
                         width={j === 1 ? '75%' : j === 5 ? 35 : j === 7 ? '65%' : '50%'}
-                        sx={{ bgcolor: 'transparent', background: 'linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.08) 40%, rgba(255,255,255,0.03) 80%)', backgroundSize: '800px 100%', animation: `shimmer 1.8s ease-in-out infinite`, animationDelay: `${j * 0.1}s`, borderRadius: j === 2 || j === 3 || j === 4 || j === 6 ? '10px' : '6px' }} />
+                        sx={{ bgcolor: 'transparent', background: 'linear-gradient(90deg, #F7FAFA 0%, #E8F0F2 40%, #F7FAFA 80%)', backgroundSize: '800px 100%', animation: `shimmer 1.8s ease-in-out infinite`, animationDelay: `${j * 0.1}s`, borderRadius: j === 2 || j === 3 || j === 4 || j === 6 ? '10px' : '6px' }} />
                     )}
                   </TableCell>
                 ))}
@@ -173,19 +173,19 @@ const UserManagement: React.FC<Props> = ({ onDataChange }) => {
                 <TableCell sx={cellSx}>
                   {u._id === currentUser?._id || u._id === currentUser?.id ? (
                     <Chip size="small" icon={<AdminPanelSettings sx={{ fontSize: 14 }} />} label={ROLE_LABELS[u.role]}
-                      sx={{ height: 24, fontSize: '0.7rem', bgcolor: 'rgba(14,165,233,0.2)', color: '#A5B4FC' }} />
+                      sx={{ height: 24, fontSize: '0.7rem', bgcolor: '#EAF3F4', color: '#176B87' }} />
                   ) : u.role === 'staff' ? (
                     <Chip size="small" icon={<Engineering sx={{ fontSize: 14 }} />} label="Cán bộ"
-                      sx={{ height: 24, fontSize: '0.7rem', bgcolor: 'rgba(16,185,129,0.16)', color: '#6EE7B7' }} />
+                      sx={{ height: 24, fontSize: '0.7rem', bgcolor: '#E0F1EB', color: '#286653' }} />
                   ) : (
                     <Select size="small" value={u.role} disabled={assigningId === u._id}
                       onChange={(e: SelectChangeEvent) => handleRoleChange(u._id, e.target.value)}
                       sx={{
                         height: 28, fontSize: '0.75rem', borderRadius: '8px',
                         bgcolor: u.role === 'admin' ? 'rgba(14,165,233,0.15)' : 'rgba(59,130,246,0.15)',
-                        color: u.role === 'admin' ? '#A5B4FC' : '#93C5FD',
+                        color: u.role === 'admin' ? '#176B87' : '#3E78A8',
                         '& .MuiOutlinedInput-notchedOutline': { borderColor: 'transparent' },
-                        '& .MuiSvgIcon-root': { color: u.role === 'admin' ? '#A5B4FC' : '#93C5FD' },
+                        '& .MuiSvgIcon-root': { color: u.role === 'admin' ? '#176B87' : '#3E78A8' },
                       }}>
                       <MenuItem value="user">👤 User</MenuItem>
                       <MenuItem value="admin">👑 Admin</MenuItem>
@@ -215,8 +215,8 @@ const UserManagement: React.FC<Props> = ({ onDataChange }) => {
                           height: 30,
                           fontSize: '0.72rem',
                           borderRadius: '8px',
-                          bgcolor: getDepartmentId(u) ? 'rgba(16,185,129,0.10)' : 'rgba(255,255,255,0.03)',
-                          '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.08)' },
+                          bgcolor: getDepartmentId(u) ? 'rgba(16,185,129,0.10)' : '#F7FAFA',
+                          '& .MuiOutlinedInput-notchedOutline': { borderColor: '#DCE7EB' },
                         }}
                       >
                         <MenuItem value="">Không thuộc đơn vị</MenuItem>
@@ -256,7 +256,7 @@ const UserManagement: React.FC<Props> = ({ onDataChange }) => {
                       <Chip size="small"
                         icon={<span style={{ fontSize: 14 }}>{u.topBadge.icon}</span>}
                         label={u.topBadge.label}
-                        sx={{ height: 24, fontSize: '0.7rem', fontWeight: 600, bgcolor: 'rgba(245,158,11,0.12)', color: '#FBBF24' }}
+                        sx={{ height: 24, fontSize: '0.7rem', fontWeight: 600, bgcolor: '#F8F0DF', color: '#8A5A12' }}
                       />
                     </Tooltip>
                   ) : (

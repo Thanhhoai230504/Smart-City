@@ -4,13 +4,17 @@ import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../../store/store';
 import { createIssue } from '../../store/slices/issueSlice';
 import {
-  Box, Container, Typography, TextField, Button, MenuItem, Card,
-  CardContent, Grid, Alert, CircularProgress, Stack, Paper, List,
+  Box, Container, Typography, TextField, Button, MenuItem, Divider,
+  Grid, Alert, CircularProgress, Stack, Paper, List,
   ListItemButton, ListItemText, InputAdornment, IconButton, Chip,
 } from '@mui/material';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { Send, CloudUpload, LocationOn, Search, MyLocation, Close, SmartToy, Phone, ThumbUp } from '@mui/icons-material';
+import {
+  Send, CloudUpload, LocationOn, Search, MyLocation, Close, SmartToy, Phone, ThumbUp,
+  CheckCircleOutline, InfoOutlined,
+} from '@mui/icons-material';
+import 'leaflet/dist/leaflet.css';
 import { CATEGORY_MAP, DA_NANG_CENTER, DEFAULT_ZOOM } from '../../utils/constants';
 import { issueApi } from '../../api/issueApi';
 import { DuplicateCandidate, DuplicateCandidateMeta } from '../../types';
@@ -109,6 +113,60 @@ const LocationPicker: React.FC<{ onSelect: (lat: number, lng: number) => void }>
   return null;
 };
 
+// Keep Leaflet in sync when the responsive grid changes the map width.
+const ResizeMap: React.FC = () => {
+  const map = useMap();
+
+  useEffect(() => {
+    const container = map.getContainer();
+    const refresh = () => map.invalidateSize({ pan: false });
+    const timer = window.setTimeout(refresh, 0);
+    const observer = new ResizeObserver(refresh);
+    observer.observe(container);
+
+    return () => {
+      window.clearTimeout(timer);
+      observer.disconnect();
+    };
+  }, [map]);
+
+  return null;
+};
+
+const SectionHeading: React.FC<{
+  number: string;
+  title: string;
+  description: string;
+}> = ({ number, title, description }) => (
+  <Stack direction="row" spacing={1.5} alignItems="center">
+    <Box
+      sx={{
+        width: 40,
+        height: 40,
+        borderRadius: 1,
+        bgcolor: '#E9F2F7',
+        color: 'primary.main',
+        display: 'grid',
+        placeItems: 'center',
+        flexShrink: 0,
+        fontSize: '0.75rem',
+        lineHeight: 1,
+        fontWeight: 750,
+      }}
+    >
+      {number}
+    </Box>
+    <Box sx={{ minWidth: 0 }}>
+      <Typography variant="h6" sx={{ fontSize: '1rem', lineHeight: 1.3 }}>
+        {title}
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.2 }}>
+        {description}
+      </Typography>
+    </Box>
+  </Stack>
+);
+
 const ReportIssuePage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
@@ -146,6 +204,11 @@ const ReportIssuePage: React.FC = () => {
   const [duplicateError, setDuplicateError] = useState('');
   const [confirmingDuplicateId, setConfirmingDuplicateId] = useState('');
   const [confirmedDuplicateId, setConfirmedDuplicateId] = useState('');
+
+  useEffect(() => {
+    // Keep the report heading visible after navigating from another page.
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, []);
 
   useEffect(() => {
     const objectUrls = objectUrlsRef.current;
@@ -434,23 +497,107 @@ const ReportIssuePage: React.FC = () => {
   });
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Typography variant="h4" fontWeight={700} mb={1}>📝 Báo cáo sự cố</Typography>
-      <Typography color="text.secondary" mb={4}>Giúp thành phố tốt đẹp hơn bằng cách báo cáo các vấn đề bạn gặp</Typography>
+    <Box sx={{ minHeight: 'calc(100vh - 64px)', bgcolor: 'background.default' }}>
+      <Container maxWidth="xl" sx={{ py: { xs: 3, md: 4.5 } }}>
+        <Box
+          component="header"
+          sx={{
+            mb: 3,
+            display: 'flex',
+            alignItems: { xs: 'flex-start', md: 'flex-end' },
+            justifyContent: 'space-between',
+            gap: 2,
+            flexDirection: { xs: 'column', md: 'row' },
+          }}
+        >
+          <Box>
+            <Typography variant="overline" color="primary.main">
+              Cổng phản ánh cộng đồng
+            </Typography>
+            <Typography variant="h3" sx={{ mt: 0.5 }}>
+              Báo cáo sự cố đô thị
+            </Typography>
+            <Typography color="text.secondary" sx={{ mt: 0.75, maxWidth: 680 }}>
+              Gửi thông tin hiện trường để cơ quan phụ trách xác minh và xử lý đúng khu vực.
+            </Typography>
+          </Box>
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ color: 'text.secondary' }}>
+            <CheckCircleOutline sx={{ fontSize: 19, color: 'secondary.main' }} />
+            <Typography variant="body2">Theo dõi tiến độ sau khi gửi</Typography>
+          </Stack>
+        </Box>
 
-      {success && <Alert severity="success" sx={{ mb: 3 }}>🎉 Báo cáo thành công! Đang chuyển hướng...</Alert>}
-      {error && <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>{error}</Alert>}
+        {success && (
+          <Alert severity="success" sx={{ mb: 2.5 }}>
+            Báo cáo thành công. Hệ thống đang chuyển bạn đến danh sách theo dõi.
+          </Alert>
+        )}
+        {error && <Alert severity="error" sx={{ mb: 2.5 }} onClose={() => setError('')}>{error}</Alert>}
 
-      <Box component="form" onSubmit={handleSubmit}>
-        <Grid container spacing={4}>
+        <Box component="form" onSubmit={handleSubmit}>
+          <Grid container spacing={3} alignItems="flex-start">
           {/* Form */}
-          <Grid item xs={12} md={6}>
-            <Stack spacing={2.5}>
-              <TextField label="Tiêu đề sự cố" value={title} onChange={(e) => setTitle(e.target.value)}
-                required placeholder="VD: Ổ gà lớn trên đường Nguyễn Văn Linh" />
-              <TextField select label="Phân loại" value={category} onChange={(e) => setCategory(e.target.value)} required>
-                {Object.entries(CATEGORY_MAP).map(([k, v]) => <MenuItem key={k} value={k}>{v.icon} {v.label}</MenuItem>)}
-              </TextField>
+            <Grid item xs={12} lg={7}>
+              <Paper
+                component="section"
+                variant="outlined"
+                sx={{
+                  p: { xs: 2, sm: 3 },
+                  borderRadius: 1.5,
+                  boxShadow: '0 2px 8px rgba(23,43,58,0.04)',
+                  '& .MuiTextField-root': { width: '100%' },
+                  '& .MuiFormHelperText-root': {
+                    mx: 0,
+                    mt: 0.75,
+                    lineHeight: 1.45,
+                    fontSize: '0.75rem',
+                  },
+                  '& .MuiInputLabel-root': { fontSize: '0.94rem' },
+                  '& .MuiInputBase-input': { fontSize: '0.95rem' },
+                }}
+              >
+                <Stack spacing={2.5}>
+                  <SectionHeading
+                    number="01"
+                    title="Thông tin sự cố"
+                    description="Đặt tiêu đề ngắn gọn và chọn đúng nhóm vấn đề."
+                  />
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: { xs: '1fr', sm: 'minmax(0, 1.4fr) minmax(220px, 1fr)' },
+                      gap: 2,
+                      width: '100%',
+                    }}
+                  >
+                      <TextField
+                        label="Tiêu đề sự cố"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        required
+                        fullWidth
+                        placeholder="VD: Ổ gà lớn trên đường Nguyễn Văn Linh"
+                      />
+                      <TextField
+                        select
+                        label="Phân loại"
+                        value={category}
+                        onChange={(e) => setCategory(e.target.value)}
+                        required
+                        fullWidth
+                      >
+                        {Object.entries(CATEGORY_MAP).map(([k, v]) => (
+                          <MenuItem key={k} value={k}>{v.icon} {v.label}</MenuItem>
+                        ))}
+                      </TextField>
+                  </Box>
+
+                  <Divider />
+                  <SectionHeading
+                    number="02"
+                    title="Vị trí và liên hệ"
+                    description="Tìm địa chỉ, dùng GPS hoặc chọn trực tiếp trên bản đồ."
+                  />
 
               {/* ── Address with Goong Autocomplete ── */}
               <Box ref={searchBoxRef} sx={{ position: 'relative' }}>
@@ -492,13 +639,13 @@ const ReportIssuePage: React.FC = () => {
                   onClick={handleGetCurrentLocation}
                   disabled={gettingLocation}
                   sx={{
-                    mt: 1, textTransform: 'none', fontSize: '0.8rem',
-                    borderColor: 'rgba(59,130,246,0.3)', color: '#3B82F6',
-                    borderRadius: '8px',
-                    '&:hover': { borderColor: '#3B82F6', bgcolor: 'rgba(59,130,246,0.06)' },
+                    mt: 1,
+                    fontSize: '0.8rem',
+                    color: 'primary.main',
+                    '&:hover': { bgcolor: '#F2F7FA' },
                   }}
                 >
-                  {gettingLocation ? 'Đang lấy vị trí...' : '📍 Lấy vị trí hiện tại của tôi'}
+                  {gettingLocation ? 'Đang lấy vị trí...' : 'Lấy vị trí hiện tại của tôi'}
                 </Button>
 
                 {/* ── Suggestions Dropdown ── */}
@@ -556,14 +703,27 @@ const ReportIssuePage: React.FC = () => {
                 helperText="Không bắt buộc — giúp cơ quan chức năng liên hệ nhanh hơn"
               />
 
+              <Divider />
+              <SectionHeading
+                number="03"
+                title="Mô tả và hình ảnh"
+                description="Cung cấp chi tiết nhận biết và ảnh hiện trường nếu có."
+              />
+
               <TextField label="Mô tả chi tiết" value={description} onChange={(e) => setDescription(e.target.value)}
-                required multiline rows={4} placeholder="Mô tả tình trạng sự cố..." />
+                required fullWidth multiline rows={5} placeholder="Mô tả tình trạng, mức ảnh hưởng và dấu hiệu dễ nhận biết..." />
 
               {/* Image Upload */}
               <Box>
                 <Button component="label" variant="outlined" startIcon={<CloudUpload />} fullWidth
                   disabled={images.length >= MAX_ISSUE_IMAGES}
-                  sx={{ py: 2, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.15)' }}>
+                  sx={{
+                    py: 2.25,
+                    borderStyle: 'dashed',
+                    borderColor: '#AFC0CA',
+                    bgcolor: '#F8FAFB',
+                    '&:hover': { borderStyle: 'dashed', bgcolor: '#F2F7FA' },
+                  }}>
                   {images.length
                     ? `Thêm ảnh (${images.length}/${MAX_ISSUE_IMAGES})`
                     : `Chọn tối đa ${MAX_ISSUE_IMAGES} ảnh (mỗi ảnh tối đa 5MB)`}
@@ -641,7 +801,7 @@ const ReportIssuePage: React.FC = () => {
                     label={`AI gợi ý: ${CATEGORY_MAP[aiSuggestion.category]?.label || aiSuggestion.category} (${Math.round(aiSuggestion.confidence * 100)}%) — ${aiSuggestion.description}`}
                     size="small"
                     onDelete={() => setAiSuggestion(null)}
-                    sx={{ mt: 1, bgcolor: 'rgba(14,165,233,0.15)', color: '#A5B4FC', border: '1px solid rgba(14,165,233,0.3)', maxWidth: '100%', height: 'auto', '& .MuiChip-label': { whiteSpace: 'normal', py: 0.5 } }}
+                    sx={{ mt: 1, bgcolor: '#E9F2F7', color: '#0B5E8E', border: '1px solid #C9DEE9', maxWidth: '100%', height: 'auto', '& .MuiChip-label': { whiteSpace: 'normal', py: 0.5 } }}
                   />
                 )}
               </Box>
@@ -776,50 +936,124 @@ const ReportIssuePage: React.FC = () => {
                 </Alert>
               )}
 
-              <Button type="submit" variant="contained" size="large" startIcon={loading ? <CircularProgress size={20} /> : <Send />}
-                disabled={loading || Boolean(confirmedDuplicateId)} sx={{ py: 1.5 }}>
-                {loading
-                  ? 'Đang gửi...'
-                  : confirmedDuplicateId
-                    ? 'Đã xác nhận báo cáo trùng'
-                    : 'Gửi báo cáo'}
-              </Button>
+              <Divider />
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={2}
+                alignItems={{ xs: 'stretch', sm: 'center' }}
+                justifyContent="space-between"
+              >
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ color: 'text.secondary' }}>
+                  <InfoOutlined sx={{ fontSize: 18 }} />
+                  <Typography variant="caption">
+                    Kiểm tra lại vị trí và nội dung trước khi gửi.
+                  </Typography>
+                </Stack>
+                <Button
+                  type="submit"
+                  variant="contained"
+                  size="large"
+                  startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <Send />}
+                  disabled={loading || Boolean(confirmedDuplicateId)}
+                  sx={{ px: 3.5, py: 1.25, minWidth: { sm: 190 } }}
+                >
+                  {loading
+                    ? 'Đang gửi...'
+                    : confirmedDuplicateId
+                      ? 'Đã xác nhận báo cáo trùng'
+                      : 'Gửi báo cáo'}
+                </Button>
+              </Stack>
             </Stack>
+          </Paper>
           </Grid>
 
           {/* Map Picker */}
-          <Grid item xs={12} md={6}>
-            <Card sx={{ overflow: 'hidden', height: '100%', minHeight: 450 }}>
-              <CardContent sx={{ p: '12px !important', pb: '0 !important', height: '100%' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, flexWrap: 'wrap' }}>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    📍 Xác nhận vị trí trên bản đồ
-                  </Typography>
+          <Grid item xs={12} lg={5}>
+            <Paper
+              component="aside"
+              variant="outlined"
+              sx={{
+                borderRadius: 1.5,
+                overflow: 'hidden',
+                position: { lg: 'sticky' },
+                top: { lg: 88 },
+                boxShadow: '0 2px 8px rgba(23,43,58,0.04)',
+              }}
+            >
+              <Box sx={{ p: { xs: 2, sm: 2.5 } }}>
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  justifyContent="space-between"
+                  spacing={1.5}
+                >
+                  <Box>
+                    <Typography variant="h6" sx={{ fontSize: '1rem' }}>
+                      Xác nhận vị trí
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+                      Nhấp trên bản đồ để tinh chỉnh điểm báo cáo.
+                    </Typography>
+                  </Box>
                   {lat && lng && (
-                    <Chip label="✓ Đã chọn vị trí" size="small" color="success" variant="outlined" />
+                    <Chip label="Đã chọn" size="small" color="success" variant="outlined" />
                   )}
-                </Box>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                  Nhập địa chỉ để tìm, hoặc click trực tiếp trên bản đồ để chọn/tinh chỉnh
-                </Typography>
-                <Box sx={{ height: 'calc(100% - 55px)', borderRadius: 2, overflow: 'hidden' }}>
-                  <MapContainer center={[DA_NANG_CENTER.lat, DA_NANG_CENTER.lng]} zoom={DEFAULT_ZOOM}
-                    style={{ height: '100%', width: '100%' }}>
-                    <TileLayer
-                      attribution='&copy; Google Maps'
-                      url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=vi"
-                    />
-                    <LocationPicker onSelect={handleLocationSelect} />
-                    {flyTarget && <FlyToLocation lat={flyTarget.lat} lng={flyTarget.lng} />}
-                    {lat && lng && <Marker position={[lat, lng]} icon={markerIcon} />}
-                  </MapContainer>
-                </Box>
-              </CardContent>
-            </Card>
+                </Stack>
+              </Box>
+              <Divider />
+              <Box
+                sx={{
+                  position: 'relative',
+                  height: { xs: 320, sm: 390, lg: 440 },
+                  width: '100%',
+                  overflow: 'hidden',
+                  isolation: 'isolate',
+                  bgcolor: '#DDE6EA',
+                  '& .leaflet-container': { width: '100%', height: '100%' },
+                  '& .leaflet-container img': { maxWidth: 'none !important' },
+                }}
+              >
+                <MapContainer
+                  center={[DA_NANG_CENTER.lat, DA_NANG_CENTER.lng]}
+                  zoom={DEFAULT_ZOOM}
+                  style={{ position: 'absolute', inset: 0, height: '100%', width: '100%' }}
+                  aria-label="Bản đồ chọn vị trí sự cố"
+                >
+                  <TileLayer
+                    attribution='&copy; Google Maps'
+                    url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=vi"
+                  />
+                  <ResizeMap />
+                  <LocationPicker onSelect={handleLocationSelect} />
+                  {flyTarget && <FlyToLocation lat={flyTarget.lat} lng={flyTarget.lng} />}
+                  {lat && lng && <Marker position={[lat, lng]} icon={markerIcon} />}
+                </MapContainer>
+              </Box>
+              <Box sx={{ p: { xs: 2, sm: 2.5 }, bgcolor: '#FAFBFC' }}>
+                <Stack direction="row" spacing={1.25} alignItems="flex-start">
+                  <LocationOn sx={{ color: lat && lng ? 'secondary.main' : 'text.disabled', mt: 0.15 }} />
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="body2" fontWeight={650}>
+                      {lat && lng ? 'Điểm báo cáo đã được ghi nhận' : 'Chưa chọn vị trí'}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+                      {lat && lng
+                        ? `${lat.toFixed(6)}, ${lng.toFixed(6)}`
+                        : 'Tìm địa chỉ, dùng GPS hoặc nhấp trực tiếp trên bản đồ.'}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
+                      Khu vực tiếp nhận: thành phố Đà Nẵng
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Box>
+            </Paper>
           </Grid>
         </Grid>
-      </Box>
-    </Container>
+        </Box>
+      </Container>
+    </Box>
   );
 };
 

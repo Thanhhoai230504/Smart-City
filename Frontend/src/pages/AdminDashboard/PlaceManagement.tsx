@@ -213,12 +213,12 @@ const PlaceManagement: React.FC<Props> = ({ onDataChange }) => {
           <FormControl size="small" sx={{ minWidth: 150 }}>
             <InputLabel sx={{ color: 'text.secondary' }}>Loại</InputLabel>
             <Select value={typeFilter} label="Loại" onChange={(e: SelectChangeEvent) => setTypeFilter(e.target.value)}
-              sx={{ borderRadius: '10px', '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.1)' } }}>
+              sx={{ borderRadius: '10px', '& .MuiOutlinedInput-notchedOutline': { borderColor: '#C8D9DE' } }}>
               <MenuItem value="">Tất cả</MenuItem>
               {PLACE_TYPES.map(t => <MenuItem key={t} value={t}>{PLACE_TYPE_LABELS[t]}</MenuItem>)}
             </Select>
           </FormControl>
-          <Chip label={`${filteredPlaces.length} địa điểm`} sx={{ bgcolor: 'rgba(236,72,153,0.15)', color: '#F9A8D4', fontWeight: 600 }} />
+          <Chip label={`${filteredPlaces.length} địa điểm`} sx={{ bgcolor: '#F5EAF0', color: '#8F4967', fontWeight: 600 }} />
           <Button variant="contained" size="small" startIcon={<Add />} onClick={() => openForm()}
             sx={{ borderRadius: '10px', textTransform: 'none' }}>Thêm</Button>
         </Stack>
@@ -240,7 +240,7 @@ const PlaceManagement: React.FC<Props> = ({ onDataChange }) => {
                     <Skeleton variant="rounded"
                       height={j === 1 ? 22 : 14}
                       width={j === 0 ? '80%' : j === 2 ? '70%' : j === 3 ? '55%' : '45%'}
-                      sx={{ bgcolor: 'transparent', background: 'linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.08) 40%, rgba(255,255,255,0.03) 80%)', backgroundSize: '800px 100%', animation: `shimmer 1.8s ease-in-out infinite`, animationDelay: `${j * 0.1}s`, borderRadius: j === 1 ? '10px' : '6px' }} />
+                      sx={{ bgcolor: 'transparent', background: 'linear-gradient(90deg, #F7FAFA 0%, #E8F0F2 40%, #F7FAFA 80%)', backgroundSize: '800px 100%', animation: `shimmer 1.8s ease-in-out infinite`, animationDelay: `${j * 0.1}s`, borderRadius: j === 1 ? '10px' : '6px' }} />
                   </TableCell>
                 ))}
               </TableRow>
@@ -251,7 +251,7 @@ const PlaceManagement: React.FC<Props> = ({ onDataChange }) => {
             ) : pagedPlaces.map(p => (
               <TableRow key={p._id} hover sx={{ '&:hover': { bgcolor: 'rgba(14,165,233,0.04)' } }}>
                 <TableCell sx={{ ...cellSx, maxWidth: 180 }}><Typography variant="body2" fontWeight={500} noWrap>{p.name}</Typography></TableCell>
-                <TableCell sx={cellSx}><Chip size="small" label={PLACE_TYPE_LABELS[p.type] || p.type} sx={{ height: 24, fontSize: '0.7rem', bgcolor: 'rgba(236,72,153,0.15)', color: '#F9A8D4' }} /></TableCell>
+                <TableCell sx={cellSx}><Chip size="small" label={PLACE_TYPE_LABELS[p.type] || p.type} sx={{ height: 24, fontSize: '0.7rem', bgcolor: '#F5EAF0', color: '#8F4967' }} /></TableCell>
                 <TableCell sx={{ ...cellSx, maxWidth: 180 }}><Typography variant="caption" noWrap>{p.address || '—'}</Typography></TableCell>
                 <TableCell sx={cellSx}><Typography variant="caption" color="text.secondary">{p.latitude.toFixed(4)}, {p.longitude.toFixed(4)}</Typography></TableCell>
                 <TableCell sx={cellSx}><Typography variant="caption">{p.phone || '—'}</Typography></TableCell>
@@ -277,7 +277,7 @@ const PlaceManagement: React.FC<Props> = ({ onDataChange }) => {
 
       {/* ── Place Form Dialog with Goong + Map ── */}
       <Dialog open={dialogOpen} onClose={closeDialog} maxWidth="md" fullWidth
-        PaperProps={{ sx: { bgcolor: '#1A2332', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', maxHeight: '90vh' } }}>
+        PaperProps={{ sx: { bgcolor: '#FFFFFF', border: '1px solid #DCE7EB', borderRadius: '14px', maxHeight: '90vh' } }}>
         <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           {editing ? '✏️ Sửa địa điểm' : '➕ Thêm địa điểm mới'}
           <IconButton onClick={closeDialog} size="small"><Close /></IconButton>
@@ -319,7 +319,7 @@ const PlaceManagement: React.FC<Props> = ({ onDataChange }) => {
                   <Paper elevation={8} sx={{
                     position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 1300,
                     mt: 0.5, maxHeight: 250, overflow: 'auto', borderRadius: 2,
-                    border: '1px solid', borderColor: 'divider', bgcolor: '#1A2332',
+                    border: '1px solid', borderColor: 'divider', bgcolor: '#FFFFFF',
                   }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 2, pt: 1 }}>
                       <Typography variant="caption" color="text.secondary">{suggestions.length} kết quả</Typography>
@@ -354,8 +354,8 @@ const PlaceManagement: React.FC<Props> = ({ onDataChange }) => {
             </Stack>
 
             {/* Right: Map */}
-            <Box sx={{ flex: 1, minHeight: 350, borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <Box sx={{ p: 1, bgcolor: 'rgba(255,255,255,0.03)' }}>
+            <Box sx={{ flex: 1, minHeight: 350, borderRadius: '12px', overflow: 'hidden', border: '1px solid #DCE7EB', '& .leaflet-container img': { maxWidth: 'none !important' } }}>
+              <Box sx={{ p: 1, bgcolor: '#F7FAFA' }}>
                 <Stack direction="row" alignItems="center" justifyContent="space-between">
                   <Typography variant="caption" color="text.secondary">📍 Click trên bản đồ để chọn vị trí</Typography>
                   {form.latitude && form.longitude && <Chip label="✓ Đã chọn" size="small" color="success" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />}
@@ -384,7 +384,7 @@ const PlaceManagement: React.FC<Props> = ({ onDataChange }) => {
 
       {/* Delete Dialog */}
       <Dialog open={!!deleteId} onClose={() => setDeleteId(null)}
-        PaperProps={{ sx: { bgcolor: '#1A2332', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px' } }}>
+        PaperProps={{ sx: { bgcolor: '#FFFFFF', border: '1px solid #DCE7EB', borderRadius: '14px' } }}>
         <DialogTitle>⚠️ Xác nhận xoá</DialogTitle>
         <DialogContent><Typography color="text.secondary">Bạn có chắc muốn xoá địa điểm này?</Typography></DialogContent>
         <DialogActions>

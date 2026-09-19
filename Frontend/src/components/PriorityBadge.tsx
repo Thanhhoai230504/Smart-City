@@ -45,7 +45,7 @@ const PriorityBadge: React.FC<PriorityBadgeProps> = ({ issue, showEmpty = true }
       <Typography variant="caption" sx={{ opacity: 0.76 }}>
         Điểm hỗ trợ sắp xếp, không tự quyết định phân công hay trạng thái.
       </Typography>
-      <Divider sx={{ my: 1, borderColor: 'rgba(255,255,255,0.16)' }} />
+      <Divider sx={{ my: 1, borderColor: '#DCE7EB' }} />
       <Stack spacing={0.8}>
         {priorityFactors.map((factor) => (
           <Box key={factor.code}>

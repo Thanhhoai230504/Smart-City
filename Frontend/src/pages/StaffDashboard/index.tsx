@@ -1,9 +1,4 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
@@ -11,30 +6,30 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
   CircularProgress,
   FormControl,
   IconButton,
   InputLabel,
   MenuItem,
   Pagination as MuiPagination,
-  Paper,
   Select,
   SelectChangeEvent,
   Skeleton,
   Snackbar,
   Stack,
+  Tab,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
+  Tabs,
   Tooltip,
   Typography,
 } from '@mui/material';
 import {
-  AssignmentInd,
+  AssignmentIndOutlined,
   EditNote,
   FilterAltOff,
   LocationOn,
@@ -42,7 +37,6 @@ import {
   PersonOutline,
   PlayCircleOutline,
   Refresh,
-  TaskAlt,
   WarningAmber,
 } from '@mui/icons-material';
 import { RootState } from '../../store/store';
@@ -58,8 +52,8 @@ import {
 } from '../../types';
 import { CATEGORY_MAP, PRIORITY_MAP, STATUS_MAP } from '../../utils/constants';
 import { formatDate } from '../../utils/helpers';
-import SlaBadge from '../../components/SlaBadge';
 import PriorityBadge from '../../components/PriorityBadge';
+import SlaBadge from '../../components/SlaBadge';
 import UpdateStatusDialog from './UpdateStatusDialog';
 
 interface ApiErrorResponse {
@@ -84,22 +78,35 @@ const EMPTY_PAGINATION: Pagination = {
   limit: PAGE_SIZE,
 };
 
+const STATUS_TABS: Array<{ value: StatusFilter; label: string }> = [
+  { value: '', label: 'Tất cả' },
+  { value: 'reported', label: 'Mới báo' },
+  { value: 'processing', label: 'Đang xử lý' },
+  { value: 'resolved', label: 'Đã xử lý' },
+  { value: 'rejected', label: 'Từ chối' },
+];
+
 const panelSx = {
-  bgcolor: 'rgba(20,27,45,0.82)',
-  border: '1px solid rgba(255,255,255,0.07)',
-  borderRadius: 3,
+  bgcolor: 'background.paper',
+  border: '1px solid',
+  borderColor: 'divider',
+  borderRadius: 1.5,
+  boxShadow: 'none',
   backgroundImage: 'none',
 };
 
 const headCellSx = {
+  py: 1.5,
   color: 'text.secondary',
   fontWeight: 700,
   whiteSpace: 'nowrap',
-  borderColor: 'rgba(255,255,255,0.07)',
+  borderColor: 'divider',
+  bgcolor: '#F2F5F7',
 };
 
 const cellSx = {
-  borderColor: 'rgba(255,255,255,0.05)',
+  py: 1.6,
+  borderColor: 'divider',
 };
 
 const getErrorMessage = (error: unknown, fallback: string) => {
@@ -125,6 +132,90 @@ const getAssigneeName = (issue: Issue) => {
 
 const isOpenIssue = (issue: Issue) => (
   issue.status === 'reported' || issue.status === 'processing'
+);
+
+const CategoryIndicator: React.FC<{ issue: Issue }> = ({ issue }) => {
+  const category = CATEGORY_MAP[issue.category] || CATEGORY_MAP.other;
+
+  return (
+    <Stack direction="row" spacing={0.8} alignItems="center">
+      <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: category.color, flexShrink: 0 }} />
+      <Typography variant="body2" color="text.secondary" whiteSpace="nowrap">
+        {category.label}
+      </Typography>
+    </Stack>
+  );
+};
+
+const StatusIndicator: React.FC<{ issue: Issue }> = ({ issue }) => {
+  const status = STATUS_MAP[issue.status] || STATUS_MAP.reported;
+
+  return (
+    <Stack direction="row" spacing={0.8} alignItems="center">
+      <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: status.color, flexShrink: 0 }} />
+      <Typography variant="body2" fontWeight={600} whiteSpace="nowrap">
+        {status.label}
+      </Typography>
+    </Stack>
+  );
+};
+
+const WorkActions: React.FC<{
+  issue: Issue;
+  canClaim: boolean;
+  canUpdate: boolean;
+  claimingId: string;
+  onClaim: (issue: Issue) => void;
+  onUpdate: (issue: Issue) => void;
+  onView: (issue: Issue) => void;
+}> = ({
+  issue,
+  canClaim,
+  canUpdate,
+  claimingId,
+  onClaim,
+  onUpdate,
+  onView,
+}) => (
+  <Stack direction="row" spacing={0.75} justifyContent="flex-end" alignItems="center">
+    {canClaim && (
+      <Button
+        size="small"
+        variant="contained"
+        color="success"
+        startIcon={claimingId === issue._id
+          ? <CircularProgress size={15} color="inherit" />
+          : <PlayCircleOutline />}
+        disabled={Boolean(claimingId)}
+        onClick={() => onClaim(issue)}
+        sx={{ whiteSpace: 'nowrap' }}
+      >
+        Nhận việc
+      </Button>
+    )}
+
+    {canUpdate && (
+      <Button
+        size="small"
+        variant="outlined"
+        startIcon={<EditNote />}
+        onClick={() => onUpdate(issue)}
+        sx={{ whiteSpace: 'nowrap' }}
+      >
+        Cập nhật
+      </Button>
+    )}
+
+    <Tooltip title="Xem chi tiết">
+      <IconButton
+        size="small"
+        aria-label={`Xem chi tiết ${issue.title}`}
+        onClick={() => onView(issue)}
+      >
+        <OpenInNew fontSize="small" />
+      </IconButton>
+    </Tooltip>
+  </Stack>
 );
 
 const StaffDashboard: React.FC = () => {
@@ -235,10 +326,23 @@ const StaffDashboard: React.FC = () => {
     return parts.length > 0 ? parts.join(' · ') : 'Tất cả công việc';
   }, [priorityFilter, slaFilter, statusFilter]);
 
-  const handleStatusFilter = (event: SelectChangeEvent<StatusFilter>) => {
-    const value = event.target.value as StatusFilter;
-    setStatusFilter(value);
-    if (value === 'resolved' || value === 'rejected') setSlaFilter('');
+  const pageSummary = useMemo(() => ({
+    unassigned: issues.filter((issue) => isOpenIssue(issue) && !issue.assigneeId).length,
+    overdue: issues.filter((issue) => issue.slaStatus === 'overdue').length,
+    dueSoon: issues.filter((issue) => issue.slaStatus === 'due_soon').length,
+  }), [issues]);
+
+  const departmentLabel = isStaff
+    ? department
+      ? `${department.code} — ${department.name}`
+      : departmentId
+        ? 'Đang tải thông tin đơn vị...'
+        : 'Chưa được gán đơn vị'
+    : 'Quản trị viên · Toàn hệ thống';
+
+  const handleStatusFilter = (nextStatus: StatusFilter) => {
+    setStatusFilter(nextStatus);
+    if (nextStatus === 'resolved' || nextStatus === 'rejected') setSlaFilter('');
     setPage(1);
   };
 
@@ -275,7 +379,6 @@ const StaffDashboard: React.FC = () => {
         message: getErrorMessage(requestError, 'Không thể nhận công việc này.'),
         severity: 'error',
       });
-      // Một cán bộ khác có thể vừa nhận trước; tải lại để phản ánh trạng thái mới nhất.
       await loadIssues();
     } finally {
       setClaimingId('');
@@ -288,103 +391,84 @@ const StaffDashboard: React.FC = () => {
     loadIssues();
   };
 
+  const getPermissions = (issue: Issue) => {
+    const assigneeId = getReferenceId(issue.assigneeId);
+    const isMine = Boolean(assigneeId && assigneeId === currentUserId);
+    const open = isOpenIssue(issue);
+    return {
+      assigneeId,
+      isMine,
+      canClaim: isStaff && open && !assigneeId,
+      canUpdate: open && (
+        user?.role === 'admin'
+        || (isStaff && isMine)
+      ),
+    };
+  };
+
   return (
     <Box
       sx={{
         maxWidth: 1500,
         mx: 'auto',
         px: { xs: 1.5, sm: 2.5, lg: 4 },
-        py: { xs: 3, md: 4 },
+        py: { xs: 2.5, md: 4 },
       }}
     >
       <Stack spacing={2.5}>
-        <Paper
-          elevation={0}
+        <Box
+          component="header"
           sx={{
-            ...panelSx,
-            p: { xs: 2.5, md: 3.5 },
-            position: 'relative',
-            overflow: 'hidden',
-            background: 'linear-gradient(135deg, rgba(14,165,233,0.13), rgba(16,185,129,0.05))',
+            pb: 3,
+            borderBottom: '1px solid',
+            borderColor: 'divider',
           }}
         >
-          <Box
-            sx={{
-              position: 'absolute',
-              width: 240,
-              height: 240,
-              borderRadius: '50%',
-              bgcolor: 'rgba(14,165,233,0.08)',
-              top: -145,
-              right: -60,
-            }}
-          />
           <Stack
-            direction={{ xs: 'column', md: 'row' }}
+            direction={{ xs: 'column', sm: 'row' }}
             spacing={2}
-            alignItems={{ xs: 'flex-start', md: 'center' }}
+            alignItems={{ sm: 'flex-end' }}
             justifyContent="space-between"
-            sx={{ position: 'relative' }}
           >
-            <Stack direction="row" spacing={2} alignItems="center">
-              <Box
-                sx={{
-                  width: 58,
-                  height: 58,
-                  borderRadius: 3,
-                  display: 'grid',
-                  placeItems: 'center',
-                  bgcolor: 'rgba(14,165,233,0.16)',
-                  color: 'primary.main',
-                  flexShrink: 0,
-                }}
-              >
-                <AssignmentInd fontSize="large" />
-              </Box>
-              <Box>
-                <Typography variant="h4" fontWeight={750}>
-                  Cổng cán bộ xử lý sự cố
-                </Typography>
-                <Typography color="text.secondary">
-                  Xin chào {user?.name}. Theo dõi SLA và cập nhật tiến độ công việc tại đây.
-                </Typography>
-                <Stack direction="row" spacing={1} mt={1} flexWrap="wrap" useFlexGap>
-                  <Chip
-                    size="small"
-                    color="info"
-                    variant="outlined"
-                    label={isStaff
-                      ? department
-                        ? `${department.code} — ${department.name}`
-                        : departmentId
-                          ? 'Đang tải thông tin đơn vị...'
-                          : 'Chưa được gán đơn vị'
-                      : 'Chế độ quản trị — toàn hệ thống'}
-                  />
-                  <Chip
-                    size="small"
-                    icon={<TaskAlt />}
-                    label={`${pagination.total} công việc trong bộ lọc`}
-                  />
-                </Stack>
-              </Box>
-            </Stack>
+            <Box>
+              <Typography variant="body2" color="primary.main" fontWeight={700} mb={0.75}>
+                Bàn điều phối công việc
+              </Typography>
+              <Typography variant="h3" component="h1" mb={0.65}>
+                Công việc của đơn vị
+              </Typography>
+              <Typography color="text.secondary" mb={0.75}>
+                {user?.name}, theo dõi thứ tự ưu tiên, SLA và tiến độ xử lý tại đây.
+              </Typography>
+              <Typography variant="body2" fontWeight={650} color="text.primary">
+                {departmentLabel}
+              </Typography>
+            </Box>
 
-            <Button
-              variant="outlined"
-              startIcon={<Refresh />}
-              onClick={loadIssues}
-              disabled={loading || missingDepartment}
-            >
-              Làm mới
-            </Button>
+            <Stack direction="row" spacing={2.5} alignItems="center">
+              <Box sx={{ textAlign: { xs: 'left', sm: 'right' } }}>
+                <Typography variant="h5" component="p">
+                  {loading ? '—' : pagination.total}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  công việc phù hợp
+                </Typography>
+              </Box>
+              <Button
+                variant="outlined"
+                startIcon={<Refresh />}
+                onClick={loadIssues}
+                disabled={loading || missingDepartment}
+              >
+                Làm mới
+              </Button>
+            </Stack>
           </Stack>
-        </Paper>
+        </Box>
 
         {missingDepartment && (
           <Alert severity="warning" icon={<WarningAmber />}>
-            Tài khoản cán bộ của bạn chưa được gán đơn vị xử lý. Vui lòng liên hệ quản trị viên
-            trước khi nhận hoặc cập nhật công việc.
+            Tài khoản cán bộ của bạn chưa được gán đơn vị xử lý. Vui lòng liên hệ quản trị viên trước khi nhận hoặc cập nhật công việc.
           </Alert>
         )}
 
@@ -394,102 +478,160 @@ const StaffDashboard: React.FC = () => {
 
         {!missingDepartment && (
           <>
-            <Paper elevation={0} sx={{ ...panelSx, p: 2 }}>
-              <Stack
-                direction={{ xs: 'column', md: 'row' }}
-                spacing={1.5}
-                alignItems={{ xs: 'stretch', md: 'center' }}
-                justifyContent="space-between"
+            <Box
+              component="section"
+              aria-label="Tổng quan hàng đợi công việc"
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' },
+                bgcolor: 'background.paper',
+                borderLeft: '1px solid',
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+              }}
+            >
+              {[
+                {
+                  label: 'Trong bộ lọc',
+                  value: loading ? '—' : pagination.total,
+                  note: 'tổng số công việc',
+                  color: '#172B3A',
+                },
+                {
+                  label: 'Chưa có người nhận',
+                  value: loading ? '—' : pageSummary.unassigned,
+                  note: 'trên trang hiện tại',
+                  color: pageSummary.unassigned > 0 ? '#B26A00' : '#172B3A',
+                },
+                {
+                  label: 'Đã quá hạn',
+                  value: loading ? '—' : pageSummary.overdue,
+                  note: 'trên trang hiện tại',
+                  color: pageSummary.overdue > 0 ? '#C62828' : '#172B3A',
+                },
+                {
+                  label: 'Sắp đến hạn',
+                  value: loading ? '—' : pageSummary.dueSoon,
+                  note: 'trên trang hiện tại',
+                  color: pageSummary.dueSoon > 0 ? '#B26A00' : '#172B3A',
+                },
+              ].map((item) => (
+                <Box
+                  key={item.label}
+                  sx={{
+                    p: { xs: 1.75, md: 2.25 },
+                    borderTop: '1px solid',
+                    borderRight: '1px solid',
+                    borderColor: 'divider',
+                  }}
+                >
+                  <Typography variant="caption" color="text.secondary">{item.label}</Typography>
+                  <Typography variant="h5" component="p" color={item.color} my={0.25}>
+                    {item.value}
+                  </Typography>
+                  <Typography variant="caption" color="text.disabled">{item.note}</Typography>
+                </Box>
+              ))}
+            </Box>
+
+            <Box sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
+              <Tabs
+                value={statusFilter}
+                onChange={(_, nextStatus: StatusFilter) => handleStatusFilter(nextStatus)}
+                variant="scrollable"
+                scrollButtons="auto"
+                aria-label="Lọc công việc theo trạng thái"
               >
-                <Box>
-                  <Typography fontWeight={700}>Danh sách công việc</Typography>
+                {STATUS_TABS.map((item) => (
+                  <Tab key={item.value || 'all'} value={item.value} label={item.label} />
+                ))}
+              </Tabs>
+            </Box>
+
+            <Box component="section" aria-label="Bộ lọc công việc" sx={{ ...panelSx, p: 2 }}>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: {
+                    xs: '1fr',
+                    sm: 'minmax(220px, 1fr) 160px 170px',
+                    lg: 'minmax(240px, 1fr) 160px 170px 205px auto',
+                  },
+                  gap: 1.25,
+                  alignItems: 'center',
+                }}
+              >
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography fontWeight={700}>Danh sách nhiệm vụ</Typography>
                   <Typography variant="caption" color="text.secondary">
                     {filterDescription}
                   </Typography>
                 </Box>
 
-                <Stack
-                  direction={{ xs: 'column', sm: 'row' }}
-                  spacing={1}
-                  alignItems={{ xs: 'stretch', sm: 'center' }}
-                >
-                  <FormControl size="small" sx={{ minWidth: 155 }}>
-                    <InputLabel id="staff-status-filter-label">Trạng thái</InputLabel>
-                    <Select
-                      labelId="staff-status-filter-label"
-                      value={statusFilter}
-                      label="Trạng thái"
-                      onChange={handleStatusFilter}
-                    >
-                      <MenuItem value="">Tất cả</MenuItem>
-                      <MenuItem value="reported">Mới báo cáo</MenuItem>
-                      <MenuItem value="processing">Đang xử lý</MenuItem>
-                      <MenuItem value="resolved">Đã xử lý</MenuItem>
-                      <MenuItem value="rejected">Từ chối</MenuItem>
-                    </Select>
-                  </FormControl>
+                <FormControl size="small">
+                  <InputLabel id="staff-priority-filter-label">Ưu tiên</InputLabel>
+                  <Select
+                    labelId="staff-priority-filter-label"
+                    value={priorityFilter}
+                    label="Ưu tiên"
+                    onChange={(event: SelectChangeEvent<PriorityFilter>) => {
+                      setPriorityFilter(event.target.value as PriorityFilter);
+                      setPage(1);
+                    }}
+                  >
+                    <MenuItem value="">Tất cả mức</MenuItem>
+                    {Object.entries(PRIORITY_MAP).map(([value, item]) => (
+                      <MenuItem key={value} value={value}>{item.label}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
 
-                  <FormControl size="small" sx={{ minWidth: 145 }}>
-                    <InputLabel id="staff-priority-filter-label">Ưu tiên</InputLabel>
-                    <Select
-                      labelId="staff-priority-filter-label"
-                      value={priorityFilter}
-                      label="Ưu tiên"
-                      onChange={(event: SelectChangeEvent<PriorityFilter>) => {
-                        setPriorityFilter(event.target.value as PriorityFilter);
-                        setPage(1);
-                      }}
-                    >
-                      <MenuItem value="">Tất cả</MenuItem>
-                      {Object.entries(PRIORITY_MAP).map(([value, item]) => (
-                        <MenuItem key={value} value={value}>{item.label}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                <FormControl size="small">
+                  <InputLabel id="staff-sla-filter-label">Tình trạng SLA</InputLabel>
+                  <Select
+                    labelId="staff-sla-filter-label"
+                    value={slaFilter}
+                    label="Tình trạng SLA"
+                    onChange={handleSlaFilter}
+                  >
+                    <MenuItem value="">Tất cả SLA</MenuItem>
+                    <MenuItem value="overdue">Quá hạn</MenuItem>
+                    <MenuItem value="due_soon">Sắp đến hạn</MenuItem>
+                  </Select>
+                </FormControl>
 
-                  <FormControl size="small" sx={{ minWidth: 155 }}>
-                    <InputLabel id="staff-sla-filter-label">Tình trạng SLA</InputLabel>
-                    <Select
-                      labelId="staff-sla-filter-label"
-                      value={slaFilter}
-                      label="Tình trạng SLA"
-                      onChange={handleSlaFilter}
-                    >
-                      <MenuItem value="">Tất cả</MenuItem>
-                      <MenuItem value="overdue">Quá hạn</MenuItem>
-                      <MenuItem value="due_soon">Sắp đến hạn</MenuItem>
-                    </Select>
-                  </FormControl>
+                <FormControl size="small">
+                  <InputLabel id="staff-sort-label">Sắp xếp</InputLabel>
+                  <Select
+                    labelId="staff-sort-label"
+                    value={sort}
+                    label="Sắp xếp"
+                    onChange={(event: SelectChangeEvent) => {
+                      setSort(event.target.value);
+                      setPage(1);
+                    }}
+                  >
+                    <MenuItem value="-priorityScore">Ưu tiên cao nhất</MenuItem>
+                    <MenuItem value="-createdAt">Mới nhất</MenuItem>
+                    <MenuItem value="createdAt">Cũ nhất</MenuItem>
+                    <MenuItem value="-voteCount">Nhiều ủng hộ nhất</MenuItem>
+                    <MenuItem value="dueAt">Hạn gần nhất</MenuItem>
+                  </Select>
+                </FormControl>
 
-                  <FormControl size="small" sx={{ minWidth: 155 }}>
-                    <InputLabel id="staff-sort-label">Sắp xếp</InputLabel>
-                    <Select
-                      labelId="staff-sort-label"
-                      value={sort}
-                      label="Sắp xếp"
-                      onChange={(event: SelectChangeEvent) => {
-                        setSort(event.target.value);
-                        setPage(1);
-                      }}
-                    >
-                      <MenuItem value="-priorityScore">Ưu tiên cao nhất</MenuItem>
-                      <MenuItem value="-createdAt">Mới nhất</MenuItem>
-                      <MenuItem value="createdAt">Cũ nhất</MenuItem>
-                      <MenuItem value="-voteCount">Nhiều ủng hộ nhất</MenuItem>
-                      <MenuItem value="dueAt">Hạn gần nhất</MenuItem>
-                    </Select>
-                  </FormControl>
-
-                  {(statusFilter || slaFilter || priorityFilter || sort !== '-priorityScore') && (
-                    <Tooltip title="Xóa bộ lọc">
-                      <IconButton onClick={clearFilters} aria-label="Xóa bộ lọc">
-                        <FilterAltOff />
-                      </IconButton>
-                    </Tooltip>
-                  )}
-                </Stack>
-              </Stack>
-            </Paper>
+                {(statusFilter || slaFilter || priorityFilter || sort !== '-priorityScore') && (
+                  <Button
+                    size="small"
+                    startIcon={<FilterAltOff />}
+                    onClick={clearFilters}
+                    color="inherit"
+                    sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}
+                  >
+                    Xóa bộ lọc
+                  </Button>
+                )}
+              </Box>
+            </Box>
 
             {error && (
               <Alert
@@ -504,18 +646,17 @@ const StaffDashboard: React.FC = () => {
               </Alert>
             )}
 
-            <Paper elevation={0} sx={{ ...panelSx, overflow: 'hidden' }}>
-              <TableContainer>
-                <Table sx={{ minWidth: 1240 }} aria-label="Danh sách công việc của đơn vị">
+            <Box sx={{ ...panelSx, overflow: 'hidden' }}>
+              <TableContainer sx={{ display: { xs: 'none', md: 'block' } }}>
+                <Table sx={{ minWidth: 1120 }} aria-label="Danh sách công việc của đơn vị">
                   <TableHead>
                     <TableRow>
-                      <TableCell sx={headCellSx}>Sự cố</TableCell>
-                      <TableCell sx={headCellSx}>Loại</TableCell>
-                      <TableCell sx={headCellSx}>Trạng thái</TableCell>
+                      <TableCell sx={headCellSx}>Công việc</TableCell>
+                      <TableCell sx={headCellSx}>Phân loại</TableCell>
                       <TableCell sx={headCellSx}>Ưu tiên</TableCell>
-                      <TableCell sx={headCellSx}>SLA</TableCell>
-                      <TableCell sx={headCellSx}>Cán bộ nhận việc</TableCell>
-                      <TableCell sx={headCellSx}>Hạn xử lý</TableCell>
+                      <TableCell sx={headCellSx}>Trạng thái</TableCell>
+                      <TableCell sx={headCellSx}>SLA và hạn xử lý</TableCell>
+                      <TableCell sx={headCellSx}>Phụ trách</TableCell>
                       <TableCell align="right" sx={headCellSx}>Thao tác</TableCell>
                     </TableRow>
                   </TableHead>
@@ -523,7 +664,7 @@ const StaffDashboard: React.FC = () => {
                     {loading ? (
                       Array.from({ length: 5 }).map((_, rowIndex) => (
                         <TableRow key={rowIndex}>
-                          {Array.from({ length: 8 }).map((__, cellIndex) => (
+                          {Array.from({ length: 7 }).map((__, cellIndex) => (
                             <TableCell key={cellIndex} sx={cellSx}>
                               <Skeleton height={30} />
                             </TableCell>
@@ -532,8 +673,8 @@ const StaffDashboard: React.FC = () => {
                       ))
                     ) : issues.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} align="center" sx={{ ...cellSx, py: 8 }}>
-                          <AssignmentInd sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
+                        <TableCell colSpan={7} align="center" sx={{ ...cellSx, py: 8 }}>
+                          <AssignmentIndOutlined sx={{ fontSize: 44, color: 'text.disabled', mb: 1 }} />
                           <Typography color="text.secondary">
                             Không có công việc phù hợp với bộ lọc.
                           </Typography>
@@ -551,24 +692,23 @@ const StaffDashboard: React.FC = () => {
                       </TableRow>
                     ) : (
                       issues.map((issue) => {
-                        const category = CATEGORY_MAP[issue.category];
-                        const status = STATUS_MAP[issue.status];
-                        const assigneeId = getReferenceId(issue.assigneeId);
-                        const isMine = Boolean(assigneeId && assigneeId === currentUserId);
-                        const open = isOpenIssue(issue);
-                        const canClaim = isStaff && open && !assigneeId;
-                        const canUpdate = open && (
-                          user?.role === 'admin'
-                          || (isStaff && isMine)
-                        );
+                        const permissions = getPermissions(issue);
+                        const priorityColor = issue.priorityLevel
+                          ? PRIORITY_MAP[issue.priorityLevel]?.color
+                          : '#94A3B8';
 
                         return (
                           <TableRow
                             key={issue._id}
                             hover
-                            sx={{ '&:hover': { bgcolor: 'rgba(14,165,233,0.035)' } }}
+                            sx={{
+                              '& td:first-of-type': {
+                                borderLeft: `3px solid ${priorityColor}`,
+                              },
+                              '&:hover': { bgcolor: '#F8FAFB' },
+                            }}
                           >
-                            <TableCell sx={{ ...cellSx, maxWidth: 315 }}>
+                            <TableCell sx={{ ...cellSx, width: '32%', maxWidth: 370 }}>
                               <Typography variant="body2" fontWeight={700} noWrap>
                                 {issue.title}
                               </Typography>
@@ -583,41 +723,33 @@ const StaffDashboard: React.FC = () => {
                               </Typography>
                             </TableCell>
 
+                            <TableCell sx={cellSx}>
+                              <CategoryIndicator issue={issue} />
+                            </TableCell>
+
                             <TableCell sx={{ ...cellSx, whiteSpace: 'nowrap' }}>
                               <PriorityBadge issue={issue} />
                             </TableCell>
 
                             <TableCell sx={cellSx}>
-                              <Chip
-                                size="small"
-                                label={`${category?.icon || '📌'} ${category?.label || issue.category}`}
-                                sx={{
-                                  bgcolor: `${category?.color || '#64748B'}18`,
-                                  color: category?.color || 'text.secondary',
-                                  border: `1px solid ${category?.color || '#64748B'}38`,
-                                }}
-                              />
+                              <StatusIndicator issue={issue} />
                             </TableCell>
 
-                            <TableCell sx={cellSx}>
-                              <Chip
-                                size="small"
-                                label={status?.label || issue.status}
-                                sx={{
-                                  bgcolor: `${status?.color || '#64748B'}18`,
-                                  color: status?.color || 'text.secondary',
-                                  border: `1px solid ${status?.color || '#64748B'}38`,
-                                  fontWeight: 650,
-                                }}
-                              />
-                            </TableCell>
-
-                            <TableCell sx={cellSx}>
+                            <TableCell sx={{ ...cellSx, whiteSpace: 'nowrap' }}>
                               <SlaBadge
                                 status={issue.slaStatus}
                                 dueAt={issue.dueAt}
                                 showRemaining
                               />
+                              <Typography
+                                variant="caption"
+                                display="block"
+                                mt={0.55}
+                                color={issue.slaStatus === 'overdue' ? 'error.main' : 'text.secondary'}
+                                fontWeight={issue.slaStatus === 'overdue' ? 700 : 400}
+                              >
+                                {issue.dueAt ? formatDate(issue.dueAt) : 'Chưa có hạn xử lý'}
+                              </Typography>
                             </TableCell>
 
                             <TableCell sx={cellSx}>
@@ -625,17 +757,17 @@ const StaffDashboard: React.FC = () => {
                                 <PersonOutline
                                   sx={{
                                     fontSize: 18,
-                                    color: isMine ? 'success.main' : 'text.secondary',
+                                    color: permissions.isMine ? 'success.main' : 'text.secondary',
                                   }}
                                 />
                                 <Box>
                                   <Typography
                                     variant="body2"
-                                    color={!assigneeId ? 'text.secondary' : 'text.primary'}
+                                    color={!permissions.assigneeId ? 'text.secondary' : 'text.primary'}
                                   >
                                     {getAssigneeName(issue)}
                                   </Typography>
-                                  {isMine && (
+                                  {permissions.isMine && (
                                     <Typography variant="caption" color="success.main">
                                       Việc của bạn
                                     </Typography>
@@ -644,59 +776,16 @@ const StaffDashboard: React.FC = () => {
                               </Stack>
                             </TableCell>
 
-                            <TableCell sx={{ ...cellSx, whiteSpace: 'nowrap' }}>
-                              <Typography
-                                variant="body2"
-                                color={issue.slaStatus === 'overdue' ? 'error.main' : 'text.primary'}
-                                fontWeight={issue.slaStatus === 'overdue' ? 700 : 400}
-                              >
-                                {issue.dueAt ? formatDate(issue.dueAt) : 'Chưa có hạn'}
-                              </Typography>
-                            </TableCell>
-
                             <TableCell align="right" sx={cellSx}>
-                              <Stack
-                                direction="row"
-                                spacing={0.75}
-                                justifyContent="flex-end"
-                                alignItems="center"
-                              >
-                                {canClaim && (
-                                  <Button
-                                    size="small"
-                                    variant="contained"
-                                    color="success"
-                                    startIcon={claimingId === issue._id
-                                      ? <CircularProgress size={16} color="inherit" />
-                                      : <PlayCircleOutline />}
-                                    disabled={Boolean(claimingId)}
-                                    onClick={() => handleClaim(issue)}
-                                  >
-                                    Nhận việc
-                                  </Button>
-                                )}
-
-                                {canUpdate && (
-                                  <Button
-                                    size="small"
-                                    variant="outlined"
-                                    startIcon={<EditNote />}
-                                    onClick={() => setStatusTarget(issue)}
-                                  >
-                                    Cập nhật
-                                  </Button>
-                                )}
-
-                                <Tooltip title="Xem chi tiết">
-                                  <IconButton
-                                    size="small"
-                                    aria-label={`Xem chi tiết ${issue.title}`}
-                                    onClick={() => navigate(`/issues/${issue._id}`)}
-                                  >
-                                    <OpenInNew fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
-                              </Stack>
+                              <WorkActions
+                                issue={issue}
+                                canClaim={permissions.canClaim}
+                                canUpdate={permissions.canUpdate}
+                                claimingId={claimingId}
+                                onClaim={handleClaim}
+                                onUpdate={setStatusTarget}
+                                onView={(selectedIssue) => navigate(`/issues/${selectedIssue._id}`)}
+                              />
                             </TableCell>
                           </TableRow>
                         );
@@ -706,6 +795,105 @@ const StaffDashboard: React.FC = () => {
                 </Table>
               </TableContainer>
 
+              <Box sx={{ display: { xs: 'block', md: 'none' } }}>
+                {loading ? (
+                  <Stack spacing={0} divider={<Box sx={{ borderTop: '1px solid #E2E8EC' }} />}>
+                    {Array.from({ length: 4 }).map((_, index) => (
+                      <Box key={index} sx={{ p: 2 }}>
+                        <Skeleton width="75%" height={28} />
+                        <Skeleton width="92%" />
+                        <Skeleton width="58%" />
+                      </Box>
+                    ))}
+                  </Stack>
+                ) : issues.length === 0 ? (
+                  <Box sx={{ py: 7, px: 2, textAlign: 'center' }}>
+                    <AssignmentIndOutlined sx={{ fontSize: 42, color: 'text.disabled', mb: 1 }} />
+                    <Typography color="text.secondary">
+                      Không có công việc phù hợp với bộ lọc.
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Stack spacing={0} divider={<Box sx={{ borderTop: '1px solid #E2E8EC' }} />}>
+                    {issues.map((issue) => {
+                      const permissions = getPermissions(issue);
+                      const priorityColor = issue.priorityLevel
+                        ? PRIORITY_MAP[issue.priorityLevel]?.color
+                        : '#94A3B8';
+
+                      return (
+                        <Box
+                          key={issue._id}
+                          component="article"
+                          sx={{ position: 'relative', p: 2, borderLeft: `3px solid ${priorityColor}` }}
+                        >
+                          <Stack direction="row" justifyContent="space-between" spacing={1} mb={0.5}>
+                            <Typography variant="body2" fontWeight={700}>
+                              {issue.title}
+                            </Typography>
+                            <PriorityBadge issue={issue} />
+                          </Stack>
+
+                          <Stack direction="row" spacing={0.5} alignItems="center" mb={1.25}>
+                            <LocationOn sx={{ fontSize: 14, color: 'text.secondary' }} />
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                            >
+                              {issue.location}
+                            </Typography>
+                          </Stack>
+
+                          <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap mb={1.5}>
+                            <CategoryIndicator issue={issue} />
+                            <StatusIndicator issue={issue} />
+                          </Stack>
+
+                          <Box
+                            sx={{
+                              display: 'grid',
+                              gridTemplateColumns: '1fr 1fr',
+                              gap: 1.25,
+                              p: 1.25,
+                              mb: 1.5,
+                              bgcolor: '#F5F7F9',
+                              borderRadius: 1,
+                            }}
+                          >
+                            <Box>
+                              <Typography variant="caption" color="text.disabled">SLA và hạn</Typography>
+                              <Box mt={0.35}>
+                                <SlaBadge status={issue.slaStatus} dueAt={issue.dueAt} showRemaining />
+                              </Box>
+                              <Typography variant="caption" color="text.secondary" display="block" mt={0.45}>
+                                {issue.dueAt ? formatDate(issue.dueAt) : 'Chưa có hạn'}
+                              </Typography>
+                            </Box>
+                            <Box>
+                              <Typography variant="caption" color="text.disabled">Phụ trách</Typography>
+                              <Typography variant="body2" mt={0.35}>
+                                {getAssigneeName(issue)}
+                              </Typography>
+                            </Box>
+                          </Box>
+
+                          <WorkActions
+                            issue={issue}
+                            canClaim={permissions.canClaim}
+                            canUpdate={permissions.canUpdate}
+                            claimingId={claimingId}
+                            onClaim={handleClaim}
+                            onUpdate={setStatusTarget}
+                            onView={(selectedIssue) => navigate(`/issues/${selectedIssue._id}`)}
+                          />
+                        </Box>
+                      );
+                    })}
+                  </Stack>
+                )}
+              </Box>
+
               <Stack
                 direction={{ xs: 'column', sm: 'row' }}
                 spacing={1}
@@ -713,8 +901,9 @@ const StaffDashboard: React.FC = () => {
                 justifyContent="space-between"
                 sx={{
                   px: 2.5,
-                  py: 2,
-                  borderTop: '1px solid rgba(255,255,255,0.06)',
+                  py: 1.75,
+                  borderTop: '1px solid',
+                  borderColor: 'divider',
                 }}
               >
                 <Typography variant="caption" color="text.secondary">
@@ -730,7 +919,7 @@ const StaffDashboard: React.FC = () => {
                   />
                 )}
               </Stack>
-            </Paper>
+            </Box>
           </>
         )}
       </Stack>

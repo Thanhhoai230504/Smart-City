@@ -242,7 +242,7 @@ const DepartmentPerformance: React.FC = () => {
       )}
 
       <GlassCard sx={{ p: 0, overflow: 'hidden' }}>
-        <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid #DCE7EB' }}>
           <Stack
             direction={{ xs: 'column', sm: 'row' }}
             spacing={0.5}
@@ -411,7 +411,7 @@ const DepartmentPerformance: React.FC = () => {
           </Table>
         </TableContainer>
 
-        <Box sx={{ px: 2.5, py: 1.5, bgcolor: 'rgba(255,255,255,0.02)' }}>
+        <Box sx={{ px: 2.5, py: 1.5, bgcolor: '#F7FAFA' }}>
           <Typography variant="caption" color="text.secondary">
             Tỷ lệ đúng hạn tính trên việc đã hoàn tất. Thời gian xử lý trung bình tính từ lúc
             phân công đến khi hoàn tất; dấu “chưa có dữ liệu” không đồng nghĩa với giá trị 0.

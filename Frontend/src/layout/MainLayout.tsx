@@ -3,13 +3,13 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { Box } from '@mui/material';
 import Header from './Header';
 import Footer from './Footer';
+import WorkspaceSidebar from './WorkspaceSidebar';
 const ChatbotWidget = lazy(() => import('../components/ChatbotWidget'));
-
-const HIDE_FOOTER_ROUTES = ['/map'];
 
 const MainLayout: React.FC = () => {
   const { pathname } = useLocation();
-  const showFooter = !HIDE_FOOTER_ROUTES.includes(pathname);
+  const isWorkspace = pathname.startsWith('/admin') || pathname.startsWith('/staff');
+  const showFooter = pathname !== '/map' && !isWorkspace;
 
   return (
     <Box sx={{
@@ -18,23 +18,30 @@ const MainLayout: React.FC = () => {
       minHeight: '100vh',
       overflowX: 'hidden',
       maxWidth: '100vw',
-      bgcolor: 'background.default',
-      backgroundImage: pathname === '/map'
-        ? 'none'
-        : `
-          radial-gradient(circle at 8% 5%, rgba(14,165,233,0.10), transparent 30rem),
-          radial-gradient(circle at 92% 18%, rgba(16,185,129,0.07), transparent 26rem)
-        `,
-      backgroundAttachment: 'fixed',
+      bgcolor: pathname === '/' ? '#07111F' : 'background.default',
     }}>
       <Header />
-      <Box component="main" sx={{ flexGrow: 1, position: 'relative' }}>
-        <Outlet />
+      <Box aria-hidden="true" sx={{ height: 64, flexShrink: 0 }} />
+      <Box sx={{ display: 'flex', flexGrow: 1, minWidth: 0, alignItems: 'stretch' }}>
+        {isWorkspace && <WorkspaceSidebar />}
+        <Box
+          component="main"
+          sx={{
+            flexGrow: 1,
+            minWidth: 0,
+            position: 'relative',
+            ml: isWorkspace ? { xs: 0, lg: '236px' } : 0,
+          }}
+        >
+          <Outlet />
+        </Box>
       </Box>
       {showFooter && <Footer />}
-      <Suspense fallback={null}>
-        <ChatbotWidget />
-      </Suspense>
+      {!isWorkspace && (
+        <Suspense fallback={null}>
+          <ChatbotWidget />
+        </Suspense>
+      )}
     </Box>
   );
 };

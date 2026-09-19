@@ -99,9 +99,9 @@ const EnvironmentHistoryChart: React.FC<Props> = ({ GlassCard, ChartTooltip }) =
       {chartData.length > 0 ? (
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-            <XAxis dataKey="time" tick={{ fill: '#9CA3AF', fontSize: 10 }} interval="preserveStartEnd" />
-            <YAxis tick={{ fill: '#9CA3AF', fontSize: 11 }}
+            <CartesianGrid strokeDasharray="3 3" stroke="#E7EEF0" />
+            <XAxis dataKey="time" tick={{ fill: '#6B818B', fontSize: 10 }} interval="preserveStartEnd" />
+            <YAxis tick={{ fill: '#6B818B', fontSize: 11 }}
               domain={dataType === 'temperature' ? ['auto', 'auto'] : [0, 100]}
               unit={dataType === 'temperature' ? '°C' : '%'} />
             <RTooltip content={<ChartTooltip />} />
