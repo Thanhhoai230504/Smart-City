@@ -39,6 +39,22 @@ const scan = keyframes`
 const breathe = keyframes`
   0%,100%{opacity:.45}50%{opacity:.85}
 `;
+const sectionLift = keyframes`
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+`;
+const accentDraw = keyframes`
+  from { transform: scaleX(0); transform-origin: left; }
+  to { transform: scaleX(1); transform-origin: left; }
+`;
+const rowReveal = keyframes`
+  from { opacity: 0; transform: translateX(18px); }
+  to { opacity: 1; transform: translateX(0); }
+`;
+const signalPulse = keyframes`
+  0%, 100% { box-shadow: 0 0 0 0 rgba(111,182,154,.26); }
+  50% { box-shadow: 0 0 0 5px rgba(111,182,154,0); }
+`;
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 const MONO: React.CSSProperties = {
@@ -46,6 +62,27 @@ const MONO: React.CSSProperties = {
 };
 
 const CUBIC = 'cubic-bezier(.16,1,.3,1)';
+
+const LIGHT_TEXT = {
+  ink: '#101820',
+  body: '#465B67',
+  muted: '#657985',
+} as const;
+
+const LIGHT_SECTION_BACKGROUND = `
+  radial-gradient(circle at 72% 28%, rgba(45,140,168,.13), transparent 28rem),
+  radial-gradient(circle at 12% 78%, rgba(58,128,109,.09), transparent 22rem),
+  linear-gradient(180deg, #FFFFFF 0%, #F4F8FA 100%)
+`;
+
+const DISCOVERY_SECTION_BACKGROUND = `
+  radial-gradient(circle at 82% 18%, rgba(115,168,178,.11), transparent 30rem),
+  radial-gradient(circle at 8% 82%, rgba(51,102,105,.15), transparent 24rem),
+  linear-gradient(135deg, #0D2531 0%, #10313F 52%, #0B242F 100%)
+`;
+
+const LIGHT_GRID = 'linear-gradient(rgba(11,94,142,.10) 1px, transparent 1px), linear-gradient(90deg, rgba(11,94,142,.10) 1px, transparent 1px)';
+const NAVY_GRID = 'linear-gradient(rgba(184,216,210,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(184,216,210,.05) 1px, transparent 1px)';
 
 interface Overview {
   totalIssues: number;
@@ -306,7 +343,7 @@ const Wordmark: React.FC<{ visible: boolean }> = ({ visible }) => {
       fontWeight: 700,
       lineHeight: 0.9,
       letterSpacing: '-0.03em',
-      color: '#F0F8FF',
+      color: LIGHT_TEXT.ink,
     }}>
       {text.split('').map((ch) => {
         const delay = idx++ * 55;
@@ -347,10 +384,13 @@ const HomePage: React.FC = () => {
   const [showVideo, setShowVideo] = useState(false);
   const [overview, setOverview] = useState<Overview | null>(null);
   const [activeChapter, setActiveChapter] = useState(2);
+  const [exploreVisible, setExploreVisible] = useState(false);
+  const exploreRef = useRef<HTMLDivElement>(null);
   const phase = useSandTransition(activeChapter);
   const prefersReduced = useRef(
     typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   );
+  const exploreMotion = exploreVisible && !prefersReduced.current;
 
   // hero reveal + video fade-in + fetch stats
   useEffect(() => {
@@ -361,6 +401,24 @@ const HomePage: React.FC = () => {
       .then(({ data }) => setOverview(data.data?.overview || null))
       .catch(() => undefined);
     return () => { window.clearTimeout(t); window.clearTimeout(tv); ctrl.abort(); };
+  }, []);
+
+  useEffect(() => {
+    const node = exploreRef.current;
+    if (!node || typeof IntersectionObserver === 'undefined') {
+      setExploreVisible(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setExploreVisible(true);
+        observer.disconnect();
+      }
+    }, { threshold: 0.18 });
+
+    observer.observe(node);
+    return () => observer.disconnect();
   }, []);
 
   // auto-cycle chapters
@@ -374,17 +432,13 @@ const HomePage: React.FC = () => {
 
   // ─── SECTION 1: HERO ────────────────────────────────────────────────────────
   return (
-    <Box sx={{ bgcolor: '#F5F7F9', color: '#172B3A', overflow: 'hidden' }}>
+    <Box sx={{ bgcolor: '#F5F7F9', color: LIGHT_TEXT.ink, overflow: 'hidden' }}>
       <Box sx={{
         position: 'relative',
         minHeight: { xs: 'auto', md: 'calc(100svh - 64px)' },
         display: 'flex', flexDirection: 'column',
         py: { xs: 6, md: 8 },
-        background: `
-          radial-gradient(circle at 72% 28%, rgba(45,140,168,.12), transparent 28rem),
-          radial-gradient(circle at 12% 78%, rgba(58,128,109,.08), transparent 22rem),
-          #071E30
-        `,
+        background: LIGHT_SECTION_BACKGROUND,
       }}>
         {/* video background — replace src with your file, e.g. '/assets/danang-aerial.mp4' */}
         <Box sx={{
@@ -402,14 +456,14 @@ const HomePage: React.FC = () => {
           >
             <source src="/assets/danang-aerial.mp4" type="video/mp4" />
           </Box>
-          {/* dark overlay keeps text readable */}
-          <Box sx={{ position: 'absolute', inset: 0, bgcolor: 'rgba(7,30,48,0.68)' }} />
+          {/* Light veil keeps the aerial footage subtle behind dark text. */}
+          <Box sx={{ position: 'absolute', inset: 0, bgcolor: 'rgba(247,250,252,0.88)' }} />
         </Box>
 
         {/* grid overlay */}
         <Box aria-hidden="true" sx={{
-          position: 'absolute', inset: 0, zIndex: 1, opacity: 0.18,
-          backgroundImage: 'linear-gradient(rgba(23,107,135,.08) 1px, transparent 1px), linear-gradient(90deg, rgba(23,107,135,.08) 1px, transparent 1px)',
+          position: 'absolute', inset: 0, zIndex: 1, opacity: 0.28,
+          backgroundImage: LIGHT_GRID,
           backgroundSize: '68px 68px',
           maskImage: 'linear-gradient(to bottom, black 40%, transparent 92%)',
         }} />
@@ -428,28 +482,28 @@ const HomePage: React.FC = () => {
               ...MONO, textTransform: 'uppercase', letterSpacing: '0.18em',
             }}>
               {/* left col */}
-              <Stack spacing={0.4} sx={{ width: { xs: '22%', md: '14%' }, color: '#9AABC2' }}>
+              <Stack spacing={0.4} sx={{ width: { xs: '22%', md: '14%' }, color: LIGHT_TEXT.muted }}>
                 <Box>Nền tảng</Box>
                 <Box>Quản lý</Box>
                 <Box>Đô thị</Box>
               </Stack>
               {/* arrow */}
-              <Box sx={{ display: { xs: 'none', sm: 'block' }, width: '4%', pt: 0.5, color: '#64748B' }}>
+              <Box sx={{ display: { xs: 'none', sm: 'block' }, width: '4%', pt: 0.5, color: '#78909C' }}>
                 <ArrowForwardRounded sx={{ fontSize: 13, strokeWidth: 1 }} />
               </Box>
               {/* center */}
-              <Box sx={{ flex: 1, color: '#7F96AE', lineHeight: 1.65, maxWidth: { xs: '100%', md: 340 } }}>
+              <Box sx={{ flex: 1, color: LIGHT_TEXT.body, lineHeight: 1.65, maxWidth: { xs: '100%', md: 340 } }}>
                 Kết nối người dân, cán bộ và cơ quan quản lý trên một không gian dữ liệu thống nhất — từ phản ánh hiện trường đến xử lý minh bạch.
               </Box>
               {/* arrow */}
-              <Box sx={{ display: { xs: 'none', md: 'block' }, width: '4%', pt: 0.5, color: '#64748B' }}>
+              <Box sx={{ display: { xs: 'none', md: 'block' }, width: '4%', pt: 0.5, color: '#78909C' }}>
                 <ArrowForwardRounded sx={{ fontSize: 13, strokeWidth: 1 }} />
               </Box>
               {/* right - status */}
-              <Stack spacing={0.5} sx={{ display: { xs: 'none', md: 'flex' }, width: '16%', color: '#7F96AE', alignItems: 'flex-end' }}>
+              <Stack spacing={0.5} sx={{ display: { xs: 'none', md: 'flex' }, width: '16%', color: LIGHT_TEXT.muted, alignItems: 'flex-end' }}>
                 <Stack direction="row" spacing={1} alignItems="center">
                   <Box sx={{ w: 7, h: 7, borderRadius: '50%', bgcolor: '#63B38D', animation: `${breathe} 2s ease infinite` }} />
-                  <Box sx={{ fontWeight: 700, color: '#B7D5E3' }}>ĐANG HOẠT ĐỘNG</Box>
+                  <Box sx={{ fontWeight: 700, color: '#0B5E8E' }}>ĐANG HOẠT ĐỘNG</Box>
                 </Stack>
                 <Box>24/7 · Realtime</Box>
               </Stack>
@@ -462,22 +516,22 @@ const HomePage: React.FC = () => {
             <Box sx={{ width: { xs: '100%', md: '50%' } }}>
               <Reveal visible={heroVisible} delay={800}>
                 <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 3 }}>
-                  <Typography sx={{ fontSize: '11px', ...MONO, color: '#7F96AE', fontWeight: 700 }}>01</Typography>
-                  <Box sx={{ w: 52, h: '1.5px', bgcolor: 'rgba(148,163,184,.22)' }} />
+                  <Typography sx={{ fontSize: '11px', ...MONO, color: '#0B5E8E', fontWeight: 700 }}>01</Typography>
+                  <Box sx={{ w: 52, h: '1.5px', bgcolor: '#BCD0DA' }} />
                 </Stack>
               </Reveal>
 
               <Reveal visible={heroVisible} delay={1000}>
                 <Typography sx={{
                   fontSize: { xs: '2.7rem', md: '4rem', lg: '4.6rem' },
-                  lineHeight: 1.02, letterSpacing: '-0.04em', fontWeight: 600, color: '#F4FAFF', mb: 3,
+                  lineHeight: 1.02, letterSpacing: '-0.04em', fontWeight: 600, color: LIGHT_TEXT.ink, mb: 3,
                 }}>
                   PHẢN ÁNH<br />HÀNH ĐỘNG
                 </Typography>
               </Reveal>
 
               <Reveal visible={heroVisible} delay={1200}>
-                <Typography sx={{ color: '#8CA1B8', fontSize: { xs: '13px', md: '14px' }, lineHeight: 1.7, maxWidth: 420, mb: 4 }}>
+                <Typography sx={{ color: LIGHT_TEXT.body, fontSize: { xs: '13px', md: '14px' }, lineHeight: 1.7, maxWidth: 420, mb: 4 }}>
                   Ghi lại hiện trường, điều phối đúng đơn vị, phản hồi minh bạch cho từng báo cáo — không có khoảng trống giữa dữ liệu và kết quả.
                 </Typography>
               </Reveal>
@@ -510,13 +564,13 @@ const HomePage: React.FC = () => {
                       transition: `color 400ms ease, transform 300ms ${CUBIC}`,
                     },
                     '&:hover .MuiButton-endIcon': {
-                      color: '#172B3A', transform: 'scale(1.1) rotate(-12deg) translateY(-2px)',
+                      color: LIGHT_TEXT.ink, transform: 'scale(1.1) rotate(-12deg) translateY(-2px)',
                     },
                     '& .MuiButton-label': {
                       position: 'relative', zIndex: 1,
                       transition: 'color 400ms ease',
                     },
-                    '&:hover .MuiButton-label': { color: '#172B3A' },
+                    '&:hover .MuiButton-label': { color: LIGHT_TEXT.ink },
                   }}
                   endIcon={<AddRounded />}
                 >
@@ -598,7 +652,7 @@ const HomePage: React.FC = () => {
           <Reveal visible={heroVisible} delay={1600}>
             <Stack direction="row" alignItems="center" spacing={1} sx={{
               display: { xs: 'none', md: 'flex' },
-              mt: 'auto', pt: 4, color: '#647B92',
+              mt: 'auto', pt: 4, color: LIGHT_TEXT.muted,
             }}>
               <KeyboardArrowDownRounded sx={{ animation: `${float} 2.2s ease-in-out infinite`, fontSize: 22 }} />
               <Typography sx={{ fontSize: '10px', ...MONO, letterSpacing: '.13em', fontWeight: 650 }}>
@@ -610,92 +664,159 @@ const HomePage: React.FC = () => {
       </Box>
 
       {/* ─── SECTION 2: KHÁM PHÁ HỆ THỐNG ───────────────────────────────────── */}
-      <Box id="explore" sx={{
-        position: 'relative', py: { xs: 10, md: 14 },
-        borderTop: '1px solid #D8E1E7',
-        bgcolor: '#F5F7F9',
+      <Box id="explore" ref={exploreRef} sx={{
+        position: 'relative', py: { xs: 8, md: 12 },
+        borderTop: '1px solid rgba(255,255,255,.08)',
+        background: DISCOVERY_SECTION_BACKGROUND,
+        '&::before': {
+          content: '""', position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.22,
+          backgroundImage: NAVY_GRID, backgroundSize: '68px 68px',
+          maskImage: 'linear-gradient(110deg, black 20%, transparent 88%)',
+        },
       }}>
-        <Container maxWidth="lg">
-          {/* section label */}
-          <Typography sx={{
-            mb: 10, fontSize: { xs: '10px', md: '11px' }, ...MONO,
-            textAlign: 'center', letterSpacing: '.2em',
-          }}>
-            <Box component="span" sx={{ color: '#627481' }}>[ 02 ]</Box>
-            {' '}
-            <Box component="span" sx={{ color: '#0B5E8E', fontWeight: 800 }}>KHÁM PHÁ HỆ THỐNG</Box>
-          </Typography>
+        <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            spacing={0}
+            sx={{
+              borderTop: '1px solid rgba(230,240,242,.16)',
+              borderBottom: '1px solid rgba(230,240,242,.16)',
+            }}
+          >
+            <Box sx={{
+              width: { xs: '100%', md: '43%' },
+              pr: { md: 7 }, py: { xs: 5, md: 7 },
+              borderRight: { md: '1px solid rgba(230,240,242,.16)' },
+              borderBottom: { xs: '1px solid rgba(230,240,242,.16)', md: 'none' },
+            }}>
+              <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 5 }}>
+                <Box sx={{
+                  width: 42, height: 2, bgcolor: '#D2AE6D',
+                  transformOrigin: 'left',
+                  animation: exploreMotion ? `${accentDraw} 1100ms ${CUBIC} both` : 'none',
+                }} />
+                <Typography sx={{
+                  fontSize: '10px', ...MONO, letterSpacing: '.18em',
+                  color: '#A9C7CD', fontWeight: 700,
+                  animation: exploreMotion ? `${sectionLift} 900ms ${CUBIC} both` : 'none',
+                }}>
+                  02 / KHÁM PHÁ HỆ THỐNG
+                </Typography>
+              </Stack>
 
-          {/* main heading */}
-          <Typography sx={{
-            maxWidth: 920, mx: 'auto', textAlign: 'center',
-            fontSize: { xs: '2rem', md: '3.2rem', lg: '3.8rem' },
-            lineHeight: 1.12, fontWeight: 600, letterSpacing: '-0.035em',
-            color: '#172B3A', mb: 8,
-          }}>
-            Nhìn thành phố như một hệ thống sống — bản đồ, cảm biến và phản ánh của người dân.
-          </Typography>
+              <Typography sx={{
+                maxWidth: 470,
+                fontSize: { xs: '2.15rem', md: '3rem', lg: '3.45rem' },
+                lineHeight: 1.08, fontWeight: 600, letterSpacing: '-0.035em',
+                color: '#F4F7F8', mb: 3,
+                animation: exploreMotion ? `${sectionLift} 950ms ${CUBIC} 140ms both` : 'none',
+              }}>
+                Một nền tảng, năm lớp dữ liệu đô thị.
+              </Typography>
 
-          {/* action pills */}
-          <Stack direction="row" useFlexGap flexWrap="wrap" spacing={2} justifyContent="center" sx={{ mb: 16 }}>
-            {[
-              { icon: <ReportProblemRounded />, label: 'Sự cố', path: '/issues' },
-              { icon: <MapRounded />, label: 'Bản đồ', path: '/map' },
-              { icon: <InsightsRounded />, label: 'Thống kê', path: '/statistics' },
-              { icon: <SensorsRounded />, label: 'Môi trường', path: '/map' },
-              { icon: <VideocamRounded />, label: 'Camera', path: '/cameras' },
-            ].map((pill) => (
-              <Button
-                key={pill.label}
-                startIcon={pill.icon}
-                onClick={() => navigate(pill.path)}
-                sx={{
-                  px: 3, py: 1.3, borderRadius: 20,
-                  border: '1px solid #D8E1E7',
-                  bgcolor: '#FFFFFF',
-                  backdropFilter: 'blur(10px)',
-                  color: '#0B5E8E',
-                  boxShadow: '0 3px 10px rgba(23,43,58,.04)',
-                  fontSize: '11px', ...MONO, textTransform: 'uppercase', letterSpacing: '.14em', fontWeight: 600,
-                  '&:hover': {
-                    bgcolor: '#0B5E8E', color: '#fff',
-                    borderColor: '#0B5E8E',
-                    boxShadow: '0 8px 18px rgba(11,94,142,.16)',
-                    transform: 'translateY(-2px)',
-                  },
-                }}
-              >
-                {pill.label}
-              </Button>
-            ))}
-          </Stack>
+              <Typography sx={{
+                maxWidth: 430, color: '#B5C7CC',
+                fontSize: { xs: '13px', md: '14px' }, lineHeight: 1.75, mb: 6,
+                animation: exploreMotion ? `${sectionLift} 950ms ${CUBIC} 260ms both` : 'none',
+              }}>
+                Chọn đúng phân hệ để theo dõi hiện trường, xem dữ liệu công khai hoặc gửi phản ánh đến cơ quan phụ trách.
+              </Typography>
 
-          {/* bottom text */}
-          <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={2}
-            sx={{ fontSize: '9px', ...MONO, letterSpacing: '.15em', color: '#627481', fontWeight: 600 }}>
-            <Box sx={{ display: { xs: 'none', md: 'block' } }}>KHÔNG CHỈ GHI NHẬN.</Box>
-            <Box sx={{ display: { xs: 'none', md: 'block' } }}>HỆ THỐNG GIÚP HÀNH ĐỘNG.</Box>
+              <Stack direction="row" spacing={1.5} alignItems="center" sx={{
+                color: '#90AAB1',
+                animation: exploreMotion ? `${sectionLift} 950ms ${CUBIC} 380ms both` : 'none',
+              }}>
+                <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: '#6FB69A', animation: `${signalPulse} 3.6s ease-in-out infinite` }} />
+                <Typography sx={{ fontSize: '9px', ...MONO, letterSpacing: '.13em', fontWeight: 650 }}>
+                  DỮ LIỆU CÔNG KHAI · CẬP NHẬT LIÊN TỤC
+                </Typography>
+              </Stack>
+            </Box>
+
+            <Box sx={{ width: { xs: '100%', md: '57%' } }}>
+              {[
+                { number: '01', icon: <ReportProblemRounded />, label: 'Sự cố đô thị', note: 'Theo dõi phản ánh và tiến độ xử lý', path: '/issues' },
+                { number: '02', icon: <MapRounded />, label: 'Bản đồ thành phố', note: 'Quan sát sự cố và các lớp dữ liệu vị trí', path: '/map' },
+                { number: '03', icon: <InsightsRounded />, label: 'Thống kê công khai', note: 'Xem số liệu, tỷ lệ và xu hướng xử lý', path: '/statistics' },
+                { number: '04', icon: <SensorsRounded />, label: 'Môi trường', note: 'Theo dõi nhiệt độ, độ ẩm và chất lượng không khí', path: '/map' },
+                { number: '05', icon: <VideocamRounded />, label: 'Camera công cộng', note: 'Truy cập các điểm quan sát đang hoạt động', path: '/cameras' },
+              ].map((item, index) => (
+                <Button
+                  key={item.number}
+                  onClick={() => navigate(item.path)}
+                  sx={{
+                    width: '100%', px: { xs: 2, sm: 3.5 }, py: { xs: 2.2, md: 2.5 },
+                    borderRadius: 0, borderBottom: index < 4 ? '1px solid rgba(230,240,242,.13)' : 'none',
+                    color: '#F4F7F8', textAlign: 'left', textTransform: 'none',
+                    justifyContent: 'stretch', position: 'relative', overflow: 'hidden',
+                    transition: 'background-color 280ms ease, padding-left 280ms ease',
+                    '&::before': {
+                      content: '""', position: 'absolute', left: 0, top: 0, bottom: 0,
+                      width: 3, bgcolor: '#D2AE6D', transform: 'scaleY(0)', transformOrigin: 'center',
+                      transition: 'transform 280ms ease',
+                    },
+                    opacity: exploreVisible ? 1 : 0,
+                    animation: exploreMotion ? `${rowReveal} 850ms ${CUBIC} ${240 + index * 110}ms both` : 'none',
+                    '&:hover': { bgcolor: 'rgba(255,255,255,.065)', pl: { xs: 2.5, sm: 4 } },
+                    '&:hover::before': { transform: 'scaleY(1)' },
+                    '&:hover .discovery-number': { color: '#D2AE6D' },
+                    '&:hover .discovery-icon': { transform: 'translateX(3px)', color: '#D2AE6D' },
+                    '&:hover .discovery-label': { transform: 'translateX(3px)' },
+                    '&:hover .discovery-arrow': { transform: 'translate(3px,-3px)', color: '#D2AE6D' },
+                  }}
+                >
+                  <Stack direction="row" alignItems="center" spacing={{ xs: 1.5, sm: 2.25 }} sx={{ width: '100%' }}>
+                    <Typography sx={{
+                      width: 24, flexShrink: 0, color: '#7998A1',
+                      fontSize: '9px', ...MONO, letterSpacing: '.12em',
+                    }} className="discovery-number">
+                      {item.number}
+                    </Typography>
+                    <Box className="discovery-icon" sx={{ color: '#A9CDD3', display: 'flex', transition: 'transform 280ms ease, color 280ms ease', '& svg': { fontSize: 21 } }}>
+                      {item.icon}
+                    </Box>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography className="discovery-label" sx={{ fontSize: { xs: '1rem', md: '1.08rem' }, fontWeight: 650, lineHeight: 1.3, transition: 'transform 280ms ease' }}>
+                        {item.label}
+                      </Typography>
+                      <Typography sx={{ mt: 0.35, color: '#98B0B6', fontSize: { xs: '11px', sm: '12px' }, lineHeight: 1.45 }}>
+                        {item.note}
+                      </Typography>
+                    </Box>
+                    <NorthEastRounded className="discovery-arrow" sx={{
+                      flexShrink: 0, fontSize: 19, color: '#789AA3',
+                      transition: 'transform 220ms ease, color 220ms ease',
+                    }} />
+                  </Stack>
+                </Button>
+              ))}
+            </Box>
           </Stack>
         </Container>
       </Box>
 
-      {/* ─── SECTION 3: DARK CHAPTER SHOWCASE ────────────────────────────────── */}
+      {/* ─── SECTION 3: LIGHT CHAPTER SHOWCASE ───────────────────────────────── */}
       <Box id="operations" sx={{
-        position: 'relative', bgcolor: '#0B2942', color: '#fff',
+        position: 'relative', background: LIGHT_SECTION_BACKGROUND, color: LIGHT_TEXT.ink,
         pt: { xs: 12, md: 18 }, pb: { xs: 10, md: 14 },
+        '&::before': {
+          content: '""', position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.28,
+          backgroundImage: LIGHT_GRID, backgroundSize: '68px 68px',
+          maskImage: 'linear-gradient(to bottom, black 40%, transparent 92%)',
+        },
       }}>
-        <Container maxWidth="lg">
+        <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
           {/* heading */}
           <Box sx={{ mb: 12 }}>
             <Typography sx={{
               fontSize: { xs: '1.9rem', md: '3rem', lg: '3.6rem' },
               lineHeight: 1.14, fontWeight: 600, letterSpacing: '-0.038em',
-              color: '#FFFFFF', mb: 3,
+              color: LIGHT_TEXT.ink, mb: 3,
             }}>
               Vận hành thành phố qua dữ liệu minh bạch & kết quả rõ ràng.
             </Typography>
             <Stack direction="row" spacing={2} useFlexGap flexWrap="wrap" sx={{ mb: 2 }}>
-              <Typography sx={{ fontSize: { xs: '9px', md: '10px' }, ...MONO, textTransform: 'uppercase', letterSpacing: '.16em', color: '#AFC1CC' }}>
+              <Typography sx={{ fontSize: { xs: '9px', md: '10px' }, ...MONO, textTransform: 'uppercase', letterSpacing: '.16em', color: LIGHT_TEXT.body }}>
                 KHÔNG CHỈ HIỂN THỊ SỐ LIỆU / HỆ THỐNG TẠO RA KẾT QUẢ
               </Typography>
             </Stack>
@@ -703,28 +824,32 @@ const HomePage: React.FC = () => {
               {['Minh bạch', 'Chính xác', 'Kịp thời'].map((label) => (
                 <Chip key={label} label={label} size="small" sx={{
                   px: 2, py: 1.4, height: 'auto', borderRadius: 20,
-                  border: '1px solid rgba(255,255,255,.18)',
-                  bgcolor: 'rgba(255,255,255,.04)', color: '#C5D3DA',
+                  border: '1px solid #C8D6DE',
+                  bgcolor: '#FFFFFF', color: '#0B5E8E',
                   fontSize: '9px', ...MONO, textTransform: 'uppercase', letterSpacing: '.14em', fontWeight: 600,
-                  '&:hover': { bgcolor: '#fff', color: '#111', borderColor: '#fff' },
+                  '&:hover': { bgcolor: '#0B2942', color: '#FFFFFF', borderColor: '#0B2942' },
                 }} />
               ))}
             </Stack>
           </Box>
 
           {/* chapter showcase */}
-          <Stack direction={{ xs: 'column', lg: 'row' }} spacing={0} sx={{ borderTop: '1px solid rgba(255,255,255,.12)' }}>
+          <Stack direction={{ xs: 'column', lg: 'row' }} spacing={0} sx={{ borderTop: '1px solid #D8E1E7' }}>
             {/* left panel — visual */}
             <Box sx={{
               width: { xs: '100%', lg: '38%' },
               minHeight: { xs: 360, md: 480 },
-              borderRight: { xs: 'none', lg: '1px solid rgba(255,255,255,.12)' },
-              borderBottom: { xs: '1px solid rgba(255,255,255,.12)', lg: 'none' },
+              borderRight: { xs: 'none', lg: '1px solid #D8E1E7' },
+              borderBottom: { xs: '1px solid #D8E1E7', lg: 'none' },
               display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
               p: 4,
             }}>
               {/* visual container */}
-              <Box sx={{ position: 'relative', width: '100%', maxWidth: 360, aspectRatio: '360/300' }}>
+              <Box sx={{
+                position: 'relative', width: '100%', maxWidth: 360, aspectRatio: '360/300',
+                bgcolor: '#0B2942', border: '1px solid #C8D6DE', borderRadius: 2,
+                boxShadow: '0 18px 40px rgba(23,43,58,.10)', overflow: 'hidden',
+              }}>
                 {/* prev layer (exiting) */}
                 {phase.prev != null && (
                   <SandLayer filterId="sand-out" mode="out" progress={phase.progress}>
@@ -742,10 +867,10 @@ const HomePage: React.FC = () => {
               </Box>
 
               {/* chapter counter */}
-              <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mt: 4, fontSize: '10px', ...MONO, letterSpacing: '.15em', color: '#91A7B5' }}>
+              <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mt: 4, fontSize: '10px', ...MONO, letterSpacing: '.15em', color: LIGHT_TEXT.muted }}>
                 <Box sx={{ overflow: 'hidden', height: '1em', position: 'relative' }}>
                   <Box key={activeChapter} sx={{
-                    color: '#C5D3DA',
+                    color: '#0B5E8E',
                     animation: 'slideUp 0.4s ease-out',
                     '@keyframes slideUp': {
                       '0%': { transform: 'translateY(100%)', opacity: 0 },
@@ -755,7 +880,7 @@ const HomePage: React.FC = () => {
                     {String(activeChapter + 1).padStart(2, '0')}
                   </Box>
                 </Box>
-                <Box sx={{ color: '#6F8796' }}>/</Box>
+                <Box sx={{ color: '#91A7B5' }}>/</Box>
                 <Box>05</Box>
               </Stack>
             </Box>
@@ -764,7 +889,7 @@ const HomePage: React.FC = () => {
             <Box sx={{ width: { xs: '100%', lg: '62%' }, display: 'flex', flexDirection: 'column' }}>
               {/* top bar */}
               <Stack direction="row" justifyContent="space-between" alignItems="center"
-                sx={{ px: 4, py: 2.5, borderBottom: '1px solid rgba(255,255,255,.12)', fontSize: '10px', ...MONO, color: '#AFC1CC', letterSpacing: '.12em' }}>
+                sx={{ px: 4, py: 2.5, borderBottom: '1px solid #D8E1E7', fontSize: '10px', ...MONO, color: LIGHT_TEXT.muted, letterSpacing: '.12em' }}>
                 <Box>Báo cáo nhanh. Xử lý minh bạch. Dữ liệu công khai.</Box>
                 <Box sx={{ overflow: 'hidden', height: '1em', position: 'relative' }}>
                   <Box key={activeChapter} sx={{
@@ -788,10 +913,10 @@ const HomePage: React.FC = () => {
                     onClick={() => setActiveChapter(i)}
                     sx={{
                       py: 4, px: 4, cursor: 'pointer',
-                      borderBottom: '1px solid rgba(255,255,255,.10)',
-                      color: isActive ? '#fff' : '#78909E',
+                      borderBottom: '1px solid #D8E1E7',
+                      color: isActive ? LIGHT_TEXT.ink : '#6F818C',
                       transition: 'all 300ms ease',
-                      '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,.045)' },
+                      '&:hover': { color: LIGHT_TEXT.ink, bgcolor: '#EDF3F6' },
                     }}
                   >
                     <Stack direction="row" justifyContent="space-between" alignItems="center">
@@ -802,7 +927,7 @@ const HomePage: React.FC = () => {
                         }}>
                           {ch.name}
                         </Typography>
-                        <Typography sx={{ fontSize: '11px', ...MONO, color: isActive ? '#AFC1CC' : '#6F8796', letterSpacing: '.08em' }}>
+                        <Typography sx={{ fontSize: '11px', ...MONO, color: isActive ? '#0B5E8E' : '#768995', letterSpacing: '.08em' }}>
                           {ch.sub}
                         </Typography>
                       </Box>
@@ -817,7 +942,7 @@ const HomePage: React.FC = () => {
           </Stack>
 
           {/* footer strip */}
-          <Box sx={{ mt: 0, pt: 4, borderTop: '1px solid rgba(255,255,255,.12)', fontSize: '9px', ...MONO, letterSpacing: '.14em', color: '#91A7B5', textAlign: 'center' }}>
+          <Box sx={{ mt: 0, pt: 4, borderTop: '1px solid #D8E1E7', fontSize: '9px', ...MONO, letterSpacing: '.14em', color: LIGHT_TEXT.muted, textAlign: 'center' }}>
             DỮ LIỆU ĐÔ THỊ CHO MỌI CÔNG DÂN
           </Box>
         </Container>
