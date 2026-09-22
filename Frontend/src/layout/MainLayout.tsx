@@ -1,4 +1,4 @@
-import React, { lazy, Suspense } from 'react';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Box } from '@mui/material';
 import Header from './Header';
@@ -10,6 +10,13 @@ const MainLayout: React.FC = () => {
   const { pathname } = useLocation();
   const isWorkspace = pathname.startsWith('/admin') || pathname.startsWith('/staff');
   const showFooter = pathname !== '/map' && !isWorkspace;
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => (
+    window.localStorage.getItem('workspace-sidebar-collapsed') === 'true'
+  ));
+
+  useEffect(() => {
+    window.localStorage.setItem('workspace-sidebar-collapsed', String(sidebarCollapsed));
+  }, [sidebarCollapsed]);
 
   return (
     <Box sx={{
@@ -23,14 +30,22 @@ const MainLayout: React.FC = () => {
       <Header />
       <Box aria-hidden="true" sx={{ height: 64, flexShrink: 0 }} />
       <Box sx={{ display: 'flex', flexGrow: 1, minWidth: 0, alignItems: 'stretch' }}>
-        {isWorkspace && <WorkspaceSidebar />}
+        {isWorkspace && (
+          <WorkspaceSidebar
+            collapsed={sidebarCollapsed}
+            onToggle={() => setSidebarCollapsed((current) => !current)}
+          />
+        )}
         <Box
           component="main"
           sx={{
             flexGrow: 1,
             minWidth: 0,
             position: 'relative',
-            ml: isWorkspace ? { xs: 0, lg: '236px' } : 0,
+            ml: isWorkspace
+              ? { xs: 0, lg: sidebarCollapsed ? '76px' : '236px' }
+              : 0,
+            transition: 'margin-left 220ms ease',
           }}
         >
           <Outlet />

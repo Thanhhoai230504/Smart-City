@@ -7,33 +7,59 @@ import {
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Skeleton, Pagination, FormControl, InputLabel, SelectChangeEvent,
   Dialog, DialogTitle, DialogContent, DialogActions, Button, Snackbar, Alert,
-  CircularProgress, Box, Divider,
+  CircularProgress, Box, Divider, InputAdornment, TextField,
 } from '@mui/material';
-import { CallMerge, Delete, Visibility, ThumbUp } from '@mui/icons-material';
+import { CallMerge, Delete, Refresh, Search, Visibility, ThumbUp } from '@mui/icons-material';
 import {
-  GlassCard, IssueItem, STATUS_COLORS, STATUS_LABELS, CATEGORY_LABELS,
+  GlassCard, STATUS_COLORS, STATUS_LABELS, CATEGORY_LABELS,
   cellSx, headCellSx,
 } from './types';
-import { DuplicateCandidate, DuplicateCandidateMeta, IssueStatus } from '../../types';
+import {
+  DuplicateCandidate,
+  DuplicateCandidateMeta,
+  Issue,
+  IssueStatus,
+  PriorityLevel,
+} from '../../types';
+import PriorityBadge from '../../components/PriorityBadge';
+import SlaBadge from '../../components/SlaBadge';
 
 interface ApiErrorResponse {
   message?: string;
 }
 
 interface Props {
-  onDataChange: () => void;
+  onDataChange?: () => void;
 }
 
-const IssueManagement: React.FC<Props> = ({ onDataChange }) => {
+const DISTRICTS = ['Hải Châu', 'Thanh Khê', 'Sơn Trà', 'Ngũ Hành Sơn', 'Liên Chiểu', 'Cẩm Lệ', 'Hòa Vang', 'Hoàng Sa', 'Khác'];
+
+const getReferenceName = (
+  value: Issue['departmentId'] | Issue['assigneeId'],
+  emptyLabel: string,
+) => {
+  if (!value) return emptyLabel;
+  if (typeof value === 'string') return 'Đã phân công';
+  return 'code' in value ? `${value.code} — ${value.name}` : value.name;
+};
+
+const IssueManagement: React.FC<Props> = ({ onDataChange = () => undefined }) => {
   const navigate = useNavigate();
-  const [issues, setIssues] = useState<IssueItem[]>([]);
+  const [issues, setIssues] = useState<Issue[]>([]);
   const [pag, setPag] = useState({ current: 1, pages: 1, total: 0 });
-  const [filter, setFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [districtFilter, setDistrictFilter] = useState('');
+  const [assignmentFilter, setAssignmentFilter] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState<PriorityLevel | ''>('');
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [snack, setSnack] = useState<{ open: boolean; msg: string; severity: 'success' | 'error' }>({ open: false, msg: '', severity: 'success' });
   const [sortBy, setSortBy] = useState('-createdAt');
-  const [mergeSource, setMergeSource] = useState<IssueItem | null>(null);
+  const [mergeSource, setMergeSource] = useState<Issue | null>(null);
   const [mergeCandidates, setMergeCandidates] = useState<DuplicateCandidate[]>([]);
   const [mergeMeta, setMergeMeta] = useState<DuplicateCandidateMeta | null>(null);
   const [mergeTargetId, setMergeTargetId] = useState('');
@@ -41,24 +67,46 @@ const IssueManagement: React.FC<Props> = ({ onDataChange }) => {
   const [merging, setMerging] = useState(false);
   const [mergeError, setMergeError] = useState('');
 
-  const loadIssues = useCallback(async (page = 1, status = '') => {
+  const loadIssues = useCallback(async () => {
     setLoading(true);
     try {
-      const params: Record<string, string | number> = { page, limit: 6, sort: sortBy };
-      if (status) params.status = status;
+      const params: Record<string, string | number> = { page, limit: 12, sort: sortBy };
+      if (statusFilter) params.status = statusFilter;
+      if (categoryFilter) params.category = categoryFilter;
+      if (districtFilter) params.district = districtFilter;
+      if (priorityFilter) params.priorityLevel = priorityFilter;
+      if (assignmentFilter === 'assigned') params.assigned = 'true';
+      if (assignmentFilter === 'unassigned') params.unassigned = 'true';
+      if (search) params.search = search;
       const { data } = await issueApi.getIssues(params);
       setIssues(data.data.issues);
       setPag(data.data.pagination);
-    } catch { /* silently ignore */ } finally { setLoading(false); }
-  }, [sortBy]);
+    } catch (error) {
+      setSnack({
+        open: true,
+        msg: axios.isAxiosError<ApiErrorResponse>(error)
+          ? error.response?.data?.message || 'Không thể tải danh sách sự cố.'
+          : 'Không thể tải danh sách sự cố.',
+        severity: 'error',
+      });
+    } finally { setLoading(false); }
+  }, [assignmentFilter, categoryFilter, districtFilter, page, priorityFilter, search, sortBy, statusFilter]);
 
-  useEffect(() => { loadIssues(1, filter); }, [filter, sortBy, loadIssues]);
+  useEffect(() => { loadIssues(); }, [loadIssues]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setPage(1);
+      setSearch(searchInput.trim());
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
 
   const handleStatusChange = async (id: string, status: IssueStatus) => {
     try {
       await issueApi.updateIssueStatus(id, status);
       setSnack({ open: true, msg: `Trạng thái → ${STATUS_LABELS[status]}`, severity: 'success' });
-      loadIssues(pag.current, filter);
+      await loadIssues();
       onDataChange();
     } catch { /* silently ignore */ setSnack({ open: true, msg: 'Cập nhật thất bại', severity: 'error' }); }
   };
@@ -69,12 +117,12 @@ const IssueManagement: React.FC<Props> = ({ onDataChange }) => {
       await issueApi.deleteIssue(deleteId);
       setDeleteId(null);
       setSnack({ open: true, msg: 'Đã xoá sự cố', severity: 'success' });
-      loadIssues(pag.current, filter);
+      await loadIssues();
       onDataChange();
     } catch { /* silently ignore */ setSnack({ open: true, msg: 'Xoá thất bại', severity: 'error' }); }
   };
 
-  const openMergeDialog = async (source: IssueItem) => {
+  const openMergeDialog = async (source: Issue) => {
     setMergeSource(source);
     setMergeTargetId('');
     setMergeCandidates([]);
@@ -108,7 +156,7 @@ const IssueManagement: React.FC<Props> = ({ onDataChange }) => {
         severity: 'success',
       });
       setMergeSource(null);
-      await loadIssues(pag.current, filter);
+      await loadIssues();
       onDataChange();
     } catch (error) {
       setMergeError(
@@ -125,97 +173,155 @@ const IssueManagement: React.FC<Props> = ({ onDataChange }) => {
     (candidate) => candidate.issue._id === mergeTargetId
   );
 
+  const resetFilters = () => {
+    setSearchInput('');
+    setSearch('');
+    setStatusFilter('');
+    setCategoryFilter('');
+    setDistrictFilter('');
+    setAssignmentFilter('');
+    setPriorityFilter('');
+    setSortBy('-createdAt');
+    setPage(1);
+  };
+
   return (
-    <GlassCard>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2} flexWrap="wrap" gap={1}>
-        <Typography fontWeight={600} variant="h6">📋 Quản lý sự cố</Typography>
-        <Stack direction="row" spacing={1} alignItems="center">
-          <FormControl size="small" sx={{ minWidth: 150 }}>
-            <InputLabel sx={{ color: 'text.secondary' }}>Trạng thái</InputLabel>
-            <Select value={filter} label="Trạng thái" onChange={(e: SelectChangeEvent) => setFilter(e.target.value)}
-              sx={{ borderRadius: '10px', '& .MuiOutlinedInput-notchedOutline': { borderColor: '#C8D9DE' } }}>
-              <MenuItem value="">Tất cả</MenuItem>
-              <MenuItem value="reported">🟡 Mới</MenuItem>
-              <MenuItem value="processing">🔵 Đang xử lý</MenuItem>
-              <MenuItem value="resolved">🟢 Đã xử lý</MenuItem>
-              <MenuItem value="rejected">🔴 Từ chối</MenuItem>
-            </Select>
-          </FormControl>
-          <FormControl size="small" sx={{ minWidth: 150 }}>
-            <InputLabel sx={{ color: 'text.secondary' }}>Sắp xếp</InputLabel>
-            <Select value={sortBy} label="Sắp xếp" onChange={(e: SelectChangeEvent) => setSortBy(e.target.value)}
-              sx={{ borderRadius: '10px', '& .MuiOutlinedInput-notchedOutline': { borderColor: '#C8D9DE' } }}>
-              <MenuItem value="-createdAt">🕐 Mới nhất</MenuItem>
-              <MenuItem value="createdAt">🕐 Cũ nhất</MenuItem>
-              <MenuItem value="-voteCount">🔥 Ủng hộ nhiều nhất</MenuItem>
-            </Select>
-          </FormControl>
-          <Chip label={`${pag.total} sự cố`} sx={{ bgcolor: '#EAF3F4', color: '#176B87', fontWeight: 600 }} />
+    <GlassCard sx={{ p: 0, overflow: 'hidden' }}>
+      <Box sx={{ p: { xs: 2, md: 2.5 }, borderBottom: '1px solid', borderColor: 'divider' }}>
+        <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1.5}>
+          <Box>
+            <Typography fontWeight={700} variant="h6">Danh sách điều hành sự cố</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Mỗi dòng thể hiện trạng thái, mức ưu tiên, đơn vị chịu trách nhiệm, cán bộ và hạn SLA.
+            </Typography>
+          </Box>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Chip label={`${pag.total} sự cố`} sx={{ bgcolor: '#EAF3F4', color: '#176B87', fontWeight: 700 }} />
+            <Button variant="outlined" startIcon={<Refresh />} disabled={loading} onClick={loadIssues}>Làm mới</Button>
+          </Stack>
         </Stack>
-      </Stack>
+
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', xl: 'minmax(250px, 1.4fr) repeat(6, minmax(135px, .7fr)) auto' }, gap: 1.15, mt: 2.5 }}>
+          <TextField
+            size="small"
+            label="Tìm tiêu đề hoặc mô tả"
+            value={searchInput}
+            onChange={(event) => setSearchInput(event.target.value)}
+            InputProps={{ startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment> }}
+          />
+          <FormControl size="small">
+            <InputLabel>Trạng thái</InputLabel>
+            <Select value={statusFilter} label="Trạng thái" onChange={(event: SelectChangeEvent) => { setStatusFilter(event.target.value); setPage(1); }}>
+              <MenuItem value="">Tất cả</MenuItem>
+              <MenuItem value="reported">Mới báo cáo</MenuItem>
+              <MenuItem value="processing">Đang xử lý</MenuItem>
+              <MenuItem value="resolved">Đã xử lý</MenuItem>
+              <MenuItem value="rejected">Từ chối</MenuItem>
+            </Select>
+          </FormControl>
+          <FormControl size="small">
+            <InputLabel>Danh mục</InputLabel>
+            <Select value={categoryFilter} label="Danh mục" onChange={(event: SelectChangeEvent) => { setCategoryFilter(event.target.value); setPage(1); }}>
+              <MenuItem value="">Tất cả</MenuItem>
+              {Object.entries(CATEGORY_LABELS).map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
+            </Select>
+          </FormControl>
+          <FormControl size="small">
+            <InputLabel>Địa bàn</InputLabel>
+            <Select value={districtFilter} label="Địa bàn" onChange={(event: SelectChangeEvent) => { setDistrictFilter(event.target.value); setPage(1); }}>
+              <MenuItem value="">Tất cả</MenuItem>
+              {DISTRICTS.map((district) => <MenuItem key={district} value={district}>{district}</MenuItem>)}
+            </Select>
+          </FormControl>
+          <FormControl size="small">
+            <InputLabel>Phân công</InputLabel>
+            <Select value={assignmentFilter} label="Phân công" onChange={(event: SelectChangeEvent) => { setAssignmentFilter(event.target.value); setPage(1); }}>
+              <MenuItem value="">Tất cả</MenuItem>
+              <MenuItem value="unassigned">Chưa phân công</MenuItem>
+              <MenuItem value="assigned">Đã phân công</MenuItem>
+            </Select>
+          </FormControl>
+          <FormControl size="small">
+            <InputLabel>Ưu tiên</InputLabel>
+            <Select value={priorityFilter} label="Ưu tiên" onChange={(event: SelectChangeEvent<PriorityLevel | ''>) => { setPriorityFilter(event.target.value as PriorityLevel | ''); setPage(1); }}>
+              <MenuItem value="">Tất cả</MenuItem>
+              <MenuItem value="critical">Khẩn cấp</MenuItem>
+              <MenuItem value="high">Cao</MenuItem>
+              <MenuItem value="medium">Trung bình</MenuItem>
+              <MenuItem value="low">Thấp</MenuItem>
+            </Select>
+          </FormControl>
+          <FormControl size="small">
+            <InputLabel>Sắp xếp</InputLabel>
+            <Select value={sortBy} label="Sắp xếp" onChange={(event: SelectChangeEvent) => { setSortBy(event.target.value); setPage(1); }}>
+              <MenuItem value="-createdAt">Mới nhất</MenuItem>
+              <MenuItem value="createdAt">Cũ nhất</MenuItem>
+              <MenuItem value="-priorityScore">Ưu tiên cao nhất</MenuItem>
+              <MenuItem value="-voteCount">Đồng thuận nhiều nhất</MenuItem>
+              <MenuItem value="dueAt">Sắp đến hạn</MenuItem>
+            </Select>
+          </FormControl>
+          <Button onClick={resetFilters} sx={{ whiteSpace: 'nowrap' }}>Xóa lọc</Button>
+        </Box>
+      </Box>
 
       <TableContainer>
         <Table size="small">
           <TableHead><TableRow>
-            {['Tiêu đề', 'Người báo cáo', 'Loại', '👍 Ủng hộ', 'Trạng thái', 'Thời gian', 'Thao tác'].map(h => (
+            {['Sự cố', 'Trạng thái', 'Ưu tiên', 'Đơn vị xử lý', 'Cán bộ', 'SLA', 'Đồng thuận', 'Ngày báo', 'Thao tác'].map(h => (
               <TableCell key={h} sx={headCellSx}>{h}</TableCell>
             ))}
           </TableRow></TableHead>
           <TableBody>
-            {loading ? [...Array(4)].map((_, i) => (
+            {loading ? [...Array(6)].map((_, i) => (
               <TableRow key={i} sx={{ '@keyframes shimmer': { '0%': { backgroundPosition: '-400px 0' }, '100%': { backgroundPosition: '400px 0' } }, '@keyframes fadeIn': { from: { opacity: 0, transform: 'translateY(4px)' }, to: { opacity: 1, transform: 'translateY(0)' } }, animation: `fadeIn 0.4s ease-out ${i * 0.08}s both` }}>
-                {[...Array(7)].map((_, j) => (
+                {[...Array(9)].map((_, j) => (
                   <TableCell key={j} sx={cellSx}>
-                    <Skeleton variant="rounded" height={j === 0 ? 32 : j === 2 || j === 4 ? 22 : 14}
-                      width={j === 0 ? '85%' : j === 1 ? '60%' : j === 5 ? '70%' : '50%'}
-                      sx={{ bgcolor: 'transparent', background: 'linear-gradient(90deg, #F7FAFA 0%, #E8F0F2 40%, #F7FAFA 80%)', backgroundSize: '800px 100%', animation: `shimmer 1.8s ease-in-out infinite`, animationDelay: `${j * 0.1}s`, borderRadius: j === 2 || j === 4 ? '10px' : '6px' }} />
+                    <Skeleton variant="rounded" height={j === 0 ? 34 : 20} width={j === 0 ? '88%' : '65%'} />
                   </TableCell>
                 ))}
               </TableRow>
             )) : issues.length === 0 ? (
-              <TableRow><TableCell colSpan={7} sx={{ ...cellSx, textAlign: 'center', py: 3 }}>
-                <Typography color="text.secondary">Không có sự cố</Typography>
+              <TableRow><TableCell colSpan={9} sx={{ ...cellSx, textAlign: 'center', py: 7 }}>
+                <Typography color="text.secondary">Không tìm thấy sự cố phù hợp với bộ lọc.</Typography>
               </TableCell></TableRow>
             ) : issues.map(issue => (
               <TableRow key={issue._id} hover sx={{ '&:hover': { bgcolor: 'rgba(14,165,233,0.04)' } }}>
-                <TableCell sx={{ ...cellSx, maxWidth: 200 }}>
-                  <Typography variant="body2" fontWeight={500} noWrap>{issue.title}</Typography>
-                  <Typography variant="caption" color="text.secondary" noWrap>📍 {issue.location}</Typography>
+                <TableCell sx={{ ...cellSx, minWidth: 260, maxWidth: 360 }}>
+                  <Typography variant="body2" fontWeight={650} noWrap>{issue.title}</Typography>
+                  <Typography variant="caption" color="text.secondary" noWrap display="block">{CATEGORY_LABELS[issue.category] || issue.category} · {issue.district || 'Chưa xác định địa bàn'}</Typography>
+                  <Typography variant="caption" color="text.disabled" noWrap display="block">{issue.location}</Typography>
                 </TableCell>
                 <TableCell sx={cellSx}>
-                  <Typography variant="caption">{issue.userId && typeof issue.userId === 'object' ? issue.userId.name : '—'}</Typography>
+                  <Select size="small" value={issue.status} onChange={(event: SelectChangeEvent) => handleStatusChange(issue._id, event.target.value as IssueStatus)}
+                    sx={{ height: 30, minWidth: 125, fontSize: '0.74rem', bgcolor: `${STATUS_COLORS[issue.status]}12`, color: STATUS_COLORS[issue.status], '& .MuiOutlinedInput-notchedOutline': { borderColor: `${STATUS_COLORS[issue.status]}35` } }}>
+                    <MenuItem value="reported">Mới báo cáo</MenuItem>
+                    <MenuItem value="processing">Đang xử lý</MenuItem>
+                    <MenuItem value="resolved">Đã xử lý</MenuItem>
+                    <MenuItem value="rejected">Từ chối</MenuItem>
+                  </Select>
                 </TableCell>
-                <TableCell sx={cellSx}>
-                  <Chip size="small" label={CATEGORY_LABELS[issue.category] || issue.category}
-                    sx={{ height: 22, fontSize: '0.7rem', bgcolor: '#EAF3F4', color: '#176B87' }} />
+                <TableCell sx={{ ...cellSx, whiteSpace: 'nowrap' }}><PriorityBadge issue={issue} /></TableCell>
+                <TableCell sx={{ ...cellSx, minWidth: 190 }}>
+                  <Typography variant="caption" fontWeight={issue.departmentId ? 600 : 400} color={issue.departmentId ? 'text.primary' : 'warning.main'}>
+                    {getReferenceName(issue.departmentId, 'Chưa phân công')}
+                  </Typography>
                 </TableCell>
+                <TableCell sx={{ ...cellSx, minWidth: 145 }}>
+                  <Typography variant="caption" color={issue.assigneeId ? 'text.primary' : 'text.secondary'}>
+                    {getReferenceName(issue.assigneeId, issue.departmentId ? 'Đơn vị tự nhận' : '—')}
+                  </Typography>
+                </TableCell>
+                <TableCell sx={{ ...cellSx, minWidth: 145 }}><SlaBadge status={issue.slaStatus} dueAt={issue.dueAt} showRemaining /></TableCell>
                 <TableCell sx={cellSx}>
                   <Stack direction="row" alignItems="center" spacing={0.5}>
                     <ThumbUp sx={{ fontSize: 14, color: (issue.voteCount || 0) > 0 ? '#F59E0B' : 'text.disabled' }} />
-                    <Typography variant="body2" fontWeight={(issue.voteCount || 0) > 0 ? 700 : 400}
-                      color={(issue.voteCount || 0) > 0 ? '#F59E0B' : 'text.secondary'}>
-                      {issue.voteCount || 0}
-                    </Typography>
+                    <Typography variant="body2" fontWeight={700}>{issue.voteCount || 0}</Typography>
                   </Stack>
-                </TableCell>
-                <TableCell sx={cellSx}>
-                  <Select size="small" value={issue.status}
-                    onChange={(e: SelectChangeEvent) => handleStatusChange(issue._id, e.target.value as IssueStatus)}
-                    sx={{
-                      height: 28, fontSize: '0.75rem', borderRadius: '8px',
-                      bgcolor: `${STATUS_COLORS[issue.status]}15`, color: STATUS_COLORS[issue.status],
-                      '& .MuiOutlinedInput-notchedOutline': { borderColor: `${STATUS_COLORS[issue.status]}40` },
-                      '& .MuiSvgIcon-root': { color: STATUS_COLORS[issue.status] },
-                    }}>
-                    <MenuItem value="reported">🟡 Mới</MenuItem>
-                    <MenuItem value="processing">🔵 Xử lý</MenuItem>
-                    <MenuItem value="resolved">🟢 Xong</MenuItem>
-                    <MenuItem value="rejected">🔴 Từ chối</MenuItem>
-                  </Select>
                 </TableCell>
                 <TableCell sx={{ ...cellSx, whiteSpace: 'nowrap' }}>
                   <Typography variant="caption" color="text.secondary">
-                    {new Date(issue.createdAt).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                    {new Date(issue.createdAt).toLocaleDateString('vi-VN')}
                   </Typography>
                 </TableCell>
                 <TableCell sx={cellSx}>
@@ -236,9 +342,8 @@ const IssueManagement: React.FC<Props> = ({ onDataChange }) => {
       </TableContainer>
 
       {pag.pages > 1 && (
-        <Stack alignItems="center" mt={2}>
-          <Pagination count={pag.pages} page={pag.current} onChange={(_, p) => loadIssues(p, filter)}
-            sx={{ '& .MuiPaginationItem-root': { color: 'text.secondary' } }} />
+        <Stack alignItems="center" sx={{ p: 2.5, borderTop: '1px solid', borderColor: 'divider' }}>
+          <Pagination count={pag.pages} page={pag.current} onChange={(_, nextPage) => setPage(nextPage)} />
         </Stack>
       )}
 

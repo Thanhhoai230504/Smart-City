@@ -218,7 +218,11 @@ const WorkActions: React.FC<{
   </Stack>
 );
 
-const StaffDashboard: React.FC = () => {
+interface StaffDashboardProps {
+  embedded?: boolean;
+}
+
+const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => {
   const navigate = useNavigate();
   const user = useSelector((state: RootState) => state.auth.user);
 
@@ -409,62 +413,64 @@ const StaffDashboard: React.FC = () => {
   return (
     <Box
       sx={{
-        maxWidth: 1500,
+        maxWidth: embedded ? 'none' : 1500,
         mx: 'auto',
-        px: { xs: 1.5, sm: 2.5, lg: 4 },
-        py: { xs: 2.5, md: 4 },
+        px: embedded ? 0 : { xs: 1.5, sm: 2.5, lg: 4 },
+        py: embedded ? 0 : { xs: 2.5, md: 4 },
       }}
     >
       <Stack spacing={2.5}>
-        <Box
-          component="header"
-          sx={{
-            pb: 3,
-            borderBottom: '1px solid',
-            borderColor: 'divider',
-          }}
-        >
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            spacing={2}
-            alignItems={{ sm: 'flex-end' }}
-            justifyContent="space-between"
+        {!embedded && (
+          <Box
+            component="header"
+            sx={{
+              pb: 3,
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+            }}
           >
-            <Box>
-              <Typography variant="body2" color="primary.main" fontWeight={700} mb={0.75}>
-                Bàn điều phối công việc
-              </Typography>
-              <Typography variant="h3" component="h1" mb={0.65}>
-                Công việc của đơn vị
-              </Typography>
-              <Typography color="text.secondary" mb={0.75}>
-                {user?.name}, theo dõi thứ tự ưu tiên, SLA và tiến độ xử lý tại đây.
-              </Typography>
-              <Typography variant="body2" fontWeight={650} color="text.primary">
-                {departmentLabel}
-              </Typography>
-            </Box>
-
-            <Stack direction="row" spacing={2.5} alignItems="center">
-              <Box sx={{ textAlign: { xs: 'left', sm: 'right' } }}>
-                <Typography variant="h5" component="p">
-                  {loading ? '—' : pagination.total}
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={2}
+              alignItems={{ sm: 'flex-end' }}
+              justifyContent="space-between"
+            >
+              <Box>
+                <Typography variant="body2" color="primary.main" fontWeight={700} mb={0.75}>
+                  Bàn điều phối công việc
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  công việc phù hợp
+                <Typography variant="h3" component="h1" mb={0.65}>
+                  Công việc của đơn vị
+                </Typography>
+                <Typography color="text.secondary" mb={0.75}>
+                  {user?.name}, theo dõi thứ tự ưu tiên, SLA và tiến độ xử lý tại đây.
+                </Typography>
+                <Typography variant="body2" fontWeight={650} color="text.primary">
+                  {departmentLabel}
                 </Typography>
               </Box>
-              <Button
-                variant="outlined"
-                startIcon={<Refresh />}
-                onClick={loadIssues}
-                disabled={loading || missingDepartment}
-              >
-                Làm mới
-              </Button>
+
+              <Stack direction="row" spacing={2.5} alignItems="center">
+                <Box sx={{ textAlign: { xs: 'left', sm: 'right' } }}>
+                  <Typography variant="h5" component="p">
+                    {loading ? '—' : pagination.total}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    công việc phù hợp
+                  </Typography>
+                </Box>
+                <Button
+                  variant="outlined"
+                  startIcon={<Refresh />}
+                  onClick={loadIssues}
+                  disabled={loading || missingDepartment}
+                >
+                  Làm mới
+                </Button>
+              </Stack>
             </Stack>
-          </Stack>
-        </Box>
+          </Box>
+        )}
 
         {missingDepartment && (
           <Alert severity="warning" icon={<WarningAmber />}>
@@ -562,10 +568,26 @@ const StaffDashboard: React.FC = () => {
                 }}
               >
                 <Box sx={{ minWidth: 0 }}>
-                  <Typography fontWeight={700}>Danh sách nhiệm vụ</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {filterDescription}
-                  </Typography>
+                  <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+                    <Box minWidth={0}>
+                      <Typography fontWeight={700}>Danh sách nhiệm vụ</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {filterDescription}
+                      </Typography>
+                    </Box>
+                    {embedded && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={<Refresh />}
+                        onClick={loadIssues}
+                        disabled={loading || missingDepartment}
+                        sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+                      >
+                        Làm mới
+                      </Button>
+                    )}
+                  </Stack>
                 </Box>
 
                 <FormControl size="small">

@@ -66,6 +66,41 @@ describe('UserService', () => {
 
       expect(User.find).toHaveBeenCalledWith(expect.objectContaining({ isActive: true }));
     });
+
+    it('should apply an escaped name/email search', async () => {
+      User.find.mockReturnValue({
+        sort: jest.fn().mockReturnValue({
+          skip: jest.fn().mockReturnValue({
+            limit: jest.fn().mockResolvedValue([]),
+          }),
+        }),
+      });
+      User.countDocuments.mockResolvedValue(0);
+
+      await userService.getUsers({ search: 'an.+@mail', page: 1, limit: 10 });
+
+      const filter = User.find.mock.calls[0][0];
+      expect(filter.$or).toHaveLength(2);
+      expect(filter.$or[0].name).toBeInstanceOf(RegExp);
+      expect(filter.$or[0].name.test('An.+@mail')).toBe(true);
+      expect(filter.$or[0].name.test('annnn@mail')).toBe(false);
+    });
+
+    it('should apply a valid department filter', async () => {
+      User.find.mockReturnValue({
+        sort: jest.fn().mockReturnValue({
+          skip: jest.fn().mockReturnValue({
+            limit: jest.fn().mockResolvedValue([]),
+          }),
+        }),
+      });
+      User.countDocuments.mockResolvedValue(0);
+      const departmentId = new mongoose.Types.ObjectId().toString();
+
+      await userService.getUsers({ departmentId, page: 1, limit: 10 });
+
+      expect(User.find).toHaveBeenCalledWith(expect.objectContaining({ departmentId }));
+    });
   });
 
   describe('updateUserRole()', () => {

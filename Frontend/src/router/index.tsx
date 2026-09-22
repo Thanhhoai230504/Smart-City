@@ -18,6 +18,9 @@ const LoginPage = lazy(() => import('../pages/Login'));
 const RegisterPage = lazy(() => import('../pages/Register'));
 const VerifyEmailPage = lazy(() => import('../pages/VerifyEmail'));
 const AdminDashboard = lazy(() => import('../pages/AdminDashboard'));
+const UserManagementPage = lazy(() => import('../pages/UserManagement'));
+const AdminIssuesPage = lazy(() => import('../pages/AdminIssues'));
+const PlaceManagementPage = lazy(() => import('../pages/PlaceManagement'));
 const StaffDashboard = lazy(() => import('../pages/StaffDashboard'));
 const AuthCallbackPage = lazy(() => import('../pages/AuthCallback'));
 const StatisticsPage = lazy(() => import('../pages/Statistics'));
@@ -49,8 +52,11 @@ const AppRouter: React.FC = () => {
         <Route path="/report" element={page(<ProtectedRoute><ReportIssuePage /></ProtectedRoute>)} />
         <Route path="/my-issues" element={page(<ProtectedRoute><MyIssuesPage /></ProtectedRoute>)} />
         <Route path="/profile" element={page(<ProtectedRoute><ProfilePage /></ProtectedRoute>)} />
-        <Route path="/staff" element={page(<ProtectedRoute roles={['staff', 'admin']}><StaffDashboard /></ProtectedRoute>)} />
+        <Route path="/staff" element={page(<ProtectedRoute roles={['staff']}><StaffDashboard /></ProtectedRoute>)} />
         <Route path="/admin" element={page(<ProtectedRoute roles={['admin']}><AdminDashboard /></ProtectedRoute>)} />
+        <Route path="/admin/users" element={page(<ProtectedRoute roles={['admin']}><UserManagementPage /></ProtectedRoute>)} />
+        <Route path="/admin/issues" element={page(<ProtectedRoute roles={['admin']}><AdminIssuesPage /></ProtectedRoute>)} />
+        <Route path="/admin/places" element={page(<ProtectedRoute roles={['admin']}><PlaceManagementPage /></ProtectedRoute>)} />
 
         {/* 404 */}
         <Route path="*" element={page(<NotFoundPage />)} />

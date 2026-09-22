@@ -12,7 +12,7 @@ import {
 import {
   Menu as MenuIcon, Map as MapIcon, ReportProblem, Home, ListAlt,
   Login, PersonAdd, Person, Logout, Add, Dashboard,
-  BarChart as BarChartIcon, AssignmentInd, Videocam,
+  BarChart as BarChartIcon, AssignmentInd, LocationOnOutlined, PeopleAltOutlined, Videocam,
 } from '@mui/icons-material';
 
 const NotificationCenter = lazy(() => import('../components/NotificationCenter'));
@@ -32,7 +32,7 @@ const ROLE_NAV_ITEMS: Array<{
   icon: React.ReactElement;
   roles: UserRole[];
 }> = [
-  { label: 'Cán bộ', path: '/staff', icon: <AssignmentInd />, roles: ['staff', 'admin'] },
+  { label: 'Cán bộ', path: '/staff', icon: <AssignmentInd />, roles: ['staff'] },
   { label: 'Dashboard', path: '/admin', icon: <Dashboard />, roles: ['admin'] },
 ];
 
@@ -61,14 +61,32 @@ const Header: React.FC = () => {
   return (
     <>
       <AppBar position="fixed" elevation={0}>
-        <Toolbar sx={{ maxWidth: 1400, width: '100%', mx: 'auto', px: { xs: 1, md: 3 }, overflow: 'hidden' }}>
+        <Toolbar
+          sx={{
+            width: '100%',
+            px: { xs: 1, md: 2, lg: 2.5 },
+            gap: { xs: 0, md: 1 },
+            overflow: 'visible',
+          }}
+        >
           {isMobile && (
             <IconButton color="inherit" onClick={() => setDrawerOpen(true)} sx={{ mr: 1 }}>
               <MenuIcon />
             </IconButton>
           )}
 
-          <Box component={RouterLink} to="/" sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none', color: 'inherit', gap: 1.5 }}>
+          <Box
+            component={RouterLink}
+            to="/"
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              flexShrink: 0,
+              textDecoration: 'none',
+              color: 'inherit',
+              gap: 1.5,
+            }}
+          >
             <Box sx={{
               width: 36, height: 36, borderRadius: '10px',
               background: '#176B87',
@@ -81,7 +99,18 @@ const Header: React.FC = () => {
           </Box>
 
           {!isMobile && (
-            <Box sx={{ display: 'flex', gap: 0.5, ml: 4 }}>
+            <Box
+              component="nav"
+              aria-label="Điều hướng chính"
+              sx={{
+                display: 'flex',
+                flex: '1 1 0',
+                minWidth: 0,
+                alignItems: 'center',
+                justifyContent: 'space-evenly',
+                mx: { md: 1.5, lg: 3 },
+              }}
+            >
               {NAV_ITEMS.map((item) => (
                 <Button
                   key={item.path}
@@ -89,6 +118,11 @@ const Header: React.FC = () => {
                   to={item.path}
                   startIcon={item.icon}
                   sx={{
+                    flex: '1 1 0',
+                    minWidth: 0,
+                    px: { md: 0.75, lg: 1.25 },
+                    whiteSpace: 'nowrap',
+                    justifyContent: 'center',
                     color: location.pathname === item.path ? 'primary.main' : 'text.secondary',
                     fontWeight: location.pathname === item.path ? 600 : 400,
                     '&:hover': { color: 'primary.dark', bgcolor: '#EFF7F9' },
@@ -104,6 +138,11 @@ const Header: React.FC = () => {
                   to={item.path}
                   startIcon={item.icon}
                   sx={{
+                    flex: '1 1 0',
+                    minWidth: 0,
+                    px: { md: 0.75, lg: 1.25 },
+                    whiteSpace: 'nowrap',
+                    justifyContent: 'center',
                     color: location.pathname === item.path ? 'primary.main' : 'text.secondary',
                     fontWeight: location.pathname === item.path ? 600 : 400,
                     '&:hover': { color: 'primary.light', bgcolor: 'rgba(14,165,233,0.08)' },
@@ -115,10 +154,8 @@ const Header: React.FC = () => {
             </Box>
           )}
 
-          <Box sx={{ flexGrow: 1 }} />
-
           {isAuthenticated ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
               <Button variant="contained" size="small" startIcon={<Add />} onClick={() => navigate('/report')}
                 sx={{ display: { xs: 'none', sm: 'flex' }, borderRadius: '20px' }}>
                 Báo cáo
@@ -193,6 +230,27 @@ const Header: React.FC = () => {
               </ListItemButton>
             </ListItem>
           ))}
+          {user?.role === 'admin' && (
+            <>
+              {[
+                { label: 'Quản lý sự cố', path: '/admin/issues', icon: <ReportProblem /> },
+                { label: 'Người dùng & cán bộ', path: '/admin/users', icon: <PeopleAltOutlined /> },
+                { label: 'Quản lý địa điểm', path: '/admin/places', icon: <LocationOnOutlined /> },
+              ].map((item) => (
+                <ListItem key={item.path} disablePadding>
+                  <ListItemButton
+                    onClick={() => { setDrawerOpen(false); navigate(item.path); }}
+                    selected={location.pathname === item.path}
+                  >
+                    <ListItemIcon sx={{ color: location.pathname === item.path ? 'primary.main' : 'text.secondary' }}>
+                      {item.icon}
+                    </ListItemIcon>
+                    <ListItemText primary={item.label} />
+                  </ListItemButton>
+                </ListItem>
+              ))}
+            </>
+          )}
         </List>
       </Drawer>
 

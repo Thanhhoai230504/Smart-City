@@ -489,16 +489,30 @@ const AssignmentManagement: React.FC = () => {
                           </Typography>
                         </TableCell>
                         <TableCell sx={cellSx}>
-                          <Stack direction="row" spacing={0.5}>
-                            <Tooltip title="Xem chi tiết">
-                              <IconButton
-                                size="small"
-                                onClick={() => navigate(`/issues/${issue._id}`)}
-                                sx={{ color: '#0EA5E9' }}
-                              >
-                                <OpenInNew fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
+                          <Stack
+                            direction={{ xs: 'column', sm: 'row' }}
+                            spacing={0.75}
+                            alignItems={{ xs: 'stretch', sm: 'center' }}
+                          >
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              startIcon={<OpenInNew fontSize="small" />}
+                              onClick={() => navigate(`/issues/${issue._id}`)}
+                              sx={{
+                                minWidth: 116,
+                                whiteSpace: 'nowrap',
+                                textTransform: 'none',
+                                borderColor: '#BAE6FD',
+                                color: '#0284C7',
+                                '&:hover': {
+                                  borderColor: '#0284C7',
+                                  bgcolor: 'rgba(14,165,233,0.06)',
+                                },
+                              }}
+                            >
+                              Xem chi tiết
+                            </Button>
                             <Button
                               variant="contained"
                               size="small"
@@ -594,16 +608,30 @@ const AssignmentManagement: React.FC = () => {
                         />
                       </TableCell>
                       <TableCell sx={cellSx}>
-                        <Stack direction="row" spacing={0.5}>
-                          <Tooltip title="Xem chi tiết">
-                            <IconButton
-                              size="small"
-                              onClick={() => navigate(`/issues/${issue._id}`)}
-                              sx={{ color: '#0EA5E9' }}
-                            >
-                              <OpenInNew fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
+                        <Stack
+                          direction={{ xs: 'column', sm: 'row' }}
+                          spacing={0.75}
+                          alignItems={{ xs: 'stretch', sm: 'center' }}
+                        >
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            startIcon={<OpenInNew fontSize="small" />}
+                            onClick={() => navigate(`/issues/${issue._id}`)}
+                            sx={{
+                              minWidth: 116,
+                              whiteSpace: 'nowrap',
+                              textTransform: 'none',
+                              borderColor: '#BAE6FD',
+                              color: '#0284C7',
+                              '&:hover': {
+                                borderColor: '#0284C7',
+                                bgcolor: 'rgba(14,165,233,0.06)',
+                              },
+                            }}
+                          >
+                            Xem chi tiết
+                          </Button>
                           <Tooltip title="Thu hồi phân công">
                             <IconButton
                               size="small"

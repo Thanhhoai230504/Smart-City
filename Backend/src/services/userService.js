@@ -1,13 +1,34 @@
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const Issue = require('../models/Issue');
 const ApiError = require('../utils/apiError');
 const { getBadgesForCount } = require('../utils/badgeConfig');
 const { parsePagination } = require('../utils/pagination');
 
-const getUsers = async ({ role, isActive, page = 1, limit = 10 }) => {
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const getUsers = async ({
+  role,
+  isActive,
+  departmentId,
+  search,
+  page = 1,
+  limit = 10,
+}) => {
   const filter = {};
-  if (role) filter.role = role;
-  if (isActive !== undefined) filter.isActive = isActive === 'true';
+  if (['user', 'staff', 'admin'].includes(role)) filter.role = role;
+  if (isActive !== undefined && isActive !== '') {
+    filter.isActive = isActive === true || isActive === 'true';
+  }
+  if (departmentId) {
+    filter.departmentId = mongoose.isValidObjectId(departmentId)
+      ? departmentId
+      : { $in: [] };
+  }
+  if (typeof search === 'string' && search.trim()) {
+    const pattern = new RegExp(escapeRegExp(search.trim()), 'i');
+    filter.$or = [{ name: pattern }, { email: pattern }];
+  }
 
   const { pageNum, limitNum, skip } = parsePagination(
     { page, limit },

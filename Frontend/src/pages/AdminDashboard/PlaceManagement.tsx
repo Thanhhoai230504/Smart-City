@@ -8,7 +8,7 @@ import {
   Paper, List, ListItemButton, ListItemText, InputAdornment, CircularProgress,
   Pagination,
 } from '@mui/material';
-import { Delete, Edit, Add, Close, LocationOn, Search, MyLocation } from '@mui/icons-material';
+import { Delete, Edit, Add, Close, LocationOn, Search, MyLocation, Refresh } from '@mui/icons-material';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { DA_NANG_CENTER, DEFAULT_ZOOM } from '../../utils/constants';
@@ -60,10 +60,11 @@ const placeMarkerIcon = L.divIcon({
 const ITEMS_PER_PAGE = 8;
 
 interface Props {
-  onDataChange: () => void;
+  onDataChange?: () => void;
+  standalone?: boolean;
 }
 
-const PlaceManagement: React.FC<Props> = ({ onDataChange }) => {
+const PlaceManagement: React.FC<Props> = ({ onDataChange = () => undefined, standalone = false }) => {
   const [places, setPlaces] = useState<PlaceItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -74,6 +75,7 @@ const PlaceManagement: React.FC<Props> = ({ onDataChange }) => {
 
   // Filter & Pagination state
   const [typeFilter, setTypeFilter] = useState('');
+  const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
   // Goong autocomplete state
@@ -105,9 +107,15 @@ const PlaceManagement: React.FC<Props> = ({ onDataChange }) => {
 
   // Filter + paginate places client-side
   const filteredPlaces = useMemo(() => {
-    if (!typeFilter) return places;
-    return places.filter(p => p.type === typeFilter);
-  }, [places, typeFilter]);
+    const keyword = search.trim().toLocaleLowerCase('vi');
+    return places.filter((place) => {
+      if (typeFilter && place.type !== typeFilter) return false;
+      if (!keyword) return true;
+      return [place.name, place.address, place.description, place.phone]
+        .filter(Boolean)
+        .some((value) => value?.toLocaleLowerCase('vi').includes(keyword));
+    });
+  }, [places, search, typeFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredPlaces.length / ITEMS_PER_PAGE));
   const pagedPlaces = useMemo(() => {
@@ -116,7 +124,7 @@ const PlaceManagement: React.FC<Props> = ({ onDataChange }) => {
   }, [filteredPlaces, currentPage]);
 
   // Reset page when filter changes
-  useEffect(() => { setCurrentPage(1); }, [typeFilter]);
+  useEffect(() => { setCurrentPage(1); }, [search, typeFilter]);
 
   const resetForm = () => {
     setForm({ name: '', type: 'hospital', address: '', latitude: null, longitude: null, description: '', phone: '' });
@@ -205,10 +213,21 @@ const PlaceManagement: React.FC<Props> = ({ onDataChange }) => {
   };
 
   return (
-    <GlassCard>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2} flexWrap="wrap" gap={1}>
-        <Typography fontWeight={600} variant="h6">📍 Quản lý địa điểm</Typography>
-        <Stack direction="row" spacing={1} alignItems="center">
+    <GlassCard sx={standalone ? { p: 0, overflow: 'hidden' } : undefined}>
+      <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ md: 'center' }} justifyContent="space-between" p={standalone ? { xs: 2, md: 2.5 } : 0} mb={standalone ? 0 : 2} flexWrap="wrap" gap={1.5} sx={standalone ? { borderBottom: '1px solid', borderColor: 'divider' } : undefined}>
+        <Box>
+          <Typography fontWeight={700} variant="h6">Danh sách địa điểm đô thị</Typography>
+          <Typography variant="body2" color="text.secondary">Các điểm nhạy cảm được dùng trên bản đồ và trong thuật toán xếp hạng ưu tiên.</Typography>
+        </Box>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }}>
+          <TextField
+            size="small"
+            label="Tìm tên hoặc địa chỉ"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            InputProps={{ startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment> }}
+            sx={{ minWidth: { sm: 220 } }}
+          />
           {/* Type Filter */}
           <FormControl size="small" sx={{ minWidth: 150 }}>
             <InputLabel sx={{ color: 'text.secondary' }}>Loại</InputLabel>
@@ -219,13 +238,16 @@ const PlaceManagement: React.FC<Props> = ({ onDataChange }) => {
             </Select>
           </FormControl>
           <Chip label={`${filteredPlaces.length} địa điểm`} sx={{ bgcolor: '#F5EAF0', color: '#8F4967', fontWeight: 600 }} />
+          <Tooltip title="Làm mới dữ liệu">
+            <span><IconButton onClick={loadPlaces} disabled={loading}><Refresh /></IconButton></span>
+          </Tooltip>
           <Button variant="contained" size="small" startIcon={<Add />} onClick={() => openForm()}
             sx={{ borderRadius: '10px', textTransform: 'none' }}>Thêm</Button>
         </Stack>
       </Stack>
 
       {/* ── Table ── */}
-      <TableContainer>
+      <TableContainer sx={standalone ? undefined : {}}>
         <Table size="small">
           <TableHead><TableRow>
             {['Tên', 'Loại', 'Địa chỉ', 'Toạ độ', 'SĐT', 'Thao tác'].map(h => (
@@ -269,7 +291,7 @@ const PlaceManagement: React.FC<Props> = ({ onDataChange }) => {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <Stack alignItems="center" mt={2}>
+        <Stack alignItems="center" mt={standalone ? 0 : 2} sx={standalone ? { p: 2.5, borderTop: '1px solid', borderColor: 'divider' } : undefined}>
           <Pagination count={totalPages} page={currentPage} onChange={(_, p) => setCurrentPage(p)}
             sx={{ '& .MuiPaginationItem-root': { color: 'text.secondary' } }} />
         </Stack>
