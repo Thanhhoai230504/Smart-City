@@ -301,7 +301,7 @@ const PlaceManagement: React.FC<Props> = ({ onDataChange = () => undefined, stan
         PaperProps={{ sx: { bgcolor: '#FFFFFF', border: '1px solid #DCE7EB', borderRadius: '14px', maxHeight: '90vh' } }}>
         <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           {editing ? '✏️ Sửa địa điểm' : '➕ Thêm địa điểm mới'}
-          <IconButton onClick={closeDialog} size="small"><Close /></IconButton>
+          <IconButton aria-label="Đóng" onClick={closeDialog} size="small"><Close /></IconButton>
         </DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', gap: 2.5, flexDirection: { xs: 'column', md: 'row' }, mt: 1 }}>
@@ -328,7 +328,7 @@ const PlaceManagement: React.FC<Props> = ({ onDataChange = () => undefined, stan
                     startAdornment: <InputAdornment position="start"><LocationOn sx={{ color: 'text.secondary', fontSize: 20 }} /></InputAdornment>,
                     endAdornment: (
                       <InputAdornment position="end">
-                        <IconButton onClick={handleSearchClick} disabled={searching || !form.address.trim()} size="small" color="primary">
+                        <IconButton aria-label="Tìm địa chỉ" onClick={handleSearchClick} disabled={searching || !form.address.trim()} size="small" color="primary">
                           {searching ? <CircularProgress size={18} /> : <Search />}
                         </IconButton>
                       </InputAdornment>
@@ -344,7 +344,7 @@ const PlaceManagement: React.FC<Props> = ({ onDataChange = () => undefined, stan
                   }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 2, pt: 1 }}>
                       <Typography variant="caption" color="text.secondary">{suggestions.length} kết quả</Typography>
-                      <IconButton size="small" onClick={() => setShowSuggestions(false)}><Close fontSize="small" /></IconButton>
+                      <IconButton aria-label="Đóng gợi ý địa chỉ" size="small" onClick={() => setShowSuggestions(false)}><Close fontSize="small" /></IconButton>
                     </Box>
                     <List dense disablePadding>
                       {suggestions.map(s => (

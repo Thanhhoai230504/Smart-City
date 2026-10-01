@@ -1,3 +1,6 @@
+// Chỉ import KIỂU (bị xoá khi build) — không tạo vòng phụ thuộc lúc chạy.
+import type { NOTIFICATION_TYPES } from '../utils/constants';
+
 // ============ User ============
 export type UserRole = 'user' | 'staff' | 'admin';
 
@@ -212,6 +215,16 @@ export interface Issue {
   updatedAt: string;
 }
 
+/** Một dòng của `GET /api/badges/leaderboard` — API trả MẢNG trực tiếp trong `data`. */
+export interface LeaderboardEntry {
+  userId: string;
+  name: string;
+  avatar?: string | null;
+  issueCount: number;
+  rank: number;
+  topBadge: { id: string; label: string; icon: string; threshold: number } | null;
+}
+
 export interface NearbyIssue {
   _id: string;
   title: string;
@@ -263,6 +276,27 @@ export interface DuplicateCandidateMeta {
   model: string;
   providerError: string | null;
   geoCandidatesScanned: number;
+}
+
+/** `GET /api/issues/duplicate/metrics` — số liệu VẬN HÀNH trong RAM, reset khi server khởi động lại. */
+export interface DuplicateMetrics {
+  startedAt: string;
+  requests: number;
+  embeddingRequests: number;
+  mixedRequests: number;
+  fallbackRequests: number;
+  providerErrors: number;
+  cacheHits: number;
+  cacheMisses: number;
+  confirmations: number;
+  merges: number;
+  avgLatencyMs: number;
+  avgCandidates: number;
+  fallbackRate: number;
+  providerErrorRate: number;
+  cacheHitRate: number;
+  confirmationRate: number;
+  mergeRate: number;
 }
 
 export interface DuplicateConfig {
@@ -385,19 +419,8 @@ export interface Comment {
  * làm SLA/phân công) — nên frontend không type-check được khi nhánh theo các type
  * đó. Backend thêm type mới thì phải thêm vào đây.
  */
-export type NotificationType =
-  | 'issue_created'
-  | 'issue_updated'
-  | 'issue_resolved'
-  | 'issue_rejected'
-  | 'comment'
-  | 'area_alert'
-  | 'issue_assigned'
-  | 'sla_reminder'
-  | 'sla_escalated'
-  | 'issue_merged'
-  | 'intake_overdue'
-  | 'issue_reopened';
+/** Suy ra từ NOTIFICATION_TYPES — không khai tay để không lệch backend lần nữa. */
+export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
 export interface Notification {
   _id: string;

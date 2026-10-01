@@ -156,11 +156,27 @@ const rateIssue = async (req, res, next) => {
   }
 };
 
+// Route công khai, không có validator: kiểm tra toạ độ và chặn bán kính ở đây.
+// Thiếu bước này, `lat=abc` thành NaN -> MongoDB ném lỗi -> 500 thay vì 400, và
+// bán kính không trần bắt $geoNear quét cả index địa lý.
+const NEARBY_RADIUS = { default: 300, min: 50, max: 2000 };
+
 const getNearbyIssues = async (req, res, next) => {
   try {
-    const { lat, lng, radius = 300 } = req.query;
-    if (!lat || !lng) return res.status(400).json({ success: false, message: 'lat and lng are required' });
-    const issues = await issueService.getNearbyIssues(parseFloat(lat), parseFloat(lng), parseInt(radius));
+    const lat = Number(req.query.lat);
+    const lng = Number(req.query.lng);
+    const validLat = req.query.lat !== undefined && Number.isFinite(lat) && Math.abs(lat) <= 90;
+    const validLng = req.query.lng !== undefined && Number.isFinite(lng) && Math.abs(lng) <= 180;
+    if (!validLat || !validLng) {
+      return res.status(400).json({ success: false, message: 'lat và lng phải là toạ độ hợp lệ' });
+    }
+
+    const parsed = parseInt(req.query.radius, 10);
+    const radius = Number.isFinite(parsed)
+      ? Math.min(Math.max(parsed, NEARBY_RADIUS.min), NEARBY_RADIUS.max)
+      : NEARBY_RADIUS.default;
+
+    const issues = await issueService.getNearbyIssues(lat, lng, radius);
     res.json({ success: true, data: { issues } });
   } catch (error) {
     next(error);

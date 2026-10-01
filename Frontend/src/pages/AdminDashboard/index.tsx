@@ -6,7 +6,6 @@ import {
   Avatar,
   Box,
   Button,
-  CircularProgress,
   LinearProgress,
   Snackbar,
   Stack,
@@ -38,6 +37,7 @@ import {
 } from 'recharts';
 import { RootState } from '../../store/store';
 import { dashboardApi } from '../../api/dashboardApi';
+import ReportPreviewDialog from './ReportPreviewDialog';
 import { environmentApi } from '../../api/environmentApi';
 import {
   CATEGORY_LABELS,
@@ -51,6 +51,7 @@ import {
 } from './types';
 import AssignmentManagement from './AssignmentManagement';
 import AuditLogManagement from './AuditLogManagement';
+import AiTransparency from './AiTransparency';
 import CameraManagement from './CameraManagement';
 import DashboardLoading from './DashboardLoading';
 import DepartmentManagement from './DepartmentManagement';
@@ -60,7 +61,7 @@ import ExportButton from './ExportButton';
 import StaffDashboard from '../StaffDashboard';
 import TrafficDashboard from './TrafficDashboard';
 
-const TAB_KEYS = ['overview', 'departments', 'assignments', 'work', 'performance', 'cameras', 'audit'];
+const TAB_KEYS = ['overview', 'departments', 'assignments', 'work', 'performance', 'cameras', 'audit', 'ai'];
 const TAB_HEADINGS = [
   ['Tổng quan điều hành', 'Theo dõi hoạt động và điều phối dịch vụ đô thị Đà Nẵng'],
   ['Đơn vị xử lý', 'Quản lý cơ quan, phạm vi phụ trách và SLA theo đơn vị'],
@@ -69,6 +70,7 @@ const TAB_HEADINGS = [
   ['Hiệu suất đơn vị', 'Theo dõi tiến độ, chất lượng và khả năng đáp ứng SLA'],
   ['Quản lý camera', 'Theo dõi các điểm camera công cộng và luồng giám sát'],
   ['Nhật ký hoạt động', 'Tra cứu các thay đổi quan trọng trong hệ thống'],
+  ['Minh bạch AI', 'Cách hệ thống chấm điểm ưu tiên và gợi ý sự cố trùng lặp'],
 ];
 
 const overviewGridSx = {
@@ -146,7 +148,7 @@ const AdminDashboard: React.FC = () => {
   const [traffic, setTraffic] = useState<TrafficStats | null>(null);
   const [envData, setEnvData] = useState<EnvData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sendingReport, setSendingReport] = useState(false);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [reportNotice, setReportNotice] = useState<{
     open: boolean;
     severity: 'success' | 'error';
@@ -181,24 +183,9 @@ const AdminDashboard: React.FC = () => {
     })();
   }, [isAuthenticated, currentUser]);
 
-  const sendWeeklyReport = async () => {
-    setSendingReport(true);
-    try {
-      await dashboardApi.sendReport('weekly');
-      setReportNotice({
-        open: true,
-        severity: 'success',
-        message: 'Đã gửi báo cáo tuần đến email quản trị.',
-      });
-    } catch {
-      setReportNotice({
-        open: true,
-        severity: 'error',
-        message: 'Không thể gửi báo cáo. Vui lòng thử lại.',
-      });
-    } finally {
-      setSendingReport(false);
-    }
+  // Gửi báo cáo không hoàn tác được nên luôn đi qua bước xem trước.
+  const handleReportSent = (message: string) => {
+    setReportNotice({ open: true, severity: 'success', message });
   };
 
   const districtData = (stats?.issuesByDistrict || []).filter((item) => item.count > 0);
@@ -343,11 +330,10 @@ const AdminDashboard: React.FC = () => {
               <Button
                 size="small"
                 variant="outlined"
-                startIcon={sendingReport ? <CircularProgress size={14} /> : <Email />}
-                disabled={sendingReport}
-                onClick={sendWeeklyReport}
+                startIcon={<Email />}
+                onClick={() => setReportDialogOpen(true)}
               >
-                {sendingReport ? 'Đang gửi...' : 'Gửi báo cáo'}
+                Gửi báo cáo
               </Button>
             </Stack>
           )}
@@ -379,6 +365,7 @@ const AdminDashboard: React.FC = () => {
           <Tab label="Hiệu suất" />
           <Tab label="Camera" />
           <Tab label="Nhật ký" />
+          <Tab label="Minh bạch AI" />
         </Tabs>
       </Box>
 
@@ -701,9 +688,17 @@ const AdminDashboard: React.FC = () => {
         <Box mt={{ xs: 0, lg: 2.5 }}><DepartmentPerformance /></Box>
       ) : activeTab === 5 ? (
         <Box mt={{ xs: 0, lg: 2.5 }}><CameraManagement /></Box>
-      ) : (
+      ) : activeTab === 6 ? (
         <Box mt={{ xs: 0, lg: 2.5 }}><AuditLogManagement /></Box>
+      ) : (
+        <Box mt={{ xs: 0, lg: 2.5 }}><AiTransparency /></Box>
       )}
+
+      <ReportPreviewDialog
+        open={reportDialogOpen}
+        onClose={() => setReportDialogOpen(false)}
+        onSent={handleReportSent}
+      />
 
       <Snackbar
         open={reportNotice.open}

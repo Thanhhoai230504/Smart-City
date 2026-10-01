@@ -15,12 +15,23 @@ export const CATEGORY_MAP: Record<string, { label: string; color: string; icon: 
   other: { label: 'Khác', color: '#6B7280', icon: '📌' },
 };
 
-// Issue statuses with Vietnamese labels and colors
-export const STATUS_MAP: Record<string, { label: string; color: string; icon: string }> = {
-  reported: { label: 'Mới báo cáo', color: '#EF4444', icon: '🟡' },
-  processing: { label: 'Đang xử lý', color: '#F59E0B', icon: '🔵' },
-  resolved: { label: 'Đã xử lý', color: '#10B981', icon: '🟢' },
-  rejected: { label: 'Từ chối', color: '#6B7280', icon: '🔴' },
+/**
+ * Màu trạng thái — HAI vai trò khác nhau, đừng dùng lẫn:
+ *
+ * - `color`: màu ĐỒ HOẠ (chấm tròn, viền, biểu đồ, marker). WCAG chỉ đòi 3:1
+ *   cho đồ hoạ, nên giữ màu tươi để biểu đồ dễ phân biệt.
+ * - `text` trên `bg`: dùng khi màu là CHỮ (chip, nhãn). Đã đo, mọi cặp ≥ 4.5:1.
+ *
+ * Trước đây chip dùng `color` làm chữ trên nền tô alpha của chính nó, cho ra
+ * 2.15:1 (processing) và 2.54:1 (resolved) — không đạt chuẩn ở đúng những chỗ
+ * truyền thông tin quan trọng nhất. Bảng đo ở APP-DESIGN-SYSTEM.md mục 2–3;
+ * test ở constants.test.ts chặn việc đổi màu làm tụt dưới ngưỡng.
+ */
+export const STATUS_MAP: Record<string, { label: string; color: string; text: string; bg: string; icon: string }> = {
+  reported: { label: 'Mới báo cáo', color: '#EF4444', text: '#A82C22', bg: '#FBE9E7', icon: '🟡' },
+  processing: { label: 'Đang xử lý', color: '#F59E0B', text: '#7D4F05', bg: '#FDF2E0', icon: '🔵' },
+  resolved: { label: 'Đã xử lý', color: '#10B981', text: '#17543E', bg: '#E6F2EC', icon: '🟢' },
+  rejected: { label: 'Từ chối', color: '#6B7280', text: '#485862', bg: '#EDF1F4', icon: '🔴' },
 };
 
 /**
@@ -48,24 +59,46 @@ export const setStatusTransitions = (next?: Record<string, string[]> | null) => 
 
 export const ALLOWED_STATUS_TRANSITIONS = statusTransitions;
 
-/**
- * Mở lại sự cố (G8) — khớp Backend/src/utils/reopenConfig.js.
- * Chỉ dùng để ẩn/hiện nút; backend mới là nơi phán quyết và trả mã lỗi.
- */
-export const MAX_REOPEN_COUNT = 2;
-export const REOPEN_WINDOW_DAYS = 30;
-export const MIN_REOPEN_REASON_LENGTH = 10;
-export const MAX_REOPEN_REASON_LENGTH = 500;
+// Luật mở lại sự cố (G8) đã chuyển sang utils/reopen.ts và nạp từ /api/meta/enums.
 
 /** Đích đến hợp lệ từ một trạng thái, để dựng bộ chọn. Rỗng = không còn đích nào. */
 export const getAllowedStatusTargets = (from?: string | null): string[] =>
   (from && statusTransitions[from]) || [];
 
+/** Cùng quy ước với STATUS_MAP: `color` cho đồ hoạ, `text` trên `background` cho chữ. */
 export const PRIORITY_MAP = {
-  low: { label: 'Thấp', color: '#94A3B8', background: 'rgba(148,163,184,0.14)' },
-  medium: { label: 'Trung bình', color: '#FBBF24', background: 'rgba(251,191,36,0.14)' },
-  high: { label: 'Cao', color: '#FB923C', background: 'rgba(251,146,60,0.15)' },
-  critical: { label: 'Khẩn cấp', color: '#F87171', background: 'rgba(248,113,113,0.16)' },
+  low: { label: 'Thấp', color: '#94A3B8', text: '#485862', background: '#EDF1F4' },
+  medium: { label: 'Trung bình', color: '#FBBF24', text: '#6B4E00', background: '#FCF3DA' },
+  high: { label: 'Cao', color: '#FB923C', text: '#8A3D10', background: '#FCEDE2' },
+  critical: { label: 'Khẩn cấp', color: '#F87171', text: '#8C1D16', background: '#FBE7E5' },
+} as const;
+
+/**
+ * Mọi loại thông báo backend có thể gửi — NGUỒN DUY NHẤT phía web.
+ *
+ * Kiểu `NotificationType` suy ra từ mảng này, và map icon ở NotificationCenter
+ * khai báo `Record<NotificationType, …>` nên thiếu icon là tsc báo lỗi. Danh sách
+ * này đã lệch backend BA lần (E6, F1, I1/I2); test ở constants.test.ts đọc enum
+ * thật trong Backend/src/models/Notification.js để không có lần thứ tư.
+ */
+export const NOTIFICATION_TYPES = [
+  'issue_created', 'issue_updated', 'issue_resolved', 'issue_rejected',
+  'comment', 'area_alert',
+  'issue_assigned', 'sla_reminder', 'sla_escalated',
+  'issue_merged', 'intake_overdue', 'issue_reopened',
+  'issue_rated', 'issue_unassigned',
+] as const;
+
+/** Badge "phiếu bị người dân mở lại" (G8) — cặp chữ/nền đã đo 6.66:1. */
+export const REOPENED_BADGE = { text: '#8A3D10', bg: '#FCEDE2' } as const;
+
+/** Màu badge SLA — trước nằm trong SlaBadge.tsx với 3 màu chữ không đạt chuẩn. */
+export const SLA_STATUS_MAP = {
+  on_time: { label: 'Trong hạn', text: '#17543E', bg: '#E6F2EC', icon: '⏱️' },
+  due_soon: { label: 'Sắp đến hạn', text: '#7D4F05', bg: '#FDF2E0', icon: '⏳' },
+  overdue: { label: 'Quá hạn', text: '#B3261E', bg: '#FBE7E5', icon: '🔥' },
+  met: { label: 'Đúng hạn', text: '#17543E', bg: '#E6F2EC', icon: '✅' },
+  breached: { label: 'Trễ hạn', text: '#8C1D16', bg: '#FBE7E5', icon: '⚠️' },
 } as const;
 
 export const PRIORITY_FACTOR_LABELS = {

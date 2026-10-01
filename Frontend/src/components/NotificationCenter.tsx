@@ -11,15 +11,33 @@ import {
 import {
   Notifications, NotificationsNone, DoneAll, Circle,
   BugReport, CheckCircle, Comment, Update,
+  LocationOn, AssignmentInd, AssignmentReturn, AccessTime, PriorityHigh,
+  HourglassBottom, Replay, StarRate, MergeType,
 } from '@mui/icons-material';
-import { Notification } from '../types';
+import { Notification, NotificationType } from '../types';
 
-const typeIcons: Record<string, React.ReactNode> = {
-  issue_created: <BugReport sx={{ color: '#EF4444', fontSize: 18 }} />,
-  issue_updated: <Update sx={{ color: '#F59E0B', fontSize: 18 }} />,
-  issue_resolved: <CheckCircle sx={{ color: '#10B981', fontSize: 18 }} />,
-  issue_rejected: <Circle sx={{ color: '#6B7280', fontSize: 18 }} />,
-  comment: <Comment sx={{ color: '#3B82F6', fontSize: 18 }} />,
+const ICON = { fontSize: 18 } as const;
+
+/**
+ * Icon theo loại thông báo. Khai `Record<NotificationType, …>` (không phải
+ * `Record<string, …>`) để thiếu một loại là tsc báo lỗi — trước đây 9/14 loại
+ * rơi về icon mặc định mà không ai biết. Icon là đồ hoạ nên ngưỡng tương phản 3:1.
+ */
+const typeIcons: Record<NotificationType, React.ReactNode> = {
+  issue_created: <BugReport sx={{ ...ICON, color: '#EF4444' }} />,
+  issue_updated: <Update sx={{ ...ICON, color: '#F59E0B' }} />,
+  issue_resolved: <CheckCircle sx={{ ...ICON, color: '#10B981' }} />,
+  issue_rejected: <Circle sx={{ ...ICON, color: '#6B7280' }} />,
+  comment: <Comment sx={{ ...ICON, color: '#3B82F6' }} />,
+  area_alert: <LocationOn sx={{ ...ICON, color: '#0A5680' }} />,
+  issue_assigned: <AssignmentInd sx={{ ...ICON, color: '#0A5680' }} />,
+  issue_unassigned: <AssignmentReturn sx={{ ...ICON, color: '#6B7280' }} />,
+  sla_reminder: <AccessTime sx={{ ...ICON, color: '#D97706' }} />,
+  sla_escalated: <PriorityHigh sx={{ ...ICON, color: '#DC2626' }} />,
+  intake_overdue: <HourglassBottom sx={{ ...ICON, color: '#DC2626' }} />,
+  issue_reopened: <Replay sx={{ ...ICON, color: '#C2410C' }} />,
+  issue_rated: <StarRate sx={{ ...ICON, color: '#D97706' }} />,
+  issue_merged: <MergeType sx={{ ...ICON, color: '#6B7280' }} />,
 };
 
 const NotificationCenter: React.FC = () => {
@@ -97,7 +115,7 @@ const NotificationCenter: React.FC = () => {
 
   return (
     <>
-      <IconButton onClick={(e) => setAnchorEl(e.currentTarget)} sx={{ color: 'text.secondary' }}>
+      <IconButton aria-label={unreadCount > 0 ? `Thông báo, ${unreadCount} chưa đọc` : 'Thông báo'} onClick={(e) => setAnchorEl(e.currentTarget)} sx={{ color: 'text.secondary' }}>
         <Badge badgeContent={unreadCount} color="error" max={99}
           sx={{ '& .MuiBadge-badge': { fontSize: '0.65rem', minWidth: 18, height: 18 } }}>
           {unreadCount > 0 ? <Notifications /> : <NotificationsNone />}
@@ -151,7 +169,7 @@ const NotificationCenter: React.FC = () => {
                     '&:hover': { bgcolor: '#F2F7F8' },
                   }}>
                   <ListItemIcon sx={{ minWidth: 36 }}>
-                    {typeIcons[notif.type] || <Notifications sx={{ fontSize: 18 }} />}
+                    {typeIcons[notif.type as NotificationType] || <Notifications sx={{ fontSize: 18 }} />}
                   </ListItemIcon>
                   <ListItemText
                     primary={<Typography variant="body2" fontWeight={notif.isRead ? 400 : 600} sx={{ fontSize: '0.85rem' }}>{notif.title}</Typography>}

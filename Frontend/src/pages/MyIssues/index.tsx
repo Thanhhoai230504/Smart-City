@@ -110,7 +110,7 @@ const MyIssuesPage: React.FC = () => {
                     </Stack>
                   </Box>
                   <Stack direction="row" spacing={1} alignItems="center" flexShrink={0}>
-                    <Chip label={st.label} size="small" sx={{ bgcolor: `${st.color}20`, color: st.color, fontWeight: 600 }} />
+                    <Chip label={st.label} size="small" sx={{ bgcolor: st.bg, color: st.text, fontWeight: 600 }} />
                     <Stack direction="row" spacing={0.3} alignItems="center">
                       <AccessTime sx={{ fontSize: 14, color: 'text.secondary' }} />
                       <Typography variant="caption" color="text.secondary">{timeAgo(issue.createdAt)}</Typography>

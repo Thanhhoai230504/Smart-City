@@ -4,6 +4,7 @@ import {
   DuplicateCandidate,
   DuplicateCandidateMeta,
   DuplicateConfig,
+  DuplicateMetrics,
   Issue,
   IssueSummary,
   MapIssue,
@@ -73,11 +74,15 @@ export const issueApi = {
   reopenIssue: (id: string, data: { reason: string }) =>
     axiosClient.post<ApiResponse<{ issue: Issue }>>(`/issues/${id}/reopen`, data),
 
-  getNearbyIssues: (lat: number, lng: number, radius = 300) =>
-    axiosClient.get<ApiResponse<{ issues: NearbyIssue[] }>>('/issues/nearby', { params: { lat, lng, radius } }),
+  getNearbyIssues: (lat: number, lng: number, radius = 300, signal?: AbortSignal) =>
+    axiosClient.get<ApiResponse<{ issues: NearbyIssue[] }>>('/issues/nearby', { params: { lat, lng, radius }, signal }),
 
   getDuplicateConfig: () =>
     axiosClient.get<ApiResponse<{ config: DuplicateConfig }>>('/issues/duplicate/config'),
+
+  // Chỉ admin. Số liệu vận hành, KHÔNG phải precision/recall.
+  getDuplicateMetrics: () =>
+    axiosClient.get<ApiResponse<{ metrics: DuplicateMetrics }>>('/issues/duplicate/metrics'),
 
   findDuplicateCandidates: (
     payload: {

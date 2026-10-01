@@ -8,6 +8,7 @@ import {
   CorporateFare,
   DashboardOutlined,
   History,
+  Psychology,
   HomeOutlined,
   Insights,
   LocationOnOutlined,
@@ -49,6 +50,7 @@ const adminItems: WorkspaceItem[] = [
   { label: 'Hiệu suất', path: '/admin?tab=performance', tab: 'performance', icon: <Insights /> },
   { label: 'Camera', path: '/admin?tab=cameras', tab: 'cameras', icon: <VideocamOutlined /> },
   { label: 'Nhật ký hoạt động', path: '/admin?tab=audit', tab: 'audit', icon: <History /> },
+  { label: 'Minh bạch AI', path: '/admin?tab=ai', tab: 'ai', icon: <Psychology /> },
 ];
 
 const staffItems: WorkspaceItem[] = [

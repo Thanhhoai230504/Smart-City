@@ -533,7 +533,7 @@ const MapPage: React.FC = () => {
                   startAdornment: <InputAdornment position="start"><Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#10B981' }} /></InputAdornment>,
                   endAdornment: (
                     <InputAdornment position="end">
-                      <IconButton size="small" onClick={handleUseMyLocation} disabled={gpsLoading}
+                      <IconButton aria-label="Dùng vị trí của tôi" size="small" onClick={handleUseMyLocation} disabled={gpsLoading}
                         sx={{ color: routeStartCoord ? '#10B981' : 'text.secondary', p: 0.5 }}
                         title="Dùng vị trí hiện tại">
                         {gpsLoading ? <CircularProgress size={16} /> : <MyLocation sx={{ fontSize: 18 }} />}
@@ -578,7 +578,7 @@ const MapPage: React.FC = () => {
                 {routeLoading ? 'Đang tìm...' : 'Tìm đường'}
               </Button>
               {routePath.length > 0 && (
-                <IconButton size="small" onClick={clearRoute} sx={{ color: 'text.secondary' }}>
+                <IconButton aria-label="Xoá chỉ đường" size="small" onClick={clearRoute} sx={{ color: 'text.secondary' }}>
                   <Close fontSize="small" />
                 </IconButton>
               )}
@@ -663,7 +663,7 @@ const MapPage: React.FC = () => {
               <Popup>
                 <div style={{ color: '#333', minWidth: 200 }}>
                   <strong>{cat.icon} {issue.title}</strong><br />
-                  <span style={{ background: st.color, color: '#fff', padding: '2px 8px', borderRadius: 4, fontSize: 11 }}>{st.label}</span>
+                  <span style={{ background: st.bg, color: st.text, padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600 }}>{st.label}</span>
                   <span style={{ background: cat.color, color: '#fff', padding: '2px 8px', borderRadius: 4, fontSize: 11, marginLeft: 4 }}>{cat.label}</span>
                   <br /><span style={{ fontSize: 12, color: '#666' }}>📍 {issue.location}</span>
                 </div>

@@ -97,7 +97,7 @@ const LoginPage: React.FC = () => {
                 required sx={{ mb: 3 }}
                 InputProps={{
                   startAdornment: <InputAdornment position="start"><Lock sx={{ color: 'text.secondary' }} /></InputAdornment>,
-                  endAdornment: <InputAdornment position="end"><IconButton onClick={() => setShowPass(!showPass)} edge="end">{showPass ? <VisibilityOff /> : <Visibility />}</IconButton></InputAdornment>,
+                  endAdornment: <InputAdornment position="end"><IconButton aria-label={showPass ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'} onClick={() => setShowPass(!showPass)} edge="end">{showPass ? <VisibilityOff /> : <Visibility />}</IconButton></InputAdornment>,
                 }} />
               <Button type="submit" fullWidth variant="contained" size="large" disabled={loading}
                 startIcon={loading ? <CircularProgress size={20} /> : <LoginIcon />} sx={{ py: 1.5, mb: 2.5 }}>

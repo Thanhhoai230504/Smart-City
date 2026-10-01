@@ -698,8 +698,8 @@ const IssuesPage: React.FC = () => {
                       size="small"
                       sx={{
                         height: 24,
-                        bgcolor: `${issueStatus.color}14`,
-                        color: issueStatus.color,
+                        bgcolor: issueStatus.bg,
+                        color: issueStatus.text,
                         fontSize: '0.72rem',
                       }}
                     />

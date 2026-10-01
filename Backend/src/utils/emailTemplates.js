@@ -1,3 +1,5 @@
+const { escapeHtml: esc } = require('./escapeHtml');
+
 const STATUS_LABELS = {
   processing: 'Đang xử lý',
   resolved: 'Đã xử lý',
@@ -23,7 +25,7 @@ const buildVerificationEmail = ({ userName, verificationUrl }) => `
       <p style="margin:7px 0 0;color:rgba(255,255,255,0.85);font-size:14px">Xác thực địa chỉ email</p>
     </div>
     <div style="padding:30px 32px">
-      <p style="color:#e2e8f0;font-size:15px;margin:0 0 18px">Xin chào <strong>${userName}</strong>,</p>
+      <p style="color:#e2e8f0;font-size:15px;margin:0 0 18px">Xin chào <strong>${esc(userName)}</strong>,</p>
       <p style="color:#9CA3AF;font-size:14px;line-height:1.7;margin:0 0 22px">
         Cảm ơn bạn đã đăng ký. Hãy xác thực email để bảo vệ tài khoản và bắt đầu
         gửi, theo dõi các phản ánh đô thị.
@@ -54,11 +56,11 @@ const buildStatusChangeEmail = ({ userName, issueTitle, newStatus, note, issueId
       <p style="margin:6px 0 0;color:rgba(255,255,255,0.8);font-size:13px">Thông báo cập nhật sự cố</p>
     </div>
     <div style="padding:28px 32px">
-      <p style="color:#e2e8f0;font-size:15px;margin:0 0 20px">Xin chào <strong>${userName}</strong>,</p>
+      <p style="color:#e2e8f0;font-size:15px;margin:0 0 20px">Xin chào <strong>${esc(userName)}</strong>,</p>
       
       <div style="background:#252540;border-radius:12px;padding:20px;margin-bottom:20px;border-left:4px solid ${statusColor}">
         <p style="margin:0 0 8px;color:#9CA3AF;font-size:12px;text-transform:uppercase;letter-spacing:1px">Sự cố của bạn</p>
-        <p style="margin:0 0 12px;color:#F1F5F9;font-size:16px;font-weight:600">${issueTitle}</p>
+        <p style="margin:0 0 12px;color:#F1F5F9;font-size:16px;font-weight:600">${esc(issueTitle)}</p>
         <div style="display:inline-block;background:${statusColor}20;color:${statusColor};padding:4px 14px;border-radius:20px;font-size:13px;font-weight:600">
           ${statusIcon} ${statusLabel}
         </div>
@@ -67,7 +69,7 @@ const buildStatusChangeEmail = ({ userName, issueTitle, newStatus, note, issueId
       ${note ? `
       <div style="background:#252540;border-radius:12px;padding:16px;margin-bottom:20px">
         <p style="margin:0 0 6px;color:#9CA3AF;font-size:12px">📝 Ghi chú từ quản trị viên</p>
-        <p style="margin:0;color:#e2e8f0;font-size:14px;line-height:1.6">${note}</p>
+        <p style="margin:0;color:#e2e8f0;font-size:14px;line-height:1.6">${esc(note)}</p>
       </div>
       ` : ''}
 
@@ -94,10 +96,10 @@ const buildRatingRequestEmail = ({ userName, issueTitle, issueId, clientUrl }) =
       <p style="margin:6px 0 0;color:rgba(255,255,255,0.8);font-size:13px">Smart City Đà Nẵng</p>
     </div>
     <div style="padding:28px 32px">
-      <p style="color:#e2e8f0;font-size:15px;margin:0 0 20px">Xin chào <strong>${userName}</strong>,</p>
+      <p style="color:#e2e8f0;font-size:15px;margin:0 0 20px">Xin chào <strong>${esc(userName)}</strong>,</p>
       
       <p style="color:#9CA3AF;font-size:14px;line-height:1.7;margin:0 0 20px">
-        Sự cố <strong style="color:#F1F5F9">"${issueTitle}"</strong> của bạn đã được xử lý xong! 
+        Sự cố <strong style="color:#F1F5F9">"${esc(issueTitle)}"</strong> của bạn đã được xử lý xong! 
         Hãy dành vài giây để đánh giá chất lượng xử lý, giúp chúng tôi cải thiện dịch vụ.
       </p>
 
@@ -148,17 +150,17 @@ const buildAssignmentEmail = ({ departmentName, issueTitle, category, location, 
     </div>
     <div style="padding:28px 32px">
       <p style="color:#e2e8f0;font-size:15px;margin:0 0 20px">
-        Kính gửi <strong>${departmentName}</strong>,
+        Kính gửi <strong>${esc(departmentName)}</strong>,
       </p>
       <p style="color:#9CA3AF;font-size:14px;line-height:1.7;margin:0 0 20px">
         Đơn vị được phân công xử lý sự cố sau:
       </p>
 
       <div style="background:#252540;border-radius:12px;padding:20px;margin-bottom:20px;border-left:4px solid #6C63FF">
-        <p style="margin:0 0 12px;color:#F1F5F9;font-size:16px;font-weight:600">${issueTitle}</p>
+        <p style="margin:0 0 12px;color:#F1F5F9;font-size:16px;font-weight:600">${esc(issueTitle)}</p>
         <table style="width:100%;color:#9CA3AF;font-size:13px;line-height:1.9">
-          <tr><td style="width:110px">Loại sự cố</td><td style="color:#e2e8f0">${CATEGORY_LABELS[category] || category}</td></tr>
-          <tr><td>Địa điểm</td><td style="color:#e2e8f0">${location}</td></tr>
+          <tr><td style="width:110px">Loại sự cố</td><td style="color:#e2e8f0">${esc(CATEGORY_LABELS[category] || category)}</td></tr>
+          <tr><td>Địa điểm</td><td style="color:#e2e8f0">${esc(location)}</td></tr>
           <tr><td>Hạn xử lý</td><td style="color:#F59E0B;font-weight:600">${formatDeadline(dueAt)} (${slaHours} giờ)</td></tr>
         </table>
       </div>
@@ -183,9 +185,9 @@ const buildSlaReminderEmail = ({ recipientName, issues, clientUrl }) => {
   const rows = issues.map((issue) => `
     <tr>
       <td style="padding:10px 8px;border-top:1px solid #33334d;color:#e2e8f0;font-size:13px">
-        <a href="${clientUrl}/issues/${issue._id}" style="color:#93C5FD;text-decoration:none">${issue.title}</a>
+        <a href="${clientUrl}/issues/${issue._id}" style="color:#93C5FD;text-decoration:none">${esc(issue.title)}</a>
       </td>
-      <td style="padding:10px 8px;border-top:1px solid #33334d;color:#9CA3AF;font-size:12px">${issue.location}</td>
+      <td style="padding:10px 8px;border-top:1px solid #33334d;color:#9CA3AF;font-size:12px">${esc(issue.location)}</td>
       <td style="padding:10px 8px;border-top:1px solid #33334d;color:#EF4444;font-size:12px;white-space:nowrap">
         quá ${issue.overdueHours} giờ
       </td>
@@ -198,7 +200,7 @@ const buildSlaReminderEmail = ({ recipientName, issues, clientUrl }) => {
       <p style="margin:6px 0 0;color:rgba(255,255,255,0.85);font-size:13px">Smart City Đà Nẵng</p>
     </div>
     <div style="padding:28px 32px">
-      <p style="color:#e2e8f0;font-size:15px;margin:0 0 8px">Kính gửi <strong>${recipientName}</strong>,</p>
+      <p style="color:#e2e8f0;font-size:15px;margin:0 0 8px">Kính gửi <strong>${esc(recipientName)}</strong>,</p>
       <p style="color:#9CA3AF;font-size:14px;line-height:1.7;margin:0 0 20px">
         Có <strong style="color:#F59E0B">${issues.length}</strong> sự cố đã quá hạn xử lý và cần được cập nhật:
       </p>
@@ -228,9 +230,9 @@ const buildSlaEscalationEmail = ({ adminName, issues, clientUrl }) => {
   const rows = issues.map((issue) => `
     <tr>
       <td style="padding:10px 8px;border-top:1px solid #33334d;color:#e2e8f0;font-size:13px">
-        <a href="${clientUrl}/issues/${issue._id}" style="color:#93C5FD;text-decoration:none">${issue.title}</a>
+        <a href="${clientUrl}/issues/${issue._id}" style="color:#93C5FD;text-decoration:none">${esc(issue.title)}</a>
       </td>
-      <td style="padding:10px 8px;border-top:1px solid #33334d;color:#9CA3AF;font-size:12px">${issue.departmentName || 'Chưa rõ đơn vị'}</td>
+      <td style="padding:10px 8px;border-top:1px solid #33334d;color:#9CA3AF;font-size:12px">${esc(issue.departmentName || 'Chưa rõ đơn vị')}</td>
       <td style="padding:10px 8px;border-top:1px solid #33334d;color:#EF4444;font-size:12px;white-space:nowrap">
         quá ${issue.overdueHours} giờ
       </td>
@@ -243,7 +245,7 @@ const buildSlaEscalationEmail = ({ adminName, issues, clientUrl }) => {
       <p style="margin:6px 0 0;color:rgba(255,255,255,0.85);font-size:13px">Smart City Đà Nẵng</p>
     </div>
     <div style="padding:28px 32px">
-      <p style="color:#e2e8f0;font-size:15px;margin:0 0 8px">Xin chào <strong>${adminName}</strong>,</p>
+      <p style="color:#e2e8f0;font-size:15px;margin:0 0 8px">Xin chào <strong>${esc(adminName)}</strong>,</p>
       <p style="color:#9CA3AF;font-size:14px;line-height:1.7;margin:0 0 20px">
         <strong style="color:#EF4444">${issues.length}</strong> sự cố đã được nhắc hạn nhưng đơn vị vẫn chưa xử lý xong.
         Cần can thiệp hoặc chuyển đơn vị khác.
@@ -270,7 +272,7 @@ const buildPasswordResetEmail = ({ userName, resetUrl, expiresMinutes }) => `
       <p style="margin:7px 0 0;color:rgba(255,255,255,0.85);font-size:14px">Đặt lại mật khẩu</p>
     </div>
     <div style="padding:30px 32px">
-      <p style="color:#e2e8f0;font-size:15px;margin:0 0 18px">Xin chào <strong>${userName}</strong>,</p>
+      <p style="color:#e2e8f0;font-size:15px;margin:0 0 18px">Xin chào <strong>${esc(userName)}</strong>,</p>
       <p style="color:#9CA3AF;font-size:14px;line-height:1.7;margin:0 0 22px">
         Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn.
         Bấm nút bên dưới để chọn mật khẩu mới.

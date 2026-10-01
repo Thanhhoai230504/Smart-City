@@ -2,8 +2,9 @@ const Issue = require('../models/Issue');
 const { getBadgesForCount, getNextBadge, BADGE_CONFIG } = require('../utils/badgeConfig');
 
 const getUserBadges = async (userId) => {
-  // Sự cố đã xoá mềm không tính vào thành tích.
-  const issueCount = await Issue.countDocuments({ userId, isDeleted: false });
+  // Sự cố đã xoá mềm hoặc bị từ chối không tính vào thành tích — cùng quy tắc
+  // với getLeaderboard để hai nơi luôn ra cùng một con số.
+  const issueCount = await Issue.countDocuments({ userId, isDeleted: false, status: { $ne: 'rejected' } });
   return {
     issueCount,
     badges: getBadgesForCount(issueCount),
@@ -16,11 +17,13 @@ const getUserBadges = async (userId) => {
 };
 
 const getLeaderboard = async (limit = 10) => {
+  // Trang công khai và là cơ chế khuyến khích: chỉ đếm phiếu không bị từ chối
+  // (nếu không, người gửi rác nhiều nhất đứng đầu), và ẩn tài khoản đã xoá/bị
+  // khoá. Lọc tài khoản phải chạy TRƯỚC $limit để top N vẫn đủ N dòng.
   const leaders = await Issue.aggregate([
-    { $match: { isDeleted: false } },
+    { $match: { isDeleted: false, status: { $ne: 'rejected' } } },
     { $group: { _id: '$userId', issueCount: { $sum: 1 } } },
     { $sort: { issueCount: -1 } },
-    { $limit: limit },
     {
       $lookup: {
         from: 'users',
@@ -30,6 +33,8 @@ const getLeaderboard = async (limit = 10) => {
       },
     },
     { $unwind: '$user' },
+    { $match: { 'user.isActive': true } },
+    { $limit: limit },
     {
       $project: {
         _id: 0,

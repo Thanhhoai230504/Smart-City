@@ -71,9 +71,27 @@ const reopenIssueValidator = [
     .withMessage(`Lý do phải từ ${MIN_REASON_LENGTH} đến ${MAX_REASON_LENGTH} ký tự`),
 ];
 
+// Trước đây route đánh giá không có validator: thiếu `score` vẫn lưu được một bản
+// đánh giá rỗng và gửi thông báo "chấm undefined/5 sao"; `3.7` lọt qua min/max của
+// model và làm lệch điểm trung bình công khai. Độ dài nhận xét khớp model (500).
+const rateIssueValidator = [
+  body('score')
+    .exists({ values: 'null' }).withMessage('Vui lòng chọn số sao')
+    .bail()
+    .isInt({ min: 1, max: 5 }).withMessage('Điểm đánh giá phải là số nguyên từ 1 đến 5')
+    .toInt(),
+  body('comment')
+    .optional({ values: 'null' })
+    .isString().withMessage('Nhận xét không hợp lệ')
+    .bail()
+    .trim()
+    .isLength({ max: 500 }).withMessage('Nhận xét không quá 500 ký tự'),
+];
+
 module.exports = {
   createIssueValidator,
   updateIssueStatusValidator,
   duplicateCandidateValidator,
   reopenIssueValidator,
+  rateIssueValidator,
 };

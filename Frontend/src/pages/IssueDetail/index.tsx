@@ -22,11 +22,9 @@ import {
   Share, Facebook, ContentCopy, Link as LinkIcon,
   Star,
 } from '@mui/icons-material';
-import {
-  CATEGORY_MAP, STATUS_MAP, getAllowedStatusTargets,
-  MAX_REOPEN_COUNT, REOPEN_WINDOW_DAYS,
-  MIN_REOPEN_REASON_LENGTH, MAX_REOPEN_REASON_LENGTH,
-} from '../../utils/constants';
+import { CATEGORY_MAP, STATUS_MAP, getAllowedStatusTargets } from '../../utils/constants';
+import { getReopenEligibility, getReopenRules, REOPEN_BLOCK_MESSAGES, ReopenBlockReason } from '../../utils/reopen';
+import { canRateIssue, MAX_RATING_COMMENT_LENGTH } from '../../utils/rating';
 import { formatDate, escapeHtml } from '../../utils/helpers';
 import { Comment, Department, IssueStatus, Pagination } from '../../types';
 import LoadingSpinner from '../../components/LoadingSpinner';
@@ -34,6 +32,7 @@ import SlaBadge from '../../components/SlaBadge';
 import PriorityBadge from '../../components/PriorityBadge';
 import IssuePhotoComparison from './IssuePhotoComparison';
 import NearbyCameras from './NearbyCameras';
+import NearbyIssues from './NearbyIssues';
 import { toast } from 'react-toastify';
 
 const CATEGORY_LABELS_VN: Record<string, string> = {
@@ -194,25 +193,27 @@ const IssueDetailPage: React.FC = () => {
   const canChangeStatus = isAdmin
     && !issue.mergedInto
     && !['resolved', 'rejected'].includes(issue.status);
-  const isOwner = user && reporter && user._id === reporter._id;
-  const canRate = isOwner && issue.status === 'resolved' && !issue.rating?.score;
+  // Cùng điều kiện với backend (utils/rating.ts): kể cả phiếu bị TỪ CHỐI, mà
+  // trước đây web bỏ sót — người dân có phiếu bị từ chối không có kênh phản hồi.
+  const canRate = canRateIssue(issue, user?._id);
   const hasRated = !!issue.rating?.score;
   // Mở lại sự cố (G8): đường quay lại duy nhất của người báo cáo khi không đồng ý
   // kết quả. Điều kiện ở đây chỉ để ẩn/hiện nút — backend mới là nơi phán quyết
   // (đúng người, số lần, cửa sổ 30 ngày) và trả mã lỗi tương ứng.
-  const canReopen = Boolean(
-    isOwner
-    && ['resolved', 'rejected'].includes(issue.status)
-    && !issue.mergedInto
-    && (issue.reopenCount || 0) < MAX_REOPEN_COUNT,
-  );
+  // Cùng thứ tự kiểm tra với backend (utils/reopen.ts) — kể cả cửa sổ thời gian,
+  // mà trước đây client bỏ qua nên nút vẫn hiện sau 30 ngày rồi mới bị từ chối.
+  const reopenRules = getReopenRules();
+  const reopen = getReopenEligibility(issue, user?._id);
+  const canReopen = reopen.allowed;
+  // Người báo cáo đã hết lượt hoặc quá hạn: nói rõ thay vì để thẻ biến mất không lý do.
+  const reopenExhausted = reopen.reason === 'REOPEN_LIMIT_REACHED' || reopen.reason === 'REOPEN_WINDOW_EXPIRED';
   // Đơn vị phụ trách lấy từ dữ liệu phân công thật (populate), không còn
   // suy ra từ category bằng danh sách hardcode.
   const dept = typeof issue.departmentId === 'object' ? (issue.departmentId as Department) : null;
   const assignee = typeof issue.assigneeId === 'object' ? issue.assigneeId : null;
 
   const handleReopen = async () => {
-    if (!id || reopenReason.trim().length < 10 || submittingReopen) return;
+    if (!id || reopenReason.trim().length < reopenRules.minReasonLength || submittingReopen) return;
     setSubmittingReopen(true);
     try {
       await issueApi.reopenIssue(id, { reason: reopenReason.trim() });
@@ -221,7 +222,15 @@ const IssueDetailPage: React.FC = () => {
       setReopenOpen(false);
       setReopenReason('');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Mở lại sự cố thất bại');
+      // Phân nhánh theo mã lỗi, không so chuỗi. Bị từ chối vì một rào chắn thì tải
+      // lại phiếu để nút ẩn đi — nếu không người dùng bấm lại vẫn nhận cùng lỗi.
+      const code = err.response?.data?.code as ReopenBlockReason | undefined;
+      const known = code && REOPEN_BLOCK_MESSAGES[code];
+      toast.error(known ? known(reopenRules) : err.response?.data?.message || 'Mở lại sự cố thất bại');
+      if (known) {
+        setReopenOpen(false);
+        dispatch(fetchIssueById(id));
+      }
     }
     setSubmittingReopen(false);
   };
@@ -236,7 +245,10 @@ const IssueDetailPage: React.FC = () => {
       setRatingScore(null);
       setRatingComment('');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Đánh giá thất bại');
+      toast.error(err.response?.data?.errors?.[0]?.message || err.response?.data?.message || 'Đánh giá thất bại');
+      // Phiếu đã đổi trạng thái hoặc đã được đánh giá ở tab khác: tải lại để nút ẩn đi.
+      const code = err.response?.data?.code;
+      if (code === 'ALREADY_RATED' || code === 'ISSUE_NOT_CLOSED') dispatch(fetchIssueById(id));
     }
     setSubmittingRating(false);
   };
@@ -251,7 +263,7 @@ const IssueDetailPage: React.FC = () => {
         <Grid item xs={12} md={7}>
           <Stack direction="row" spacing={1} mb={2} alignItems="center" flexWrap="wrap" useFlexGap>
             <Chip label={cat.label} icon={<span>{cat.icon}</span>} sx={{ bgcolor: `${cat.color}20`, color: cat.color, fontWeight: 600 }} />
-            <Chip label={st.label} sx={{ bgcolor: `${st.color}20`, color: st.color, fontWeight: 600 }} />
+            <Chip label={st.label} sx={{ bgcolor: st.bg, color: st.text, fontWeight: 600 }} />
             <SlaBadge status={issue.slaStatus} dueAt={issue.dueAt} showRemaining />
             <PriorityBadge issue={issue} />
           </Stack>
@@ -300,7 +312,7 @@ const IssueDetailPage: React.FC = () => {
               sx={{ borderRadius: '20px', textTransform: 'none', color: '#0068FF', border: '1px solid rgba(0,104,255,0.3)' }}>
               Zalo
             </Button>
-            <IconButton size="small" onClick={() => handleShare('copy')} sx={{ color: 'text.secondary' }}>
+            <IconButton aria-label="Sao chép liên kết" size="small" onClick={() => handleShare('copy')} sx={{ color: 'text.secondary' }}>
               <ContentCopy fontSize="small" />
             </IconButton>
           </Stack>
@@ -358,7 +370,7 @@ const IssueDetailPage: React.FC = () => {
                         )}
                       >
                         <Stack direction="row" alignItems="center" spacing={1}>
-                          <Typography fontWeight={600} sx={{ color: STATUS_MAP[entry.status]?.color || '#18323F' }}>
+                          <Typography fontWeight={600} sx={{ color: STATUS_MAP[entry.status]?.text || '#18323F' }}>
                             {statusLabels[entry.status] || entry.status}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
@@ -472,6 +484,8 @@ const IssueDetailPage: React.FC = () => {
               </Typography>
             </Box>
           </Card>
+
+          <NearbyIssues issueId={issue._id} latitude={issue.latitude} longitude={issue.longitude} />
 
           <NearbyCameras latitude={issue.latitude} longitude={issue.longitude} />
 
@@ -704,14 +718,22 @@ const IssueDetailPage: React.FC = () => {
                   {issue.status === 'resolved'
                     ? 'Nếu sự cố thực tế vẫn chưa được xử lý xong, bạn có thể mở lại để đơn vị xem xét.'
                     : 'Nếu bạn cho rằng lý do từ chối chưa thoả đáng, bạn có thể mở lại để đơn vị xem xét.'}
-                  {' '}Được mở lại tối đa {MAX_REOPEN_COUNT} lần, trong {REOPEN_WINDOW_DAYS} ngày kể từ khi đóng phiếu.
+                  {' '}Được mở lại tối đa {reopenRules.maxCount} lần, trong {reopenRules.windowDays} ngày kể từ khi đóng phiếu.
                   {(issue.reopenCount || 0) > 0 && ` Bạn đã mở lại ${issue.reopenCount} lần.`}
+                  {reopen.daysLeft !== null && (
+                    <strong>{reopen.daysLeft > 0 ? ` Còn ${reopen.daysLeft} ngày.` : ' Hôm nay là ngày cuối.'}</strong>
+                  )}
                 </Typography>
                 <Button variant="outlined" onClick={() => setReopenOpen(true)}>
                   Mở lại sự cố
                 </Button>
               </CardContent>
             </Card>
+          )}
+          {reopenExhausted && reopen.reason && (
+            <Alert severity="info" variant="outlined" sx={{ mb: 3 }}>
+              {REOPEN_BLOCK_MESSAGES[reopen.reason](reopenRules)}
+            </Alert>
           )}
 
           <Dialog open={reopenOpen} onClose={() => setReopenOpen(false)} fullWidth maxWidth="sm">
@@ -726,9 +748,9 @@ const IssueDetailPage: React.FC = () => {
                 label="Lý do mở lại"
                 placeholder="VD: Ổ gà mới được lấp tạm, sau một trận mưa đã sụt lại như cũ."
                 value={reopenReason}
-                onChange={(e) => setReopenReason(e.target.value.slice(0, MAX_REOPEN_REASON_LENGTH))}
-                error={reopenReason.length > 0 && reopenReason.trim().length < MIN_REOPEN_REASON_LENGTH}
-                helperText={`${reopenReason.length}/${MAX_REOPEN_REASON_LENGTH} — tối thiểu ${MIN_REOPEN_REASON_LENGTH} ký tự`}
+                onChange={(e) => setReopenReason(e.target.value.slice(0, reopenRules.maxReasonLength))}
+                error={reopenReason.length > 0 && reopenReason.trim().length < reopenRules.minReasonLength}
+                helperText={`${reopenReason.length}/${reopenRules.maxReasonLength} — tối thiểu ${reopenRules.minReasonLength} ký tự`}
               />
             </DialogContent>
             <DialogActions>
@@ -736,22 +758,24 @@ const IssueDetailPage: React.FC = () => {
               <Button
                 variant="contained"
                 onClick={handleReopen}
-                disabled={reopenReason.trim().length < MIN_REOPEN_REASON_LENGTH || submittingReopen}
+                disabled={reopenReason.trim().length < reopenRules.minReasonLength || submittingReopen}
               >
                 {submittingReopen ? 'Đang gửi...' : 'Gửi yêu cầu mở lại'}
               </Button>
             </DialogActions>
           </Dialog>
 
-          {/* RATING - Form đánh giá cho owner khi resolved & chưa rate */}
+          {/* RATING - Form đánh giá cho người báo cáo khi phiếu đã đóng (xử lý xong hoặc bị từ chối) & chưa đánh giá */}
           {canRate && (
             <Card sx={{ mb: 3, bgcolor: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)' }}>
               <CardContent>
-                <Typography fontWeight={600} color="#F59E0B" mb={1.5}>
+                <Typography fontWeight={600} color="#7D4F05" mb={1.5}>
                   ⭐ Đánh giá chất lượng xử lý
                 </Typography>
                 <Typography variant="body2" color="text.secondary" mb={2}>
-                  Sự cố của bạn đã được xử lý! Hãy đánh giá chất lượng phục vụ.
+                  {issue.status === 'rejected'
+                    ? 'Phản ánh của bạn đã bị từ chối. Hãy cho biết bạn đánh giá thế nào về cách đơn vị tiếp nhận và giải thích.'
+                    : 'Sự cố của bạn đã được xử lý! Hãy đánh giá chất lượng phục vụ.'}
                 </Typography>
                 <Box display="flex" justifyContent="center" mb={2}>
                   <Rating
@@ -766,14 +790,16 @@ const IssueDetailPage: React.FC = () => {
                   />
                 </Box>
                 {ratingScore && (
-                  <Typography variant="body2" textAlign="center" mb={2} color="#FBBF24" fontWeight={600}>
+                  <Typography variant="body2" textAlign="center" mb={2} color="#7D4F05" fontWeight={600}>
                     {ratingScore === 1 ? 'Rất không hài lòng' : ratingScore === 2 ? 'Không hài lòng' : ratingScore === 3 ? 'Bình thường' : ratingScore === 4 ? 'Hài lòng' : 'Rất hài lòng'}
                   </Typography>
                 )}
                 <TextField
                   fullWidth size="small" label="Nhận xét (tùy chọn)" multiline rows={2}
                   placeholder="Chia sẻ trải nghiệm của bạn..."
-                  value={ratingComment} onChange={(e) => setRatingComment(e.target.value)}
+                  value={ratingComment}
+                  onChange={(e) => setRatingComment(e.target.value.slice(0, MAX_RATING_COMMENT_LENGTH))}
+                  helperText={ratingComment ? `${ratingComment.length}/${MAX_RATING_COMMENT_LENGTH}` : undefined}
                   sx={{ mb: 2, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
                 />
                 <Button
@@ -795,13 +821,13 @@ const IssueDetailPage: React.FC = () => {
           {hasRated && (
             <Card sx={{ mb: 3, bgcolor: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)' }}>
               <CardContent>
-                <Typography fontWeight={600} color="#F59E0B" mb={1}>
+                <Typography fontWeight={600} color="#7D4F05" mb={1}>
                   ⭐ Đánh giá chất lượng xử lý
                 </Typography>
                 <Box display="flex" alignItems="center" gap={1} mb={1}>
                   <Rating value={issue.rating?.score || 0} readOnly
                     sx={{ '& .MuiRating-iconFilled': { color: '#F59E0B' } }} />
-                  <Typography variant="body2" fontWeight={600} color="#FBBF24">
+                  <Typography variant="body2" fontWeight={600} color="#7D4F05">
                     {issue.rating?.score}/5
                   </Typography>
                 </Box>

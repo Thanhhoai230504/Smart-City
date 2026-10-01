@@ -23,6 +23,8 @@ const ISSUE_LIST_FIELDS = [
   'resolvedAt', 'voteCount', 'rating', 'departmentId', 'assigneeId',
   'assignedAt', 'dueAt', 'escalationLevel', 'duplicateCount',
   'priorityScore', 'priorityLevel', 'priorityFactors', 'priorityVersion', 'priorityCalculatedAt',
+  // G8: cổng cán bộ cần biết phiếu nào bị người dân phản đối kết quả.
+  'reopenCount', 'lastReopenedAt',
   'createdAt', 'updatedAt',
 ].join(' ');
 
@@ -90,7 +92,7 @@ const parseMapBounds = (bounds) => {
 const getIssues = async ({
   status, category, search, district, dateFrom, dateTo,
   departmentId, assigneeId, slaStatus, unassigned, assigned,
-  priorityLevel,
+  priorityLevel, reopened,
   page = 1, limit, sort = '-createdAt',
   view = 'list', bounds,
   // Người gọi. Cán bộ (staff) chỉ được thấy sự cố của đơn vị mình — ràng buộc
@@ -135,6 +137,12 @@ const getIssues = async ({
     filter.departmentId = null;
   } else if (assigned === true || assigned === 'true') {
     filter.departmentId = { $ne: null };
+  }
+
+  // Phiếu người dân đã mở lại vì không đồng ý kết quả (G8). Chỉ nhận đúng "true"
+  // để query string dạng object (?reopened[$ne]=x) không lọt vào filter.
+  if (reopened === true || reopened === 'true') {
+    filter.reopenCount = { $gt: 0 };
   }
 
   // Cán bộ luôn bị bó vào đơn vị của mình, ghi đè mọi departmentId client gửi lên.

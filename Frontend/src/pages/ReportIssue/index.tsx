@@ -588,7 +588,7 @@ const ReportIssuePage: React.FC = () => {
                     ),
                     endAdornment: (
                       <InputAdornment position="end">
-                        <IconButton
+                        <IconButton aria-label="Tìm địa chỉ"
                           onClick={handleSearch}
                           disabled={searching || !location.trim()}
                           color="primary"
@@ -633,7 +633,7 @@ const ReportIssuePage: React.FC = () => {
                       <Typography variant="caption" color="text.secondary">
                         {suggestions.length} kết quả từ Goong Maps
                       </Typography>
-                      <IconButton size="small" onClick={() => setShowSuggestions(false)}><Close fontSize="small" /></IconButton>
+                      <IconButton aria-label="Đóng gợi ý địa chỉ" size="small" onClick={() => setShowSuggestions(false)}><Close fontSize="small" /></IconButton>
                     </Box>
                     <List dense disablePadding>
                       {suggestions.map((s) => (

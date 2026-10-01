@@ -26,6 +26,7 @@ import {
   YAxis,
 } from 'recharts';
 import { statisticsApi } from '../../api/statisticsApi';
+import Leaderboard from './Leaderboard';
 import { CATEGORY_MAP, STATUS_MAP } from '../../utils/constants';
 
 interface DistrictStat {
@@ -611,6 +612,8 @@ const StatisticsPage: React.FC = () => {
           </Grid>
         </Box>
       )}
+
+      <Leaderboard />
 
       <Stack
         direction={{ xs: 'column', sm: 'row' }}

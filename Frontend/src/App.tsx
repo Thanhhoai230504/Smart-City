@@ -11,6 +11,7 @@ import AppRouter from './router';
 import { metaApi } from './api/metaApi';
 import ErrorBoundary from './components/ErrorBoundary';
 import { setStatusTransitions } from './utils/constants';
+import { setReopenRules } from './utils/reopen';
 
 const App: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -28,7 +29,10 @@ const App: React.FC = () => {
   useEffect(() => {
     const controller = new AbortController();
     metaApi.getEnums(controller.signal)
-      .then(({ data }) => setStatusTransitions(data.data.statusTransitions))
+      .then(({ data }) => {
+        setStatusTransitions(data.data.statusTransitions);
+        setReopenRules(data.data.reopen);
+      })
       .catch(() => { /* giữ bản dự phòng trong utils/constants */ });
     return () => controller.abort();
   }, []);

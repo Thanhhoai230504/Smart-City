@@ -70,7 +70,7 @@ const Header: React.FC = () => {
           }}
         >
           {isMobile && (
-            <IconButton color="inherit" onClick={() => setDrawerOpen(true)} sx={{ mr: 1 }}>
+            <IconButton aria-label="Mở menu điều hướng" color="inherit" onClick={() => setDrawerOpen(true)} sx={{ mr: 1 }}>
               <MenuIcon />
             </IconButton>
           )}

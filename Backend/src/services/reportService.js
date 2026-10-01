@@ -1,6 +1,7 @@
 const Issue = require('../models/Issue');
 const User = require('../models/User');
 const { sendEmail } = require('./emailService');
+const { escapeHtml: esc } = require('../utils/escapeHtml');
 
 const CATEGORY_VI = { pothole: 'Ổ gà', garbage: 'Rác thải', streetlight: 'Đèn đường', flooding: 'Ngập nước', tree: 'Cây đổ', other: 'Khác' };
 const STATUS_VI = { reported: 'Mới', processing: 'Đang xử lý', resolved: 'Đã xử lý', rejected: 'Từ chối' };
@@ -75,7 +76,7 @@ const generateReport = async (type = 'weekly') => {
       ${topVoted.length > 0 ? `
       <h3 style="color:#9CA3AF;font-size:13px;margin:16px 0 8px">🔥 TOP SỰ CỐ QUAN TRỌNG (theo vote)</h3>
       <table style="width:100%;border-collapse:collapse">
-        ${topVoted.map((v, i) => `<tr><td style="padding:6px 12px;color:#ccc;font-size:13px">${i + 1}. ${v.title}</td><td style="text-align:right;padding:6px 12px;font-weight:700;color:#F59E0B;font-size:13px">👍 ${v.voteCount || 0}</td></tr>`).join('')}
+        ${topVoted.map((v, i) => `<tr><td style="padding:6px 12px;color:#ccc;font-size:13px">${i + 1}. ${esc(v.title)}</td><td style="text-align:right;padding:6px 12px;font-weight:700;color:#F59E0B;font-size:13px">👍 ${v.voteCount || 0}</td></tr>`).join('')}
       </table>` : ''}
 
       <div style="margin-top:24px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.1);text-align:center">

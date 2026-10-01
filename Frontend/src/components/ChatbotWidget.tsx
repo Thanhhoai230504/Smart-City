@@ -49,7 +49,7 @@ const ChatbotWidget: React.FC = () => {
     <>
       {/* Floating Button */}
       <Zoom in={!isOpen}>
-        <IconButton
+        <IconButton aria-label="Mở trợ lý ảo"
           onClick={() => setIsOpen(true)}
           sx={{
             position: 'fixed', bottom: 75, right: { xs: 16, sm: 24 }, zIndex: 1300,
@@ -85,7 +85,7 @@ const ChatbotWidget: React.FC = () => {
               <Typography fontSize={10} color="rgba(255,255,255,0.78)">Smart City Dashboard</Typography>
               </Box>
             </Stack>
-            <IconButton size="small" onClick={() => setIsOpen(false)} sx={{ color: '#fff' }}>
+            <IconButton aria-label="Đóng trợ lý ảo" size="small" onClick={() => setIsOpen(false)} sx={{ color: '#fff' }}>
               <Close fontSize="small" />
             </IconButton>
           </Stack>
@@ -160,7 +160,7 @@ const ChatbotWidget: React.FC = () => {
               disabled={loading}
               sx={{ '& .MuiOutlinedInput-root': { bgcolor: '#F7FAFA', borderRadius: '10px', fontSize: 13 } }}
             />
-            <IconButton onClick={() => sendMessage(input)} disabled={loading || !input.trim()}
+            <IconButton aria-label="Gửi tin nhắn" onClick={() => sendMessage(input)} disabled={loading || !input.trim()}
               sx={{ bgcolor: '#EAF3F4', color: '#176B87', '&:hover': { bgcolor: '#DCEEF2' } }}>
               <Send fontSize="small" />
             </IconButton>

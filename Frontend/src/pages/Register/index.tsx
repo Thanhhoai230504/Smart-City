@@ -101,7 +101,7 @@ const RegisterPage: React.FC = () => {
                 required helperText="Tối thiểu 6 ký tự" sx={{ mb: 2.5 }}
                 InputProps={{
                   startAdornment: <InputAdornment position="start"><Lock sx={{ color: 'text.secondary' }} /></InputAdornment>,
-                  endAdornment: <InputAdornment position="end"><IconButton onClick={() => setShowPass(!showPass)} edge="end">{showPass ? <VisibilityOff /> : <Visibility />}</IconButton></InputAdornment>,
+                  endAdornment: <InputAdornment position="end"><IconButton aria-label={showPass ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'} onClick={() => setShowPass(!showPass)} edge="end">{showPass ? <VisibilityOff /> : <Visibility />}</IconButton></InputAdornment>,
                 }} />
               <TextField fullWidth label="Xác nhận mật khẩu" type={showPass ? 'text' : 'password'}
                 value={confirmPwd} onChange={(e) => setConfirmPwd(e.target.value)}

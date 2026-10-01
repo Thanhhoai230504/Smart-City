@@ -8,6 +8,7 @@ const {
   updateIssueStatusValidator,
   duplicateCandidateValidator,
   reopenIssueValidator,
+  rateIssueValidator,
 } = require('../validators/issueValidator');
 const { duplicateCandidateLimiter, createIssueLimiter } = require('../middleware/rateLimiters');
 const { assignIssueValidator, unassignIssueValidator } = require('../validators/departmentValidator');
@@ -198,6 +199,6 @@ router.post(
 router.post('/:id/vote', authMiddleware, toggleVote);
 
 // @route   POST /api/issues/:id/rate
-router.post('/:id/rate', authMiddleware, rateIssue);
+router.post('/:id/rate', authMiddleware, rateIssueValidator, validate, rateIssue);
 
 module.exports = router;

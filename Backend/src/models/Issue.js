@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const { DISTRICT_ENUM, UNKNOWN_DISTRICT, resolveDistrict } = require('../utils/districts');
 const { getSlaStatus, calculateIntakeDueAt } = require('../utils/slaConfig');
+const { logger } = require('../utils/logger');
 
 /** Số ảnh tối đa cho một sự cố */
 const MAX_ISSUE_IMAGES = 5;
@@ -338,6 +339,19 @@ issueSchema.pre('validate', function(next) {
   }
   if (this.isModified('location') || this.isNew) {
     this.district = resolveDistrict(this.location);
+    // Mô hình 8 quận cũ đã hết hiệu lực từ 01/07/2025 (KE-HOACH mục 5.1): địa chỉ
+    // ở vùng Quảng Nam cũ hoặc ghi theo phường mới rơi vào "Khác". Ghi log để lỗi
+    // không còn im lặng, kèm toạ độ để sau này backfill theo vị trí. Đặt ở đây chứ
+    // không trong resolveDistrict, để script backfill không làm ngập log.
+    if (this.district === UNKNOWN_DISTRICT && this.location) {
+      logger.warn('Không xác định được khu vực từ địa chỉ', {
+        event: 'district_unresolved',
+        issueId: String(this._id),
+        location: this.location,
+        latitude: this.latitude,
+        longitude: this.longitude,
+      });
+    }
   }
   // Hạn tiếp nhận sinh ở model để mọi đường ghi đều có, giống district và geo.
   // Chỉ gán cho bản ghi mới và chưa có giá trị, để không ghi đè mốc cũ khi sửa.

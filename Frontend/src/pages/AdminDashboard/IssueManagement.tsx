@@ -24,6 +24,7 @@ import {
 } from '../../types';
 import PriorityBadge from '../../components/PriorityBadge';
 import SlaBadge from '../../components/SlaBadge';
+import ReopenedBadge from '../../components/ReopenedBadge';
 
 interface ApiErrorResponse {
   message?: string;
@@ -53,6 +54,7 @@ const IssueManagement: React.FC<Props> = ({ onDataChange = () => undefined }) =>
   const [districtFilter, setDistrictFilter] = useState('');
   const [assignmentFilter, setAssignmentFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState<PriorityLevel | ''>('');
+  const [reopenedFilter, setReopenedFilter] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -78,6 +80,7 @@ const IssueManagement: React.FC<Props> = ({ onDataChange = () => undefined }) =>
       if (priorityFilter) params.priorityLevel = priorityFilter;
       if (assignmentFilter === 'assigned') params.assigned = 'true';
       if (assignmentFilter === 'unassigned') params.unassigned = 'true';
+      if (reopenedFilter === 'reopened') params.reopened = 'true';
       if (search) params.search = search;
       const { data } = await issueApi.getIssues(params);
       setIssues(data.data.issues);
@@ -91,7 +94,7 @@ const IssueManagement: React.FC<Props> = ({ onDataChange = () => undefined }) =>
         severity: 'error',
       });
     } finally { setLoading(false); }
-  }, [assignmentFilter, categoryFilter, districtFilter, page, priorityFilter, search, sortBy, statusFilter]);
+  }, [assignmentFilter, categoryFilter, districtFilter, page, priorityFilter, reopenedFilter, search, sortBy, statusFilter]);
 
   useEffect(() => { loadIssues(); }, [loadIssues]);
 
@@ -182,6 +185,7 @@ const IssueManagement: React.FC<Props> = ({ onDataChange = () => undefined }) =>
     setDistrictFilter('');
     setAssignmentFilter('');
     setPriorityFilter('');
+    setReopenedFilter('');
     setSortBy('-createdAt');
     setPage(1);
   };
@@ -243,6 +247,13 @@ const IssueManagement: React.FC<Props> = ({ onDataChange = () => undefined }) =>
             </Select>
           </FormControl>
           <FormControl size="small">
+            <InputLabel>Khiếu nại</InputLabel>
+            <Select value={reopenedFilter} label="Khiếu nại" onChange={(event: SelectChangeEvent) => { setReopenedFilter(event.target.value); setPage(1); }}>
+              <MenuItem value="">Tất cả</MenuItem>
+              <MenuItem value="reopened">Bị người dân mở lại</MenuItem>
+            </Select>
+          </FormControl>
+          <FormControl size="small">
             <InputLabel>Ưu tiên</InputLabel>
             <Select value={priorityFilter} label="Ưu tiên" onChange={(event: SelectChangeEvent<PriorityLevel | ''>) => { setPriorityFilter(event.target.value as PriorityLevel | ''); setPage(1); }}>
               <MenuItem value="">Tất cả</MenuItem>
@@ -292,6 +303,9 @@ const IssueManagement: React.FC<Props> = ({ onDataChange = () => undefined }) =>
                   <Typography variant="body2" fontWeight={650} noWrap>{issue.title}</Typography>
                   <Typography variant="caption" color="text.secondary" noWrap display="block">{CATEGORY_LABELS[issue.category] || issue.category} · {issue.district || 'Chưa xác định địa bàn'}</Typography>
                   <Typography variant="caption" color="text.disabled" noWrap display="block">{issue.location}</Typography>
+                  {(issue.reopenCount || 0) > 0 && (
+                    <Box mt={0.5}><ReopenedBadge reopenCount={issue.reopenCount} lastReopenedAt={issue.lastReopenedAt} /></Box>
+                  )}
                 </TableCell>
                 <TableCell sx={cellSx}>
                   <Select size="small" value={issue.status}

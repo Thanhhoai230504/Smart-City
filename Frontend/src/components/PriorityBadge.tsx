@@ -38,7 +38,7 @@ const PriorityBadge: React.FC<PriorityBadgeProps> = ({ issue, showEmpty = true }
     <Box sx={{ minWidth: 300, maxWidth: 380, p: 0.75 }}>
       <Stack direction="row" alignItems="baseline" justifyContent="space-between" spacing={2}>
         <Typography variant="subtitle2" fontWeight={800}>Giải thích điểm ưu tiên</Typography>
-        <Typography variant="subtitle2" sx={{ color: appearance.color }}>
+        <Typography variant="subtitle2" sx={{ color: appearance.text }}>
           {priorityScore.toFixed(1)}/100
         </Typography>
       </Stack>
@@ -80,8 +80,8 @@ const PriorityBadge: React.FC<PriorityBadgeProps> = ({ issue, showEmpty = true }
         tabIndex={0}
         sx={{
           bgcolor: appearance.background,
-          color: appearance.color,
-          border: `1px solid ${appearance.color}55`,
+          color: appearance.text,
+          border: `1px solid ${appearance.text}33`,
           fontWeight: 800,
           '& .MuiChip-icon': { color: 'inherit' },
         }}

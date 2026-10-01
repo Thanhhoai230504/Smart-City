@@ -52,6 +52,7 @@ import {
 } from '../../types';
 import { CATEGORY_MAP, PRIORITY_MAP, STATUS_MAP } from '../../utils/constants';
 import { formatDate } from '../../utils/helpers';
+import ReopenedBadge from '../../components/ReopenedBadge';
 import PriorityBadge from '../../components/PriorityBadge';
 import SlaBadge from '../../components/SlaBadge';
 import UpdateStatusDialog from './UpdateStatusDialog';
@@ -235,6 +236,8 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
   const [slaFilter, setSlaFilter] = useState<SlaFilter>('');
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('');
+  // G8: chỉ hiện phiếu người dân đã mở lại vì không đồng ý kết quả.
+  const [reopenedOnly, setReopenedOnly] = useState(false);
   const [sort, setSort] = useState('-priorityScore');
   const [page, setPage] = useState(1);
   const [claimingId, setClaimingId] = useState('');
@@ -303,6 +306,7 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
       if (statusFilter) params.status = statusFilter;
       if (slaFilter) params.slaStatus = slaFilter;
       if (priorityFilter) params.priorityLevel = priorityFilter;
+      if (reopenedOnly) params.reopened = 'true';
 
       const { data } = await issueApi.getStaffIssues(params);
       setIssues(data.data.issues);
@@ -315,7 +319,7 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
     } finally {
       setLoading(false);
     }
-  }, [missingDepartment, page, priorityFilter, slaFilter, sort, statusFilter, user]);
+  }, [missingDepartment, page, priorityFilter, reopenedOnly, slaFilter, sort, statusFilter, user]);
 
   useEffect(() => {
     loadIssues();
@@ -327,8 +331,9 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
     if (slaFilter === 'overdue') parts.push('Quá hạn');
     if (slaFilter === 'due_soon') parts.push('Sắp đến hạn');
     if (priorityFilter) parts.push(`Ưu tiên ${PRIORITY_MAP[priorityFilter].label}`);
+    if (reopenedOnly) parts.push('Bị người dân mở lại');
     return parts.length > 0 ? parts.join(' · ') : 'Tất cả công việc';
-  }, [priorityFilter, slaFilter, statusFilter]);
+  }, [priorityFilter, reopenedOnly, slaFilter, statusFilter]);
 
   const pageSummary = useMemo(() => ({
     unassigned: issues.filter((issue) => isOpenIssue(issue) && !issue.assigneeId).length,
@@ -363,6 +368,7 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
     setStatusFilter('');
     setSlaFilter('');
     setPriorityFilter('');
+    setReopenedOnly(false);
     setSort('-priorityScore');
     setPage(1);
   };
@@ -623,6 +629,22 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
                 </FormControl>
 
                 <FormControl size="small">
+                  <InputLabel id="staff-reopened-filter-label">Khiếu nại</InputLabel>
+                  <Select
+                    labelId="staff-reopened-filter-label"
+                    value={reopenedOnly ? 'reopened' : ''}
+                    label="Khiếu nại"
+                    onChange={(event: SelectChangeEvent) => {
+                      setReopenedOnly(event.target.value === 'reopened');
+                      setPage(1);
+                    }}
+                  >
+                    <MenuItem value="">Tất cả</MenuItem>
+                    <MenuItem value="reopened">Bị người dân mở lại</MenuItem>
+                  </Select>
+                </FormControl>
+
+                <FormControl size="small">
                   <InputLabel id="staff-sort-label">Sắp xếp</InputLabel>
                   <Select
                     labelId="staff-sort-label"
@@ -641,7 +663,7 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
                   </Select>
                 </FormControl>
 
-                {(statusFilter || slaFilter || priorityFilter || sort !== '-priorityScore') && (
+                {(statusFilter || slaFilter || priorityFilter || reopenedOnly || sort !== '-priorityScore') && (
                   <Button
                     size="small"
                     startIcon={<FilterAltOff />}
@@ -700,7 +722,7 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
                           <Typography color="text.secondary">
                             Không có công việc phù hợp với bộ lọc.
                           </Typography>
-                          {(statusFilter || slaFilter || priorityFilter) && (
+                          {(statusFilter || slaFilter || priorityFilter || reopenedOnly) && (
                             <Button
                               size="small"
                               startIcon={<FilterAltOff />}
@@ -754,7 +776,10 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
                             </TableCell>
 
                             <TableCell sx={cellSx}>
-                              <StatusIndicator issue={issue} />
+                              <Stack spacing={0.5} alignItems="flex-start">
+                                <StatusIndicator issue={issue} />
+                                <ReopenedBadge reopenCount={issue.reopenCount} lastReopenedAt={issue.lastReopenedAt} />
+                              </Stack>
                             </TableCell>
 
                             <TableCell sx={{ ...cellSx, whiteSpace: 'nowrap' }}>
@@ -855,6 +880,11 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
                             </Typography>
                             <PriorityBadge issue={issue} />
                           </Stack>
+                          {(issue.reopenCount || 0) > 0 && (
+                            <Box mb={0.75}>
+                              <ReopenedBadge reopenCount={issue.reopenCount} lastReopenedAt={issue.lastReopenedAt} />
+                            </Box>
+                          )}
 
                           <Stack direction="row" spacing={0.5} alignItems="center" mb={1.25}>
                             <LocationOn sx={{ fontSize: 14, color: 'text.secondary' }} />

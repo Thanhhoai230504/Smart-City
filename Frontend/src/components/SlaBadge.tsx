@@ -2,14 +2,9 @@ import React from 'react';
 import { Chip, Tooltip } from '@mui/material';
 import { SlaStatus } from '../types';
 import { formatDate } from '../utils/helpers';
+import { SLA_STATUS_MAP } from '../utils/constants';
 
-const SLA_MAP: Record<Exclude<SlaStatus, 'none'>, { label: string; color: string; icon: string }> = {
-  on_time: { label: 'Trong hạn', color: '#10B981', icon: '⏱️' },
-  due_soon: { label: 'Sắp đến hạn', color: '#F59E0B', icon: '⏳' },
-  overdue: { label: 'Quá hạn', color: '#EF4444', icon: '🔥' },
-  met: { label: 'Đúng hạn', color: '#10B981', icon: '✅' },
-  breached: { label: 'Trễ hạn', color: '#EF4444', icon: '⚠️' },
-};
+const SLA_MAP: Record<Exclude<SlaStatus, 'none'>, { label: string; text: string; bg: string; icon: string }> = SLA_STATUS_MAP;
 
 /** Khoảng cách tới hạn, dạng "còn 5 giờ" / "quá 2 ngày" */
 const distanceToDue = (dueAt: string): string => {
@@ -49,11 +44,11 @@ const SlaBadge: React.FC<Props> = ({ status, dueAt, showRemaining = false }) => 
         label={label}
         size="small"
         sx={{
-          bgcolor: `${sla.color}20`,
-          color: sla.color,
+          bgcolor: sla.bg,
+          color: sla.text,
           fontWeight: 600,
           fontSize: '0.7rem',
-          border: `1px solid ${sla.color}40`,
+          border: `1px solid ${sla.text}33`,
         }}
       />
     </Tooltip>

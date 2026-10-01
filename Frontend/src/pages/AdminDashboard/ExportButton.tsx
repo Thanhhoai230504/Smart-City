@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   Button, Menu, MenuItem, ListItemIcon, ListItemText, CircularProgress,
 } from '@mui/material';
-import { FileDownload, TableChart, PictureAsPdf } from '@mui/icons-material';
+import { FileDownload, TableChart, Print } from '@mui/icons-material';
 import { issueApi } from '../../api/issueApi';
 import { CATEGORY_MAP, STATUS_MAP } from '../../utils/constants';
 import { escapeHtml } from '../../utils/helpers';
@@ -98,7 +98,7 @@ const ExportButton: React.FC = () => {
     setExporting(false);
   };
 
-  const handleExportPDF = async () => {
+  const handlePrintReport = async () => {
     setAnchorEl(null);
     setExporting(true);
     try {
@@ -173,7 +173,7 @@ const ExportButton: React.FC = () => {
         printWindow.document.close();
       }
     } catch (err) {
-      console.error('Export PDF failed:', err);
+      console.error('Print report failed:', err);
     }
     setExporting(false);
   };
@@ -195,9 +195,11 @@ const ExportButton: React.FC = () => {
           <ListItemIcon><TableChart sx={{ color: '#10B981' }} /></ListItemIcon>
           <ListItemText primary="Excel (.xlsx)" secondary="Xuất danh sách chi tiết" />
         </MenuItem>
-        <MenuItem onClick={handleExportPDF}>
-          <ListItemIcon><PictureAsPdf sx={{ color: '#EF4444' }} /></ListItemIcon>
-          <ListItemText primary="PDF" secondary="Xuất báo cáo tổng hợp" />
+        <MenuItem onClick={handlePrintReport}>
+          <ListItemIcon><Print sx={{ color: '#0A5680' }} /></ListItemIcon>
+          {/* Chỉ mở bản in của trình duyệt — không tự tạo file PDF. Đừng gọi là
+              "xuất PDF": người dùng chọn "Lưu dưới dạng PDF" trong hộp thoại in. */}
+          <ListItemText primary="In / Lưu PDF" secondary="Mở bản in báo cáo tổng hợp" />
         </MenuItem>
       </Menu>
     </>
