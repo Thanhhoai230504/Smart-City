@@ -65,6 +65,14 @@ export const issueApi = {
   rateIssue: (id: string, data: { score: number; comment?: string }) =>
     axiosClient.post(`/issues/${id}/rate`, data),
 
+  /**
+   * Người dân mở lại sự cố khi không đồng ý kết quả xử lý.
+   * Backend chặn bằng mã lỗi: NOT_REPORTER, ISSUE_NOT_CLOSED, REOPEN_LIMIT_REACHED,
+   * REOPEN_WINDOW_EXPIRED, MERGED_ISSUE — client phân nhánh theo `code`, không so chuỗi.
+   */
+  reopenIssue: (id: string, data: { reason: string }) =>
+    axiosClient.post<ApiResponse<{ issue: Issue }>>(`/issues/${id}/reopen`, data),
+
   getNearbyIssues: (lat: number, lng: number, radius = 300) =>
     axiosClient.get<ApiResponse<{ issues: NearbyIssue[] }>>('/issues/nearby', { params: { lat, lng, radius } }),
 

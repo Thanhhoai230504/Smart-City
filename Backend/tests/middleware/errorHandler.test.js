@@ -67,6 +67,71 @@ describe('Error Handler Middleware', () => {
     );
   });
 
+  // E8: trước đây ValidationError bị gộp thành MỘT chuỗi nên client không biết
+  // lỗi thuộc field nào. App mobile cần map lỗi vào từng ô nhập.
+  it('returns per-field errors for a Mongoose ValidationError', () => {
+    const err = new Error('Validation failed');
+    err.name = 'ValidationError';
+    err.errors = {
+      'statusHistory.0.note': { path: 'statusHistory.0.note', message: 'Ghi chú không quá 500 ký tự' },
+      title: { path: 'title', message: 'Title is required' },
+    };
+    const res = mockRes();
+
+    errorHandler(err, mockReq(), res, mockNext);
+
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        errors: [
+          { field: 'statusHistory.0.note', message: 'Ghi chú không quá 500 ký tự' },
+          { field: 'title', message: 'Title is required' },
+        ],
+      })
+    );
+  });
+
+  it('falls back to the object key when the error has no path', () => {
+    const err = new Error('Validation failed');
+    err.name = 'ValidationError';
+    err.errors = { name: { message: 'Name is required' } };
+    const res = mockRes();
+
+    errorHandler(err, mockReq(), res, mockNext);
+
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ errors: [{ field: 'name', message: 'Name is required' }] })
+    );
+  });
+
+  it('keeps the joined message so existing clients do not break', () => {
+    const err = new Error('Validation failed');
+    err.name = 'ValidationError';
+    err.errors = { a: { message: 'A' }, b: { message: 'B' } };
+    const res = mockRes();
+
+    errorHandler(err, mockReq(), res, mockNext);
+
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'A, B' }));
+  });
+
+  it('forwards a business error code so clients can branch without matching text', () => {
+    const err = ApiError.badRequestWithCode('Cần tải lên ít nhất 1 ảnh minh chứng', 'NO_RESOLUTION_IMAGE');
+    const res = mockRes();
+
+    errorHandler(err, mockReq(), res, mockNext);
+
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'NO_RESOLUTION_IMAGE' }));
+  });
+
+  it('omits errors and code when there are none', () => {
+    const res = mockRes();
+    errorHandler(new Error('plain'), mockReq(), res, mockNext);
+
+    const body = res.json.mock.calls[0][0];
+    expect(body.errors).toBeUndefined();
+    expect(body.code).toBeUndefined();
+  });
+
   it('should handle Mongoose duplicate key error (code 11000)', () => {
     const err = new Error('Duplicate key');
     err.code = 11000;
@@ -187,11 +252,38 @@ describe('Error Handler Middleware', () => {
       );
     });
 
-    it('should still log the real message on the server', () => {
+    // G5: trước đây chỉ log `err.message` và KHÔNG log stack, trong khi message
+    // 5xx lại bị che ở response — nên lỗi nghiêm trọng nhất là lỗi khó truy nhất.
+    // Test theo HÀNH VI (message thật và stack có tới được log) chứ không ghim
+    // định dạng, để đổi logger sau này không làm vỡ test.
+    it('should still log the real message and the stack on the server', () => {
       const err = new Error('mongodb replica set rs0 unreachable');
       errorHandler(err, mockReq(), mockRes(), mockNext);
 
-      expect(console.error).toHaveBeenCalledWith('❌ Error:', 'mongodb replica set rs0 unreachable');
+      const logged = console.error.mock.calls.flat().join(' ');
+      expect(logged).toContain('mongodb replica set rs0 unreachable');
+      expect(logged).toContain('errorHandler');
+    });
+
+    it('logs the request context so a 500 can be traced to a user and route', () => {
+      const err = new Error('boom');
+      const req = { method: 'POST', originalUrl: '/api/issues', user: { id: 'u1' } };
+
+      errorHandler(err, req, mockRes(), mockNext);
+
+      const logged = console.error.mock.calls.flat().join(' ');
+      expect(logged).toContain('/api/issues');
+      expect(logged).toContain('u1');
+    });
+
+    // Lỗi nghiệp vụ 4xx là chuyện bình thường — không nên đổ stack vào log lỗi.
+    it('does not log a 4xx as an error with a stack', () => {
+      jest.spyOn(console, 'warn').mockImplementation(() => {});
+      errorHandler(ApiError.badRequest('Thiếu tiêu đề'), mockReq(), mockRes(), mockNext);
+
+      expect(console.error).not.toHaveBeenCalled();
+      expect(console.warn).toHaveBeenCalled();
+      console.warn.mockRestore();
     });
 
     it('should keep ApiError messages for 5xx business errors', () => {

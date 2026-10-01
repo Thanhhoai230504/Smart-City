@@ -231,6 +231,28 @@ describe('IssueService', () => {
 
       expect(query.populate).toHaveBeenCalledWith('departmentId', 'name code email phone');
     });
+
+    // ─── E2: timeline "ai làm gì" ───
+    // statusHistory[].changedBy được ghi đầy đủ ở 4 chỗ (lúc tạo, đổi trạng thái,
+    // phân công, thu hồi) nhưng chuỗi populate của getIssueById thiếu nó, nên
+    // client nhận ObjectId thô thay vì tên người thực hiện.
+    it('should populate who changed each status, name only for an anonymous visitor', async () => {
+      const query = mockQuery({ _id: '1' });
+      Issue.findOne.mockReturnValue(query);
+
+      await issueService.getIssueById('1');
+
+      expect(query.populate).toHaveBeenCalledWith('statusHistory.changedBy', 'name');
+    });
+
+    it.each(['admin', 'staff'])('should populate statusHistory.changedBy with email for %s', async (role) => {
+      const query = mockQuery({ _id: '1' });
+      Issue.findOne.mockReturnValue(query);
+
+      await issueService.getIssueById('1', { id: 'x', role });
+
+      expect(query.populate).toHaveBeenCalledWith('statusHistory.changedBy', 'name email');
+    });
   });
 
   describe('createIssue()', () => {
@@ -394,6 +416,97 @@ describe('IssueService', () => {
       expect(updateCall.resolvedAt).toBeInstanceOf(Date);
     });
 
+    // ─── E5: state machine trạng thái ───
+    // Trước đây updateIssueStatus chỉ kiểm tra status có thuộc enum hay không,
+    // nên MỌI cặp chuyển tiếp đều được nhận — kể cả lùi phiếu đã xử lý về
+    // 'reported' bằng cách gọi thẳng API.
+    it.each([
+      ['resolved', 'reported'],
+      ['processing', 'reported'],
+      ['rejected', 'reported'],
+      ['resolved', 'rejected'],
+      ['rejected', 'resolved'],
+      ['resolved', 'resolved'],
+      ['processing', 'processing'],
+    ])('refuses the %s -> %s transition', async (from, to) => {
+      Issue.findOne.mockReturnValue(mockQuery({
+        _id: 'issue1',
+        status: from,
+        resolutionImages: [{ url: 'https://cloud/after.jpg' }],
+      }));
+
+      await expect(
+        issueService.updateIssueStatus('issue1', {
+          status: to,
+          adminUser: { id: 'admin1', role: 'admin' },
+        })
+      ).rejects.toThrow(/Không thể chuyển từ/);
+
+      expect(Issue.findByIdAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('tags the refused transition with a machine-readable code', async () => {
+      Issue.findOne.mockReturnValue(mockQuery({
+        _id: 'issue1', status: 'resolved', resolutionImages: [{ url: 'x' }],
+      }));
+
+      await expect(
+        issueService.updateIssueStatus('issue1', {
+          status: 'reported',
+          adminUser: { id: 'admin1', role: 'admin' },
+        })
+      ).rejects.toMatchObject({ statusCode: 400, code: 'INVALID_STATUS_TRANSITION' });
+    });
+
+    // App mobile phải mở đúng màn hình cần thiết dựa trên mã lỗi, không so chuỗi
+    // tiếng Việt. Hai mã dưới đây là hai nhánh UI khác hẳn nhau: một bên mở camera,
+    // một bên điều hướng sang phiếu gốc.
+    it('tags NO_RESOLUTION_IMAGE so the client can open the camera flow', async () => {
+      Issue.findOne.mockReturnValue(mockQuery({
+        _id: 'issue1', status: 'processing', resolutionImages: [],
+      }));
+
+      await expect(
+        issueService.updateIssueStatus('issue1', {
+          status: 'resolved',
+          adminUser: { id: 'admin1', role: 'admin' },
+        })
+      ).rejects.toMatchObject({ statusCode: 400, code: 'NO_RESOLUTION_IMAGE' });
+    });
+
+    it('tags MERGED_ISSUE so the client can redirect to the original issue', async () => {
+      Issue.findOne.mockReturnValue(mockQuery({
+        _id: 'issue1', status: 'processing', resolutionImages: [], mergedInto: 'other1',
+      }));
+
+      await expect(
+        issueService.updateIssueStatus('issue1', {
+          status: 'resolved',
+          adminUser: { id: 'admin1', role: 'admin' },
+        })
+      ).rejects.toMatchObject({ statusCode: 400, code: 'MERGED_ISSUE' });
+    });
+
+    it('still allows a legitimate reopening: resolved -> processing', async () => {
+      Issue.findOne.mockReturnValue(mockQuery({
+        _id: 'issue1', status: 'resolved', resolutionImages: [{ url: 'x' }],
+      }));
+      Issue.findByIdAndUpdate.mockReturnValue(mockQuery({
+        _id: 'issue1', title: 'Fixed', userId: { _id: 'user1' },
+      }));
+      Notification.create.mockResolvedValue({ _id: 'notif1' });
+
+      const result = await issueService.updateIssueStatus('issue1', {
+        status: 'processing',
+        note: 'Người dân phản ánh chưa xong',
+        adminUser: { id: 'admin1', role: 'admin' },
+      });
+
+      expect(result._id).toBe('issue1');
+    });
+
+    // Quyền phải kiểm tra TRƯỚC trạng thái: cán bộ sai đơn vị không được học
+    // luật chuyển trạng thái của một phiếu họ không có quyền đụng vào.
     // Cán bộ đơn vị A không được đổi trạng thái sự cố của đơn vị B.
     it('should refuse when staff handles an issue of another department', async () => {
       Issue.findOne.mockReturnValue(mockQuery({

@@ -93,9 +93,19 @@ const assignIssueValidator = [
     .isLength({ max: 500 }).withMessage('Ghi chú không quá 500 ký tự'),
 ];
 
+// Route thu hồi phân công trước đây không gắn validator nào, nên trường note đi
+// thẳng vào statusHistory không kiểm tra độ dài. Cùng luật với assignIssueValidator.
+const unassignIssueValidator = [
+  body('note')
+    .optional({ values: 'falsy' })
+    .trim()
+    .isLength({ max: 500 }).withMessage('Ghi chú không quá 500 ký tự'),
+];
+
 module.exports = {
   createDepartmentValidator,
   updateDepartmentValidator,
   assignStaffValidator,
   assignIssueValidator,
+  unassignIssueValidator,
 };

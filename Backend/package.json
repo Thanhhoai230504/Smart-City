@@ -17,7 +17,8 @@
     "explain:priorities": "node src/scripts/explainPriorityQueries.js",
     "benchmark:priorities": "node src/scripts/benchmarkPriorityScoring.js",
     "backfill:embeddings": "node src/scripts/backfillIssueEmbeddings.js",
-    "evaluate:duplicates": "node src/scripts/evaluateDuplicateDetection.js"
+    "evaluate:duplicates": "node src/scripts/evaluateDuplicateDetection.js",
+    "migrate:sessions": "node src/scripts/migrateRefreshSessions.js"
   },
   "keywords": [
     "smart-city",

@@ -40,7 +40,8 @@ describe('CommentService', () => {
 
       expect(result.comments).toHaveLength(1);
       expect(result.pagination.total).toBe(1);
-      expect(Comment.find).toHaveBeenCalledWith({ issueId: 'issue1' });
+      // G16: bình luận đã ẩn không ra khỏi server nữa.
+      expect(Comment.find).toHaveBeenCalledWith({ issueId: 'issue1', isDeleted: false });
     });
   });
 
@@ -122,6 +123,62 @@ describe('CommentService', () => {
         expect.objectContaining({ userId: 'reporter1', type: 'comment' })
       );
       expect(mockIO.to).toHaveBeenCalledWith('user_reporter1');
+    });
+
+    // ─── E1: vai 'staff' trước đây rơi vào CẢ HAI nhánh sai ───
+    // `isAdmin = user.role === 'admin'` khiến cán bộ (a) không được coi là người
+    // xử lý nên người dân KHÔNG nhận thông báo, và (b) bị nhánh `!isAdmin` gộp
+    // vào "người dân" nên admin nhận thông báo ghi sai nguồn.
+    const mockIssueWithReporter = (reporterId = 'reporter1') => {
+      Issue.findOne.mockReturnValue({
+        populate: jest.fn().mockResolvedValue({
+          _id: 'issue1',
+          title: 'Pothole',
+          userId: { _id: reporterId },
+        }),
+      });
+      Comment.create.mockResolvedValue({ _id: 'c1', populate: jest.fn().mockResolvedValue(true) });
+      Notification.create.mockResolvedValue({ _id: 'notif1' });
+      User.find.mockReturnValue({ select: jest.fn().mockResolvedValue([{ _id: 'admin1' }]) });
+    };
+
+    it('should notify the reporter when a staff member comments', async () => {
+      mockIssueWithReporter();
+
+      await commentService.addComment('issue1', {
+        content: 'Đội đang xuống hiện trường',
+        user: { id: 'staff1', name: 'Cán bộ A', role: 'staff', departmentId: 'd1' },
+      });
+
+      expect(Notification.create).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 'reporter1', type: 'comment' })
+      );
+      expect(mockIO.to).toHaveBeenCalledWith('user_reporter1');
+    });
+
+    it('should not mislabel a staff comment as coming from a citizen', async () => {
+      mockIssueWithReporter();
+
+      await commentService.addComment('issue1', {
+        content: 'Đội đang xuống hiện trường',
+        user: { id: 'staff1', name: 'Cán bộ A', role: 'staff', departmentId: 'd1' },
+      });
+
+      const sentToAdmins = Notification.create.mock.calls.filter(
+        ([doc]) => String(doc.userId) === 'admin1'
+      );
+      expect(sentToAdmins).toHaveLength(0);
+    });
+
+    it('should not notify the reporter when the reporter comments on their own issue', async () => {
+      mockIssueWithReporter('admin1');
+
+      await commentService.addComment('issue1', {
+        content: 'Tự ghi chú',
+        user: { id: 'admin1', name: 'Admin', role: 'admin' },
+      });
+
+      expect(Notification.create).not.toHaveBeenCalled();
     });
   });
 });

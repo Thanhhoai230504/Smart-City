@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
-import axios from 'axios';
-import { SOCKET_URL, API_URL } from '../utils/constants';
+import { SOCKET_URL } from '../utils/constants';
+import { authApi } from '../api/authApi';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store/store';
 
@@ -42,18 +42,29 @@ export const useSocket = (onEvent?: (event: string, data: any) => void) => {
     });
 
     // Access token sống 15 phút. Khi hết hạn, server từ chối handshake —
-    // refresh token rồi kết nối lại để thông báo realtime không bị đứt.
+    // phải lấy token mới rồi kết nối lại để thông báo realtime không bị đứt.
+    //
+    // KHÔNG gọi thẳng POST /auth/refresh ở đây nữa. Từ khi refresh token được
+    // XOAY (mỗi lần dùng là thu hồi token cũ), hai lời gọi refresh song song sẽ
+    // làm một trong hai thất bại: nếu socket hết hạn đúng lúc axiosClient cũng
+    // đang refresh thì lời gọi thứ hai cầm token đã chết và bị 401.
+    //
+    // Thay vào đó gọi một request thường qua axiosClient. Nếu token đã hết hạn,
+    // interceptor của nó tự refresh — và nó có sẵn cờ isRefreshing + hàng đợi nên
+    // chỉ đúng MỘT lời gọi refresh xảy ra dù có bao nhiêu request cùng chờ.
+    // Không đệ quy vì đây là request bình thường, không phải chính /auth/refresh.
     socket.on('connect_error', async (err) => {
       const isAuthError = /TOKEN_EXPIRED|UNAUTHORIZED/.test(err.message);
       if (!isAuthError || authRetries >= MAX_AUTH_RETRIES) return;
 
       authRetries += 1;
       try {
-        const { data } = await axios.post(`${API_URL}/auth/refresh`, {}, { withCredentials: true });
-        localStorage.setItem('accessToken', data.data.accessToken);
+        await authApi.getProfile();
+        // Tới đây interceptor đã ghi access token mới vào localStorage; hàm
+        // auth của socket đọc lại localStorage ở mỗi lần kết nối.
         socket.connect();
       } catch {
-        // Refresh thất bại: axiosClient sẽ xử lý điều hướng về /login
+        // Refresh thất bại: axiosClient đã điều hướng về /login
       }
     });
 

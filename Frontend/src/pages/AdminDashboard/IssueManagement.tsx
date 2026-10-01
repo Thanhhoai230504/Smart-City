@@ -14,6 +14,7 @@ import {
   GlassCard, STATUS_COLORS, STATUS_LABELS, CATEGORY_LABELS,
   cellSx, headCellSx,
 } from './types';
+import { getAllowedStatusTargets } from '../../utils/constants';
 import {
   DuplicateCandidate,
   DuplicateCandidateMeta,
@@ -293,12 +294,22 @@ const IssueManagement: React.FC<Props> = ({ onDataChange = () => undefined }) =>
                   <Typography variant="caption" color="text.disabled" noWrap display="block">{issue.location}</Typography>
                 </TableCell>
                 <TableCell sx={cellSx}>
-                  <Select size="small" value={issue.status} onChange={(event: SelectChangeEvent) => handleStatusChange(issue._id, event.target.value as IssueStatus)}
+                  <Select size="small" value={issue.status}
+                    disabled={getAllowedStatusTargets(issue.status).length === 0}
+                    onChange={(event: SelectChangeEvent) => handleStatusChange(issue._id, event.target.value as IssueStatus)}
                     sx={{ height: 30, minWidth: 125, fontSize: '0.74rem', bgcolor: `${STATUS_COLORS[issue.status]}12`, color: STATUS_COLORS[issue.status], '& .MuiOutlinedInput-notchedOutline': { borderColor: `${STATUS_COLORS[issue.status]}35` } }}>
-                    <MenuItem value="reported">Mới báo cáo</MenuItem>
-                    <MenuItem value="processing">Đang xử lý</MenuItem>
-                    <MenuItem value="resolved">Đã xử lý</MenuItem>
-                    <MenuItem value="rejected">Từ chối</MenuItem>
+                    {/* Trước đây hiện cả 4 trạng thái kể cả 'reported', nên admin lùi
+                        được phiếu đã xử lý về "mới" ngay trên giao diện — backend giờ
+                        chặn. Chỉ hiện đích đến hợp lệ; trạng thái đóng thì tắt bộ chọn.
+                        Giá trị hiện tại vẫn phải có mặt để Select không out-of-range. */}
+                    <MenuItem value={issue.status} disabled>
+                      {STATUS_LABELS[issue.status] || issue.status} (hiện tại)
+                    </MenuItem>
+                    {getAllowedStatusTargets(issue.status).map((target) => (
+                      <MenuItem key={target} value={target}>
+                        {STATUS_LABELS[target] || target}
+                      </MenuItem>
+                    ))}
                   </Select>
                 </TableCell>
                 <TableCell sx={{ ...cellSx, whiteSpace: 'nowrap' }}><PriorityBadge issue={issue} /></TableCell>

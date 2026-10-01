@@ -12,6 +12,7 @@ const { assertCanHandleIssue } = require('./assignmentService');
 const { parsePagination } = require('../utils/pagination');
 const { enqueuePriorityRecalculation } = require('./priorityService');
 const { enqueueIssueEmbedding, markIssueEmbeddingPending } = require('./embeddingService');
+const { canTransition } = require('../utils/issueStatusConfig');
 
 // Chỉ lấy các field thực sự dùng trên card/danh sách. Các mảng lớn như
 // statusHistory, votes, followers, images và resolutionImages chỉ tải ở trang
@@ -241,7 +242,11 @@ const getIssueById = async (id, requester = null) => {
     .populate('departmentId', 'name code email phone')
     .populate('assigneeId', userFields)
     .populate('mergedInto', 'title status')
-    .populate('mergedBy', 'name');
+    .populate('mergedBy', 'name')
+    // Timeline "ai làm gì": changedBy được ghi đầy đủ lúc tạo/đổi trạng thái/phân
+    // công/thu hồi nhưng trước đây không populate, nên client nhận ObjectId thô.
+    // Dùng đúng biến userFields — route chi tiết là công khai nên khách chỉ thấy tên.
+    .populate('statusHistory.changedBy', userFields);
 
   // Loại `phone` ngay ở tầng truy vấn thay vì xoá sau khi đọc, để dữ liệu cá
   // nhân không rời khỏi DB khi người gọi không có quyền thấy nó.
@@ -379,15 +384,41 @@ const updateIssueStatus = async (issueId, { status, note, adminUser }) => {
     throw ApiError.notFound('Issue not found.');
   }
   if (current.mergedInto) {
-    throw ApiError.badRequest('Báo cáo này đã được gộp; hãy cập nhật sự cố gốc');
+    throw ApiError.badRequestWithCode(
+      'Báo cáo này đã được gộp; hãy cập nhật sự cố gốc',
+      'MERGED_ISSUE'
+    );
   }
   assertCanHandleIssue(current, adminUser);
+
+  // Kiểm tra quyền TRƯỚC luật chuyển trạng thái: cán bộ sai đơn vị không được
+  // học luật của một phiếu họ không có quyền đụng tới.
+  // Chặn cả self-transition có chủ đích — gửi lại 'resolved' trên phiếu đã
+  // resolved sẽ ghi đè resolvedAt (làm sai thống kê thời gian xử lý) và gửi lại
+  // email mời đánh giá, trong khi người dân chỉ được chấm một lần.
+  if (!canTransition(current.status, status)) {
+    throw ApiError.badRequestWithCode(
+      `Không thể chuyển từ "${current.status}" sang "${status}".`,
+      'INVALID_STATUS_TRANSITION'
+    );
+  }
+
+  // Từ chối phải nêu lý do. Trước đây `note` hoàn toàn tuỳ chọn, nên người dân
+  // nhận thông báo "Từ chối" mà không biết vì sao — và đó chính là nhóm có khả
+  // năng khiếu nại cao nhất (xem G8). UI màn cán bộ có nhắc nhưng không chặn.
+  if (status === 'rejected' && !note?.trim()) {
+    throw ApiError.badRequestWithCode(
+      'Vui lòng nêu rõ lý do từ chối để người dân hiểu được quyết định.',
+      'REJECT_REASON_REQUIRED'
+    );
+  }
 
   // Bắt buộc ảnh minh chứng khi báo đã xử lý xong — để điểm đánh giá của
   // người dân có căn cứ, không chỉ dựa vào lời khai của đơn vị.
   if (status === 'resolved' && !current.resolutionImages?.length) {
-    throw ApiError.badRequest(
-      'Cần tải lên ít nhất 1 ảnh minh chứng trước khi chuyển sang "Đã xử lý".'
+    throw ApiError.badRequestWithCode(
+      'Cần tải lên ít nhất 1 ảnh minh chứng trước khi chuyển sang "Đã xử lý".',
+      'NO_RESOLUTION_IMAGE'
     );
   }
 
@@ -527,7 +558,10 @@ const addResolutionImages = async (issueId, files, user) => {
       .select('departmentId status resolutionImages mergedInto');
     if (!issue) throw ApiError.notFound('Issue not found.');
     if (issue.mergedInto) {
-      throw ApiError.badRequest('Báo cáo này đã được gộp; hãy tải ảnh lên sự cố gốc');
+      throw ApiError.badRequestWithCode(
+        'Báo cáo này đã được gộp; hãy tải ảnh lên sự cố gốc',
+        'MERGED_ISSUE'
+      );
     }
 
     assertCanHandleIssue(issue, user);

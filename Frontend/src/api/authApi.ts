@@ -28,4 +28,16 @@ export const authApi = {
 
   changePassword: (data: { currentPassword: string; newPassword: string }) =>
     axiosClient.patch('/auth/change-password', data),
+
+  /**
+   * Gửi link đặt lại mật khẩu.
+   * Backend luôn trả cùng một thông điệp dù email có tồn tại hay không — đừng
+   * dựa vào response để đoán tài khoản có thật.
+   */
+  forgotPassword: (email: string) =>
+    axiosClient.post('/auth/forgot-password', { email }),
+
+  /** Đặt mật khẩu mới bằng token trong email. Thành công thì mọi phiên bị thu hồi. */
+  resetPassword: (token: string, password: string) =>
+    axiosClient.post('/auth/reset-password', { token, password }),
 };

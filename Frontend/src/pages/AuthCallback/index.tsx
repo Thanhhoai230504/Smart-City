@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from '../../store/store';
 import { setToken, getProfileThunk } from '../../store/slices/authSlice';
+import { authApi } from '../../api/authApi';
 import { Box, CircularProgress, Typography } from '@mui/material';
 
 const AuthCallbackPage: React.FC = () => {
@@ -11,7 +12,6 @@ const AuthCallbackPage: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const token = searchParams.get('token');
     const error = searchParams.get('error');
 
     if (error) {
@@ -19,14 +19,20 @@ const AuthCallbackPage: React.FC = () => {
       return;
     }
 
-    if (token) {
-      dispatch(setToken(token));
-      dispatch(getProfileThunk()).then(() => {
-        navigate('/');
-      });
-    } else {
-      navigate('/login');
-    }
+    // Backend KHÔNG còn gửi access token qua URL (lỗ hổng L8: URL vào lịch sử
+    // trình duyệt, log proxy và rò qua header Referer). Nó set cookie refresh
+    // httpOnly rồi chuyển hướng về đây; đổi cookie đó lấy access token.
+    let cancelled = false;
+    authApi.refresh()
+      .then(({ data }) => {
+        if (cancelled) return;
+        dispatch(setToken(data.data.accessToken));
+        return dispatch(getProfileThunk());
+      })
+      .then(() => { if (!cancelled) navigate('/'); })
+      .catch(() => { if (!cancelled) navigate('/login?error=oauth_failed'); });
+
+    return () => { cancelled = true; };
   }, [searchParams, dispatch, navigate]);
 
   return (

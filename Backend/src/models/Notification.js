@@ -14,6 +14,14 @@ const notificationSchema = new mongoose.Schema({
       'comment', 'area_alert',
       // Luồng phân công & SLA
       'issue_assigned', 'sla_reminder', 'sla_escalated',
+      // Phiếu chưa phân công đã quá hạn tiếp nhận (E6)
+      'intake_overdue',
+      // Người dân mở lại sự cố vì không đồng ý kết quả xử lý (G8)
+      'issue_reopened',
+      // Người dân chấm điểm chất lượng xử lý (G13)
+      'issue_rated',
+      // Sự cố bị thu hồi phân công khỏi đơn vị (G14)
+      'issue_unassigned',
       // Gộp sự cố trùng lặp
       'issue_merged'
     ],

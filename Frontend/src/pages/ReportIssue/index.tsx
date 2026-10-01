@@ -18,10 +18,11 @@ import 'leaflet/dist/leaflet.css';
 import { CATEGORY_MAP, DA_NANG_CENTER, DEFAULT_ZOOM } from '../../utils/constants';
 import { issueApi } from '../../api/issueApi';
 import { DuplicateCandidate, DuplicateCandidateMeta } from '../../types';
+import { geoApi } from '../../api/geoApi';
 
-// ── Goong API helpers ──
-const GOONG_API_KEY = import.meta.env.VITE_GOONG_API_KEY;
-
+// Hình dạng gợi ý địa chỉ. Backend proxy giữ nguyên hình dạng `predictions` của
+// Goong nên phần render không phải sửa. Các interface mô tả response thô của
+// Goong đã bị bỏ: backend bóc tách sẵn, client không còn chạm tới chúng.
 interface GoongPrediction {
   place_id: string;
   description: string;
@@ -29,22 +30,6 @@ interface GoongPrediction {
     main_text: string;
     secondary_text: string;
   };
-}
-
-interface GoongAutoCompleteResponse {
-  predictions: GoongPrediction[];
-  status: string;
-}
-
-interface GoongPlaceDetailResponse {
-  result: {
-    geometry: {
-      location: { lat: number; lng: number };
-    };
-    formatted_address: string;
-    name: string;
-  };
-  status: string;
 }
 
 interface SelectedIssueImage {
@@ -56,42 +41,28 @@ interface SelectedIssueImage {
 const MAX_ISSUE_IMAGES = 5;
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 
-// Autocomplete: search for address suggestions near Da Nang
+// Ba hàm dưới đây gọi qua backend proxy thay vì gọi thẳng Goong — xem api/geoApi.ts.
+// Trước đây API key nằm công khai trong bundle; app mobile sẽ không chặn được
+// bằng referrer restriction như web nên proxy là bắt buộc.
+
 const searchAddress = async (input: string): Promise<GoongPrediction[]> => {
-  const url = `https://rsapi.goong.io/Place/AutoComplete?` +
-    `api_key=${GOONG_API_KEY}&input=${encodeURIComponent(input)}` +
-    `&location=${DA_NANG_CENTER.lat},${DA_NANG_CENTER.lng}&radius=30&limit=5&more_compound=true`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('Autocomplete failed');
-  const data: GoongAutoCompleteResponse = await res.json();
-  if (data.status !== 'OK') return [];
-  return data.predictions;
+  const { data } = await geoApi.autocomplete(input, {
+    lat: DA_NANG_CENTER.lat,
+    lng: DA_NANG_CENTER.lng,
+    radius: 30,
+    limit: 5,
+  });
+  return data.data.predictions as GoongPrediction[];
 };
 
-// Place Detail: get coordinates from place_id
 const getPlaceDetail = async (placeId: string): Promise<{ lat: number; lng: number; address: string }> => {
-  const url = `https://rsapi.goong.io/Place/Detail?` +
-    `place_id=${encodeURIComponent(placeId)}&api_key=${GOONG_API_KEY}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('Place detail failed');
-  const data: GoongPlaceDetailResponse = await res.json();
-  return {
-    lat: data.result.geometry.location.lat,
-    lng: data.result.geometry.location.lng,
-    address: data.result.formatted_address || data.result.name,
-  };
+  const { data } = await geoApi.placeDetail(placeId);
+  return data.data;
 };
 
-// Reverse Geocode: get address from lat/lng
 const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
-  const url = `https://rsapi.goong.io/Geocode?latlng=${lat},${lng}&api_key=${GOONG_API_KEY}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('Reverse geocode failed');
-  const data = await res.json();
-  if (data.status === 'OK' && data.results?.length > 0) {
-    return data.results[0].formatted_address;
-  }
-  return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+  const { data } = await geoApi.reverse(lat, lng);
+  return data.data.address;
 };
 
 // ── Map sub-components ──

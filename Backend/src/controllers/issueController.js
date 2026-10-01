@@ -2,6 +2,7 @@ const issueService = require('../services/issueService');
 const ratingService = require('../services/ratingService');
 const assignmentService = require('../services/assignmentService');
 const duplicateService = require('../services/duplicateService');
+const reopenService = require('../services/reopenService');
 const auditService = require('../services/auditService');
 const Issue = require('../models/Issue');
 const { enqueuePriorityRecalculation } = require('../services/priorityService');
@@ -293,8 +294,37 @@ const mergeIssue = async (req, res, next) => {
   }
 };
 
+/**
+ * Người dân mở lại sự cố vì không đồng ý kết quả xử lý (G8).
+ * Đây là đường quay lại duy nhất của người báo cáo — xem utils/reopenConfig.js.
+ */
+const reopenIssue = async (req, res, next) => {
+  try {
+    const issue = await reopenService.reopenIssue(req.params.id, req.user.id, {
+      reason: req.body.reason,
+    });
+    await auditService.recordAudit({
+      actor: req.user,
+      action: 'issue.reopened',
+      entityType: 'Issue',
+      entityId: issue._id,
+      description: `Người dân mở lại sự cố "${issue.title}" (lần ${issue.reopenCount})`,
+      metadata: { reason: req.body.reason, reopenCount: issue.reopenCount },
+      request: req,
+    });
+    res.json({
+      success: true,
+      message: 'Đã mở lại sự cố. Đơn vị phụ trách sẽ xem xét lại.',
+      data: { issue },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getIssues,
+  reopenIssue,
   getIssueById,
   createIssue,
   updateIssueStatus,

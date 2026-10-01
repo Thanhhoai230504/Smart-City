@@ -9,7 +9,7 @@ import {
   Box, Container, Typography, Chip, Card, CardContent, Stack, Button,
   Grid, Divider, Avatar, TextField, Stepper, Step, StepLabel, StepConnector,
   MenuItem, Select, FormControl, InputLabel, SelectChangeEvent, IconButton,
-  Rating, Alert,
+  Rating, Alert, Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
@@ -22,8 +22,12 @@ import {
   Share, Facebook, ContentCopy, Link as LinkIcon,
   Star,
 } from '@mui/icons-material';
-import { CATEGORY_MAP, STATUS_MAP } from '../../utils/constants';
-import { formatDate } from '../../utils/helpers';
+import {
+  CATEGORY_MAP, STATUS_MAP, getAllowedStatusTargets,
+  MAX_REOPEN_COUNT, REOPEN_WINDOW_DAYS,
+  MIN_REOPEN_REASON_LENGTH, MAX_REOPEN_REASON_LENGTH,
+} from '../../utils/constants';
+import { formatDate, escapeHtml } from '../../utils/helpers';
 import { Comment, Department, IssueStatus, Pagination } from '../../types';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import SlaBadge from '../../components/SlaBadge';
@@ -86,6 +90,9 @@ const IssueDetailPage: React.FC = () => {
   // Rating
   const [ratingScore, setRatingScore] = useState<number | null>(null);
   const [ratingComment, setRatingComment] = useState('');
+  const [reopenOpen, setReopenOpen] = useState(false);
+  const [reopenReason, setReopenReason] = useState('');
+  const [submittingReopen, setSubmittingReopen] = useState(false);
   const [submittingRating, setSubmittingRating] = useState(false);
 
   useEffect(() => {
@@ -190,10 +197,34 @@ const IssueDetailPage: React.FC = () => {
   const isOwner = user && reporter && user._id === reporter._id;
   const canRate = isOwner && issue.status === 'resolved' && !issue.rating?.score;
   const hasRated = !!issue.rating?.score;
+  // Mở lại sự cố (G8): đường quay lại duy nhất của người báo cáo khi không đồng ý
+  // kết quả. Điều kiện ở đây chỉ để ẩn/hiện nút — backend mới là nơi phán quyết
+  // (đúng người, số lần, cửa sổ 30 ngày) và trả mã lỗi tương ứng.
+  const canReopen = Boolean(
+    isOwner
+    && ['resolved', 'rejected'].includes(issue.status)
+    && !issue.mergedInto
+    && (issue.reopenCount || 0) < MAX_REOPEN_COUNT,
+  );
   // Đơn vị phụ trách lấy từ dữ liệu phân công thật (populate), không còn
   // suy ra từ category bằng danh sách hardcode.
   const dept = typeof issue.departmentId === 'object' ? (issue.departmentId as Department) : null;
   const assignee = typeof issue.assigneeId === 'object' ? issue.assigneeId : null;
+
+  const handleReopen = async () => {
+    if (!id || reopenReason.trim().length < 10 || submittingReopen) return;
+    setSubmittingReopen(true);
+    try {
+      await issueApi.reopenIssue(id, { reason: reopenReason.trim() });
+      toast.success('Đã mở lại sự cố. Đơn vị phụ trách sẽ xem xét lại.');
+      dispatch(fetchIssueById(id));
+      setReopenOpen(false);
+      setReopenReason('');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Mở lại sự cố thất bại');
+    }
+    setSubmittingReopen(false);
+  };
 
   const handleRating = async () => {
     if (!ratingScore || !id || submittingRating) return;
@@ -333,6 +364,14 @@ const IssueDetailPage: React.FC = () => {
                           <Typography variant="caption" color="text.secondary">
                             — {formatDate(entry.changedAt)}
                           </Typography>
+                          {/* "Ai làm gì": backend populate statusHistory.changedBy.
+                              Entry cũ chưa populate sẽ là ObjectId thô — chỉ hiện tên
+                              khi nhận được object, tránh in ra chuỗi 24 ký tự vô nghĩa. */}
+                          {entry.changedBy && typeof entry.changedBy === 'object' && (
+                            <Typography variant="caption" color="text.secondary">
+                              · bởi {entry.changedBy.name}
+                            </Typography>
+                          )}
                         </Stack>
                         {entry.note && (
                           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.3 }}>
@@ -449,9 +488,13 @@ const IssueDetailPage: React.FC = () => {
                   <Select value={newStatus} label="Chuyển trạng thái"
                     onChange={(e: SelectChangeEvent) => setNewStatus(e.target.value as IssueStatus)}
                     sx={{ borderRadius: '10px' }}>
-                    {issue.status === 'reported' && <MenuItem value="processing">🔵 Đang xử lý</MenuItem>}
-                    <MenuItem value="resolved">🟢 Đã xử lý</MenuItem>
-                    <MenuItem value="rejected">🔴 Từ chối</MenuItem>
+                    {/* Chỉ hiện đích đến hợp lệ theo luật chuyển trạng thái —
+                        backend trả 400 code INVALID_STATUS_TRANSITION nếu gọi sai. */}
+                    {getAllowedStatusTargets(issue.status).map((target) => (
+                      <MenuItem key={target} value={target}>
+                        {STATUS_MAP[target]?.icon} {STATUS_MAP[target]?.label || target}
+                      </MenuItem>
+                    ))}
                   </Select>
                 </FormControl>
 
@@ -543,7 +586,7 @@ const IssueDetailPage: React.FC = () => {
                     const soCV = `CV-${issue._id?.slice(-6).toUpperCase() || '000000'}`;
 
                     const html = `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Công văn ${soCV}</title>
+<html><head><meta charset="utf-8"><title>Công văn ${escapeHtml(soCV)}</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -573,22 +616,22 @@ const IssueDetailPage: React.FC = () => {
     <hr/>
   </div>
   <div class="meta">
-    <span>Số: ${soCV}</span>
+    <span>Số: ${escapeHtml(soCV)}</span>
     <span>Đà Nẵng, ${dateStr}</span>
   </div>
   <div class="title">Công văn yêu cầu xử lý sự cố</div>
-  <div class="recipient">Kính gửi: ${dept.name}</div>
+  <div class="recipient">Kính gửi: ${escapeHtml(dept.name)}</div>
   <div class="body-text">
     Hệ thống Giám sát Đô thị Thông minh thành phố Đà Nẵng đã tiếp nhận báo cáo sự cố từ người dân với nội dung như sau:
   </div>
   <table class="info-table">
-    <tr><td>Tiêu đề</td><td>${issue.title}</td></tr>
-    <tr><td>Loại sự cố</td><td>${catLabel}</td></tr>
-    <tr><td>Địa chỉ</td><td>${issue.location}</td></tr>
+    <tr><td>Tiêu đề</td><td>${escapeHtml(issue.title)}</td></tr>
+    <tr><td>Loại sự cố</td><td>${escapeHtml(catLabel)}</td></tr>
+    <tr><td>Địa chỉ</td><td>${escapeHtml(issue.location)}</td></tr>
     <tr><td>Tọa độ</td><td>${issue.latitude.toFixed(6)}, ${issue.longitude.toFixed(6)}</td></tr>
-    <tr><td>Mô tả</td><td>${issue.description || 'Không có'}</td></tr>
+    <tr><td>Mô tả</td><td>${escapeHtml(issue.description) || 'Không có'}</td></tr>
     <tr><td>Thời gian báo cáo</td><td>${formatDate(issue.createdAt)}</td></tr>
-    <tr><td>Người báo cáo</td><td>${reporter?.name || 'Người dân'}${issue.phone ? ` — SĐT: ${issue.phone}` : ''}</td></tr>
+    <tr><td>Người báo cáo</td><td>${escapeHtml(reporter?.name) || 'Người dân'}${issue.phone ? ` — SĐT: ${escapeHtml(issue.phone)}` : ''}</td></tr>
   </table>
   <div class="body-text">
     Kính đề nghị quý đơn vị cử cán bộ kiểm tra và xử lý sự cố nói trên trong thời gian sớm nhất. Sau khi xử lý, vui lòng phản hồi kết quả về hệ thống hoặc liên hệ:
@@ -599,7 +642,7 @@ const IssueDetailPage: React.FC = () => {
   <div class="signature">
     <p>Trân trọng,</p>
     <p style="font-weight:500;margin-top:5px">QUẢN TRỊ VIÊN HỆ THỐNG</p>
-    <p class="name">${user?.name || 'Admin'}</p>
+    <p class="name">${escapeHtml(user?.name) || 'Admin'}</p>
   </div>
   <div class="footer">Tài liệu này được tạo tự động bởi Hệ thống Giám sát Đô thị Thông minh Đà Nẵng</div>
 </body></html>`;
@@ -647,6 +690,58 @@ const IssueDetailPage: React.FC = () => {
               </CardContent>
             </Card>
           )}
+
+          {/* MỞ LẠI SỰ CỐ (G8) — đường quay lại duy nhất của người báo cáo khi
+              không đồng ý kết quả. Trước đây người dân gửi xong là hết quyền:
+              chỉ có vote, chấm sao và xác nhận trùng. */}
+          {canReopen && (
+            <Card sx={{ mb: 3, bgcolor: 'rgba(11,94,142,0.05)', border: '1px solid rgba(11,94,142,0.18)' }}>
+              <CardContent>
+                <Typography fontWeight={600} color="primary.main" mb={1}>
+                  🔄 Chưa hài lòng với kết quả?
+                </Typography>
+                <Typography variant="body2" color="text.secondary" mb={2}>
+                  {issue.status === 'resolved'
+                    ? 'Nếu sự cố thực tế vẫn chưa được xử lý xong, bạn có thể mở lại để đơn vị xem xét.'
+                    : 'Nếu bạn cho rằng lý do từ chối chưa thoả đáng, bạn có thể mở lại để đơn vị xem xét.'}
+                  {' '}Được mở lại tối đa {MAX_REOPEN_COUNT} lần, trong {REOPEN_WINDOW_DAYS} ngày kể từ khi đóng phiếu.
+                  {(issue.reopenCount || 0) > 0 && ` Bạn đã mở lại ${issue.reopenCount} lần.`}
+                </Typography>
+                <Button variant="outlined" onClick={() => setReopenOpen(true)}>
+                  Mở lại sự cố
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          <Dialog open={reopenOpen} onClose={() => setReopenOpen(false)} fullWidth maxWidth="sm">
+            <DialogTitle>Mở lại sự cố</DialogTitle>
+            <DialogContent>
+              <Typography variant="body2" color="text.secondary" mb={2}>
+                Hãy nêu rõ vì sao bạn chưa đồng ý với kết quả. Nội dung này được gửi
+                tới đơn vị phụ trách và lưu vào lịch sử xử lý.
+              </Typography>
+              <TextField
+                fullWidth multiline rows={4} autoFocus
+                label="Lý do mở lại"
+                placeholder="VD: Ổ gà mới được lấp tạm, sau một trận mưa đã sụt lại như cũ."
+                value={reopenReason}
+                onChange={(e) => setReopenReason(e.target.value.slice(0, MAX_REOPEN_REASON_LENGTH))}
+                error={reopenReason.length > 0 && reopenReason.trim().length < MIN_REOPEN_REASON_LENGTH}
+                helperText={`${reopenReason.length}/${MAX_REOPEN_REASON_LENGTH} — tối thiểu ${MIN_REOPEN_REASON_LENGTH} ký tự`}
+              />
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setReopenOpen(false)} color="inherit">Huỷ</Button>
+              <Button
+                variant="contained"
+                onClick={handleReopen}
+                disabled={reopenReason.trim().length < MIN_REOPEN_REASON_LENGTH || submittingReopen}
+              >
+                {submittingReopen ? 'Đang gửi...' : 'Gửi yêu cầu mở lại'}
+              </Button>
+            </DialogActions>
+          </Dialog>
 
           {/* RATING - Form đánh giá cho owner khi resolved & chưa rate */}
           {canRate && (

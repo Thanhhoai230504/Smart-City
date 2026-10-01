@@ -153,10 +153,51 @@ const assignIssue = async (issueId, { departmentId, assigneeId = null, note = ''
  * Bỏ phân công, đưa sự cố về hàng chờ của admin. Xoá luôn hạn xử lý vì
  * không còn đơn vị nào chịu trách nhiệm.
  */
+/**
+ * Báo cho đơn vị/cán bộ vừa bị thu hồi việc.
+ *
+ * Lỗi gửi thông báo không được làm hỏng thao tác thu hồi đã ghi thành công —
+ * cùng nguyên tắc best-effort với audit log.
+ */
+const notifyUnassignment = async ({ issue, previousDepartmentId, previousAssigneeId, note }) => {
+  try {
+    const io = getIO();
+
+    // Ưu tiên người nhận trực tiếp; chưa ai nhận thì báo cả đơn vị.
+    const recipients = previousAssigneeId
+      ? [previousAssigneeId]
+      : (await User.find({
+        departmentId: previousDepartmentId,
+        role: 'staff',
+        isActive: true,
+      }).select('_id')).map((s) => s._id);
+
+    for (const recipientId of recipients) {
+      const notification = await Notification.create({
+        userId: recipientId,
+        type: 'issue_unassigned',
+        title: '↩️ Sự cố đã được thu hồi',
+        message: `Sự cố "${issue.title}" không còn thuộc phạm vi xử lý của bạn`
+          + (note ? `. Lý do: ${note}` : '.'),
+        issueId: issue._id,
+      });
+      io.to(`user_${recipientId}`).emit('notification:new', notification);
+    }
+  } catch (err) {
+    console.warn('Unassignment notification error:', err.message);
+  }
+};
+
 const unassignIssue = async (issueId, { note = '' }, actor) => {
   const issue = await Issue.findOne({ _id: issueId, isDeleted: false });
   if (!issue) throw ApiError.notFound('Sự cố không tồn tại');
   if (!issue.departmentId) throw ApiError.badRequest('Sự cố chưa được phân công');
+
+  // Giữ lại người nhận TRƯỚC khi xoá, để còn báo cho họ biết việc đã bị lấy đi.
+  // Trước đây thao tác này diễn ra hoàn toàn im lặng: audit có ghi, nhưng đơn vị
+  // và cán bộ đang làm thì không hề được thông báo.
+  const previousDepartmentId = issue.departmentId;
+  const previousAssigneeId = issue.assigneeId;
 
   issue.departmentId = null;
   issue.assigneeId = null;
@@ -174,6 +215,7 @@ const unassignIssue = async (issueId, { note = '' }, actor) => {
 
   await issue.save();
   enqueuePriorityRecalculation(issue._id);
+  await notifyUnassignment({ issue, previousDepartmentId, previousAssigneeId, note });
   return issue;
 };
 

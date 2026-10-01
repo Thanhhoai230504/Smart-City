@@ -28,6 +28,7 @@ import {
   PhotoLibrary,
 } from '@mui/icons-material';
 import { issueApi } from '../../api/issueApi';
+import { getAllowedStatusTargets } from '../../utils/constants';
 import {
   Issue,
   IssueStatus,
@@ -94,8 +95,14 @@ const UpdateStatusDialog: React.FC<Props> = ({
     return () => urls.forEach((url) => URL.revokeObjectURL(url));
   }, [files]);
 
+  // Trước đây chỉ loại trạng thái hiện tại nên vẫn cho phép 'resolved' ->
+  // 'rejected' và ngược lại; backend giờ chặn cả hai (phải quay về 'processing'
+  // trước). Lọc theo cùng bảng luật để cán bộ không bấm phải lựa chọn bị từ chối.
   const availableOptions = useMemo(
-    () => STATUS_OPTIONS.filter((option) => option.value !== issue?.status),
+    () => {
+      const targets = getAllowedStatusTargets(issue?.status);
+      return STATUS_OPTIONS.filter((option) => targets.includes(option.value));
+    },
     [issue?.status],
   );
 

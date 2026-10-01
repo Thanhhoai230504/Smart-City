@@ -1,4 +1,5 @@
 jest.mock('../../src/models/User');
+jest.mock('../../src/services/sessionService');
 jest.mock('jsonwebtoken');
 jest.mock('../../src/services/emailService', () => ({
   sendEmail: jest.fn(),
@@ -6,6 +7,7 @@ jest.mock('../../src/services/emailService', () => ({
 
 const jwt = require('jsonwebtoken');
 const User = require('../../src/models/User');
+const sessionService = require('../../src/services/sessionService');
 const { sendEmail } = require('../../src/services/emailService');
 const authService = require('../../src/services/authService');
 
@@ -13,6 +15,13 @@ describe('AuthService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     sendEmail.mockResolvedValue(true);
+    // Phiên đăng nhập giờ nằm ở collection riêng (models/RefreshSession) thay vì
+    // một field trên User — xem B1 trong KE-HOACH-FLUTTER-APP.md.
+    sessionService.createSession.mockResolvedValue({ _id: 'sess1' });
+    sessionService.rotateSession.mockResolvedValue({ _id: 'sess2' });
+    sessionService.revokeSession.mockResolvedValue(1);
+    sessionService.revokeAllSessions.mockResolvedValue(1);
+    sessionService.wantsTokenInBody.mockReturnValue(false);
   });
 
   describe('registerUser()', () => {
@@ -36,7 +45,7 @@ describe('AuthService', () => {
       const result = await authService.registerUser({
         name: 'Test User',
         email: 'test@test.com',
-        password: '123456',
+        password: 'bongden-hong-2026',
       });
 
       expect(result).toEqual({
@@ -50,7 +59,7 @@ describe('AuthService', () => {
       expect(User.create).toHaveBeenCalledWith(expect.objectContaining({
         name: 'Test User',
         email: 'test@test.com',
-        password: '123456',
+        password: 'bongden-hong-2026',
         isVerified: false,
         emailVerificationTokenHash: expect.stringMatching(/^[a-f0-9]{64}$/),
         emailVerificationExpires: expect.any(Date),
@@ -109,7 +118,6 @@ describe('AuthService', () => {
         select: jest.fn().mockResolvedValue(mockUserDoc),
       });
       jwt.sign.mockReturnValueOnce('access-token').mockReturnValueOnce('refresh-token');
-      User.findByIdAndUpdate.mockResolvedValue(null);
 
       const result = await authService.loginUser({
         email: 'test@test.com',
@@ -119,7 +127,48 @@ describe('AuthService', () => {
       expect(result.accessToken).toBe('access-token');
       expect(result.refreshToken).toBe('refresh-token');
       expect(result.user.email).toBe('test@test.com');
-      expect(User.findByIdAndUpdate).toHaveBeenCalledWith('user123', { refreshToken: 'refresh-token' });
+      expect(sessionService.createSession).toHaveBeenCalledWith(
+        'user123', 'refresh-token', expect.any(Object)
+      );
+    });
+
+    // Điểm cốt lõi của B1: đăng nhập trên thiết bị mới KHÔNG được đá thiết bị cũ.
+    // Trước đây User.refreshToken là một field nên mỗi lần login là ghi đè.
+    it('does not revoke sessions on other devices when logging in', async () => {
+      mockUserDoc.comparePassword.mockResolvedValue(true);
+      User.findOne.mockReturnValue({ select: jest.fn().mockResolvedValue(mockUserDoc) });
+      jwt.sign.mockReturnValueOnce('access-token').mockReturnValueOnce('refresh-token');
+
+      await authService.loginUser({
+        email: 'test@test.com',
+        password: '123456',
+        deviceType: 'android',
+        deviceName: 'Pixel 8',
+      });
+
+      expect(sessionService.revokeAllSessions).not.toHaveBeenCalled();
+      expect(sessionService.createSession).toHaveBeenCalledWith(
+        'user123',
+        'refresh-token',
+        { deviceType: 'android', deviceName: 'Pixel 8' }
+      );
+    });
+
+    // Flutter native không có cookie jar nên phải nhận token qua body; web giữ
+    // nguyên httpOnly cookie. Controller đọc cờ này để quyết định.
+    it('flags mobile logins so the controller returns the token in the body', async () => {
+      mockUserDoc.comparePassword.mockResolvedValue(true);
+      User.findOne.mockReturnValue({ select: jest.fn().mockResolvedValue(mockUserDoc) });
+      jwt.sign.mockReturnValue('tok');
+      sessionService.wantsTokenInBody.mockReturnValue(true);
+
+      const result = await authService.loginUser({
+        email: 'test@test.com',
+        password: '123456',
+        deviceType: 'ios',
+      });
+
+      expect(result.tokenInBody).toBe(true);
     });
 
     it('should block an unverified local account after a valid password', async () => {
@@ -233,46 +282,211 @@ describe('AuthService', () => {
     });
   });
 
+  // Hồi quy: thiếu `jti`, hai lần ký trong cùng một giây cho ra JWT giống hệt
+  // nhau và lần đăng nhập thứ hai vỡ vì unique index trên RefreshSession.tokenHash.
+  // Smoke test trên server thật bắt được lỗi này; unit test mock sessionService thì không.
+  describe('generateRefreshToken uniqueness', () => {
+    it('includes a random jti so two tokens in the same second differ', async () => {
+      const realJwt = jest.requireActual('jsonwebtoken');
+      jwt.sign.mockImplementation((payload, secret, opts) => realJwt.sign(payload, secret, opts));
+      const userDoc = {
+        _id: 'user123',
+        email: 'test@test.com',
+        role: 'user',
+        provider: 'local',
+        isActive: true,
+        isVerified: true,
+        comparePassword: jest.fn().mockResolvedValue(true),
+      };
+      User.findOne.mockReturnValue({ select: jest.fn().mockResolvedValue(userDoc) });
+
+      const a = await authService.loginUser({ email: 'test@test.com', password: '123456' });
+      const b = await authService.loginUser({ email: 'test@test.com', password: '123456' });
+
+      expect(a.refreshToken).not.toBe(b.refreshToken);
+    });
+  });
+
+  // ─── G18: khoá tài khoản sau N lần sai liên tiếp ───
+  // Rate limiter theo IP không đủ: nó dùng skipSuccessfulRequests nên chỉ đếm
+  // request hỏng, và đổi IP là đếm lại từ đầu. Đếm theo TÀI KHOẢN mới chặn được
+  // việc dò một tài khoản cụ thể.
+  describe('khoa tai khoan khi dang nhap sai', () => {
+    const lockableUser = (overrides = {}) => ({
+      _id: 'user123',
+      email: 'test@test.com',
+      role: 'user',
+      provider: 'local',
+      isActive: true,
+      isVerified: true,
+      failedLoginAttempts: 0,
+      lockUntil: null,
+      comparePassword: jest.fn().mockResolvedValue(false),
+      ...overrides,
+    });
+
+    it('counts a wrong password against the account', async () => {
+      User.findOne.mockReturnValue({ select: jest.fn().mockResolvedValue(lockableUser()) });
+
+      await expect(authService.loginUser({ email: 'test@test.com', password: 'wrong' }))
+        .rejects.toThrow('Invalid email or password.');
+
+      expect(User.findByIdAndUpdate).toHaveBeenCalledWith(
+        'user123',
+        expect.objectContaining({ failedLoginAttempts: 1 })
+      );
+    });
+
+    it('locks the account once the threshold is reached', async () => {
+      User.findOne.mockReturnValue({
+        select: jest.fn().mockResolvedValue(lockableUser({ failedLoginAttempts: 4 })),
+      });
+
+      await expect(authService.loginUser({ email: 'test@test.com', password: 'wrong' }))
+        .rejects.toMatchObject({ code: 'ACCOUNT_LOCKED' });
+
+      const update = User.findByIdAndUpdate.mock.calls[0][1];
+      expect(update.failedLoginAttempts).toBe(5);
+      expect(update.lockUntil).toBeInstanceOf(Date);
+    });
+
+    it('refuses a locked account before even checking the password', async () => {
+      const user = lockableUser({ lockUntil: new Date(Date.now() + 60_000) });
+      User.findOne.mockReturnValue({ select: jest.fn().mockResolvedValue(user) });
+
+      await expect(authService.loginUser({ email: 'test@test.com', password: 'anything' }))
+        .rejects.toMatchObject({ statusCode: 403, code: 'ACCOUNT_LOCKED' });
+
+      // Không chạy bcrypt khi đang khoá — vừa đỡ tốn CPU, vừa không cho kẻ dò
+      // đo thời gian phản hồi để suy ra mật khẩu đúng hay sai.
+      expect(user.comparePassword).not.toHaveBeenCalled();
+    });
+
+    it('lets the account back in once the lock expires', async () => {
+      const user = lockableUser({
+        lockUntil: new Date(Date.now() - 1000),
+        failedLoginAttempts: 5,
+        comparePassword: jest.fn().mockResolvedValue(true),
+      });
+      User.findOne.mockReturnValue({ select: jest.fn().mockResolvedValue(user) });
+      jwt.sign.mockReturnValue('tok');
+
+      await expect(authService.loginUser({ email: 'test@test.com', password: 'right' }))
+        .resolves.toBeTruthy();
+    });
+
+    // Chuỗi sai phải LIÊN TIẾP mới dẫn tới khoá.
+    it('resets the counter after a successful login', async () => {
+      const user = lockableUser({
+        failedLoginAttempts: 3,
+        comparePassword: jest.fn().mockResolvedValue(true),
+      });
+      User.findOne.mockReturnValue({ select: jest.fn().mockResolvedValue(user) });
+      jwt.sign.mockReturnValue('tok');
+
+      await authService.loginUser({ email: 'test@test.com', password: 'right' });
+
+      expect(User.findByIdAndUpdate).toHaveBeenCalledWith(
+        'user123',
+        { failedLoginAttempts: 0, lockUntil: null }
+      );
+    });
+
+    it('does not write on a clean successful login', async () => {
+      const user = lockableUser({ comparePassword: jest.fn().mockResolvedValue(true) });
+      User.findOne.mockReturnValue({ select: jest.fn().mockResolvedValue(user) });
+      jwt.sign.mockReturnValue('tok');
+
+      await authService.loginUser({ email: 'test@test.com', password: 'right' });
+
+      expect(User.findByIdAndUpdate).not.toHaveBeenCalled();
+    });
+
+    // Không tiết lộ còn bao nhiêu lần thử — thông tin đó giúp kẻ dò căn nhịp.
+    it('does not reveal how many attempts remain', async () => {
+      User.findOne.mockReturnValue({
+        select: jest.fn().mockResolvedValue(lockableUser({ failedLoginAttempts: 3 })),
+      });
+
+      await expect(authService.loginUser({ email: 'test@test.com', password: 'wrong' }))
+        .rejects.toThrow('Invalid email or password.');
+    });
+  });
+
   describe('refreshAccessToken()', () => {
     it('should throw if no refresh token provided', async () => {
       await expect(authService.refreshAccessToken(null)).rejects.toThrow('No refresh token provided.');
     });
 
-    it('should throw if token is invalid or does not match stored', async () => {
+    // Token đã rotate hoặc đã thu hồi thì không còn phiên nào khớp.
+    it('should throw when no active session matches the token', async () => {
       jwt.verify.mockReturnValue({ id: 'user123' });
-      User.findById.mockReturnValue({
-        select: jest.fn().mockResolvedValue({ refreshToken: 'different-token' }),
-      });
+      sessionService.findActiveSession.mockResolvedValue(null);
 
       await expect(authService.refreshAccessToken('old-token')).rejects.toThrow('Invalid refresh token.');
     });
 
+    it('should throw when the session belongs to a different user', async () => {
+      jwt.verify.mockReturnValue({ id: 'user123' });
+      sessionService.findActiveSession.mockResolvedValue({
+        _id: 's1', userId: 'someoneElse', deviceType: 'web',
+      });
+
+      await expect(authService.refreshAccessToken('tok')).rejects.toThrow('Invalid refresh token.');
+    });
+
     it('should return new access token on valid refresh', async () => {
       jwt.verify.mockReturnValue({ id: 'user123' });
-      const mockUser = {
-        _id: 'user123',
-        email: 'test@test.com',
-        role: 'user',
-        refreshToken: 'valid-refresh-token',
-      };
-      User.findById.mockReturnValue({
-        select: jest.fn().mockResolvedValue(mockUser),
+      sessionService.findActiveSession.mockResolvedValue({
+        _id: 's1', userId: 'user123', deviceType: 'web',
+      });
+      User.findById.mockResolvedValue({
+        _id: 'user123', email: 'test@test.com', role: 'user', isActive: true,
       });
       jwt.sign.mockReturnValue('new-access-token');
 
       const result = await authService.refreshAccessToken('valid-refresh-token');
 
-      expect(result).toBe('new-access-token');
+      expect(result.accessToken).toBe('new-access-token');
+    });
+
+    // Trước đây refresh KHÔNG rotate: một token bị đánh cắp dùng được trọn 7 ngày.
+    it('rotates the refresh token so a stolen one dies after a single use', async () => {
+      jwt.verify.mockReturnValue({ id: 'user123' });
+      const session = { _id: 's1', userId: 'user123', deviceType: 'web' };
+      sessionService.findActiveSession.mockResolvedValue(session);
+      User.findById.mockResolvedValue({ _id: 'user123', role: 'user', isActive: true });
+      jwt.sign.mockReturnValueOnce('new-access').mockReturnValueOnce('new-refresh');
+
+      const result = await authService.refreshAccessToken('old-refresh');
+
+      expect(sessionService.rotateSession).toHaveBeenCalledWith(session, 'new-refresh');
+      expect(result.refreshToken).toBe('new-refresh');
+    });
+
+    it('refuses a deactivated account even with a valid session', async () => {
+      jwt.verify.mockReturnValue({ id: 'user123' });
+      sessionService.findActiveSession.mockResolvedValue({
+        _id: 's1', userId: 'user123', deviceType: 'web',
+      });
+      User.findById.mockResolvedValue({ _id: 'user123', isActive: false });
+
+      await expect(authService.refreshAccessToken('tok')).rejects.toThrow('Invalid refresh token.');
     });
   });
 
   describe('logoutUser()', () => {
-    it('should clear refreshToken for user', async () => {
-      User.findByIdAndUpdate.mockResolvedValue(null);
+    // Đăng xuất chỉ cắt THIẾT BỊ ĐANG DÙNG, không đá các thiết bị khác ra.
+    it('revokes only the session of the device being used', async () => {
+      await authService.logoutUser('user123', 'this-device-token');
 
-      await authService.logoutUser('user123');
+      expect(sessionService.revokeSession).toHaveBeenCalledWith('this-device-token');
+      expect(sessionService.revokeAllSessions).not.toHaveBeenCalled();
+    });
 
-      expect(User.findByIdAndUpdate).toHaveBeenCalledWith('user123', { refreshToken: null });
+    it('does not fail when the refresh token is already gone', async () => {
+      await expect(authService.logoutUser('user123', undefined)).resolves.toBeUndefined();
+      expect(sessionService.revokeSession).not.toHaveBeenCalled();
     });
   });
 
@@ -319,9 +533,16 @@ describe('AuthService', () => {
         .rejects.toThrow('Current password and new password are required');
     });
 
+    // Chính sách mật khẩu giờ nằm ở utils/passwordPolicy.js và áp cho MỌI đường
+    // đặt mật khẩu (đăng ký, đổi, đặt lại) — xem tests/utils/passwordPolicy.test.js.
     it('should throw if newPassword is too short', async () => {
       await expect(authService.changePassword('user123', { currentPassword: 'old', newPassword: '12345' }))
-        .rejects.toThrow('New password must be at least 6 characters');
+        .rejects.toMatchObject({ statusCode: 400, code: 'PASSWORD_TOO_SHORT' });
+    });
+
+    it('should reject a common password even when long enough', async () => {
+      await expect(authService.changePassword('user123', { currentPassword: 'old', newPassword: 'password123' }))
+        .rejects.toMatchObject({ code: 'PASSWORD_TOO_COMMON' });
     });
 
     it('should throw if current password is wrong', async () => {
@@ -329,7 +550,7 @@ describe('AuthService', () => {
       User.findById.mockReturnValue({ select: jest.fn().mockResolvedValue(mockUser) });
 
       await expect(
-        authService.changePassword('user123', { currentPassword: 'wrong', newPassword: '123456' })
+        authService.changePassword('user123', { currentPassword: 'wrong', newPassword: 'bongden-hong-2026' })
       ).rejects.toThrow('Current password is incorrect');
     });
 

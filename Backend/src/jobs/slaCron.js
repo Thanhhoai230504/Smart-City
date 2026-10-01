@@ -7,8 +7,12 @@ const startSlaCron = () => {
   cron.schedule('15 * * * *', async () => {
     try {
       const result = await runSlaCheck();
-      if (result.reminded || result.escalated) {
-        console.log(`⏰ SLA: nhắc ${result.reminded || 0} sự cố, leo cấp ${result.escalated || 0} sự cố`);
+      if (result.reminded || result.escalated || result.unassigned) {
+        console.log(
+          `⏰ SLA: nhắc ${result.reminded || 0} sự cố, `
+          + `leo cấp ${result.escalated || 0} sự cố, `
+          + `chờ phân công quá hạn ${result.unassigned || 0} sự cố`
+        );
       }
     } catch (err) {
       console.error('❌ SLA cron thất bại:', err.message);

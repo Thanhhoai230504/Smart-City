@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const { DISTRICT_ENUM, UNKNOWN_DISTRICT, resolveDistrict } = require('../utils/districts');
-const { getSlaStatus } = require('../utils/slaConfig');
+const { getSlaStatus, calculateIntakeDueAt } = require('../utils/slaConfig');
 
 /** Số ảnh tối đa cho một sự cố */
 const MAX_ISSUE_IMAGES = 5;
@@ -146,7 +146,9 @@ const issueSchema = new mongoose.Schema({
     status: { type: String, enum: ['reported', 'processing', 'resolved', 'rejected'] },
     changedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     changedAt: { type: Date, default: Date.now },
-    note: { type: String, default: '' }
+    // Đặt giới hạn ở model để mọi đường ghi đều bị ràng buộc — assignmentService
+    // cũng push statusHistory trực tiếp chứ không đi qua validator của route.
+    note: { type: String, default: '', trim: true, maxlength: [500, 'Ghi chú không quá 500 ký tự'] }
   }],
   rating: {
     score: { type: Number, min: 1, max: 5, default: null },
@@ -190,6 +192,33 @@ const issueSchema = new mongoose.Schema({
     default: 0
   },
   lastReminderAt: {
+    type: Date,
+    default: null
+  },
+  // ─── Mở lại sự cố (khiếu nại kết quả — xem utils/reopenConfig.js) ───
+  // Số lần người báo cáo đã đưa phiếu trở lại quy trình. Có trần để một phiếu
+  // không bị mở lại vô hạn; trần nằm ở reopenConfig, không hardcode ở đây.
+  reopenCount: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  lastReopenedAt: {
+    type: Date,
+    default: null
+  },
+
+  // ─── Hạn tiếp nhận (đồng hồ thứ hai, xem utils/slaConfig.js) ───
+  // Hạn phải phân công phiếu này cho một đơn vị, tính từ lúc người dân báo cáo.
+  // Sinh tự động ở hook pre-validate nên seed/script cũng có. Phiếu cũ tạo trước
+  // khi có field này giữ giá trị null và KHÔNG bị cron quét — tránh việc deploy
+  // xong bỗng gửi thông báo về toàn bộ phiếu tồn đọng trong quá khứ.
+  intakeDueAt: {
+    type: Date,
+    default: null
+  },
+  // Mốc nhắc gần nhất, để cron không gửi lại mỗi giờ và vẫn nhắc lại sau 24 giờ.
+  intakeReminderAt: {
     type: Date,
     default: null
   },
@@ -310,6 +339,11 @@ issueSchema.pre('validate', function(next) {
   if (this.isModified('location') || this.isNew) {
     this.district = resolveDistrict(this.location);
   }
+  // Hạn tiếp nhận sinh ở model để mọi đường ghi đều có, giống district và geo.
+  // Chỉ gán cho bản ghi mới và chưa có giá trị, để không ghi đè mốc cũ khi sửa.
+  if (this.isNew && !this.intakeDueAt && typeof this.category === 'string') {
+    this.intakeDueAt = calculateIntakeDueAt(this.category, this.createdAt || new Date());
+  }
 
   // Giữ imageUrl/imagePublicId luôn trùng phần tử đầu của `images` để code
   // và dữ liệu cũ (chỉ biết 1 ảnh) vẫn hoạt động đúng.
@@ -352,6 +386,9 @@ issueSchema.index({ isDeleted: 1, mergedInto: 1, status: 1, priorityCalculatedAt
 issueSchema.index({ 'embedding.status': 1, 'embedding.generatedAt': 1, isDeleted: 1, mergedInto: 1 });
 // Cron quét sự cố quá hạn: lọc theo dueAt + escalationLevel
 issueSchema.index({ dueAt: 1, escalationLevel: 1, status: 1 });
+// Cron quét phiếu CHƯA PHÂN CÔNG quá hạn tiếp nhận: equality trên departmentId
+// (null) rồi tới range trên intakeDueAt.
+issueSchema.index({ departmentId: 1, intakeDueAt: 1 });
 
 const Issue = mongoose.model('Issue', issueSchema);
 

@@ -52,4 +52,50 @@ const chatbotLimiter = rateLimit({
   message: tooManyRequests,
 });
 
-module.exports = { authStrictLimiter, generalLimiter, duplicateCandidateLimiter, chatbotLimiter };
+// Tạo sự cố là endpoint ĐẮT NHẤT của hệ thống: ghi MongoDB, upload ảnh lên
+// Cloudinary, xếp hàng sinh embedding qua Gemini (có phí theo token) và gửi email
+// tới MỌI quản trị viên. Trước đây nó chỉ chịu generalLimiter 500 req/15 phút —
+// tức một script spam 500 phiếu vẫn hoàn toàn hợp lệ. 20 phiếu/15 phút đã rộng
+// hơn nhiều so với nhu cầu của một người dân thật.
+const createIssueLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Bạn đã gửi quá nhiều báo cáo trong thời gian ngắn. Vui lòng thử lại sau.',
+  },
+});
+
+// Goong/TomTom tính tiền theo lượt gọi và key giờ nằm ở server, nên lạm dụng
+// endpoint proxy là lạm dụng trực tiếp hoá đơn của dự án. 120 lượt/15 phút đủ cho
+// một người dùng gõ tìm địa chỉ và chỉ đường liên tục, nhưng chặn script quay vòng.
+const geoLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: tooManyRequests,
+});
+
+// Tile bản đồ có bậc độ lớn khác hẳn: một lượt kéo/zoom sinh hàng chục tile.
+// Dùng chung ngưỡng với geoLimiter sẽ chặn nhầm người dùng bình thường. Cache
+// 15 phút ở response header gánh phần lớn tải nên trần này hiếm khi chạm tới.
+const geoTileLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 1500,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: tooManyRequests,
+});
+
+module.exports = {
+  authStrictLimiter,
+  generalLimiter,
+  duplicateCandidateLimiter,
+  chatbotLimiter,
+  createIssueLimiter,
+  geoLimiter,
+  geoTileLimiter,
+};

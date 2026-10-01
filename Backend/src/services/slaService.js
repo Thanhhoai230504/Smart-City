@@ -4,7 +4,7 @@ const Notification = require('../models/Notification');
 const { getIO } = require('../config/socket');
 const { sendEmail } = require('./emailService');
 const { buildSlaReminderEmail, buildSlaEscalationEmail } = require('../utils/emailTemplates');
-const { ESCALATION_LEVELS } = require('../utils/slaConfig');
+const { ESCALATION_LEVELS, getIntakeHours } = require('../utils/slaConfig');
 
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -120,13 +120,21 @@ const escalateOverdueIssues = async (now = new Date()) => {
     status: { $in: ['reported', 'processing'] },
     departmentId: { $ne: null },
     dueAt: { $ne: null, $lt: now },
-    escalationLevel: ESCALATION_LEVELS.REMINDED,
+    // `$gte` chứ không phải `===`: trước đây query chỉ khớp mức 1, nên phiếu sau
+    // khi lên mức 2 là IM LẶNG VĨNH VIỄN — phiếu quá hạn 3 tháng nhận đúng số
+    // thông báo bằng phiếu quá hạn 25 giờ. Giờ phiếu đã leo cấp vẫn được nhắc
+    // lại mỗi 24 giờ cho tới khi được xử lý; `lastReminderAt` giữ nhịp.
+    escalationLevel: { $gte: ESCALATION_LEVELS.REMINDED },
     lastReminderAt: { $ne: null, $lt: new Date(now.getTime() - 24 * HOUR_MS) },
   })
     .populate('departmentId', 'name')
-    .select('title location dueAt departmentId');
+    .select('title location dueAt departmentId escalationLevel');
 
   if (!issues.length) return { escalated: 0 };
+
+  // Phân biệt lần leo cấp đầu với lần nhắc lại, để admin biết phiếu nào đã bị
+  // bỏ qua nhiều vòng chứ không chỉ "có phiếu quá hạn".
+  const repeated = issues.filter((i) => i.escalationLevel >= ESCALATION_LEVELS.ESCALATED).length;
 
   const rows = issues.map((issue) => ({
     _id: issue._id,
@@ -148,8 +156,9 @@ const escalateOverdueIssues = async (now = new Date()) => {
     }
     await notify(admin._id, {
       type: 'sla_escalated',
-      title: '🚨 Sự cố tồn đọng',
-      message: `${rows.length} sự cố đã quá hạn dù đã nhắc đơn vị. Cần can thiệp hoặc chuyển đơn vị khác.`,
+      title: repeated ? '🚨 Sự cố tồn đọng kéo dài' : '🚨 Sự cố tồn đọng',
+      message: `${rows.length} sự cố đã quá hạn dù đã nhắc đơn vị. Cần can thiệp hoặc chuyển đơn vị khác.`
+        + (repeated ? ` Trong đó ${repeated} sự cố đã được báo từ các vòng trước mà vẫn chưa xử lý.` : ''),
       issueId: issues[0]._id,
     });
   }
@@ -163,12 +172,86 @@ const escalateOverdueIssues = async (now = new Date()) => {
 };
 
 /**
+ * Hạn tiếp nhận — nhắc admin về phiếu CHƯA PHÂN CÔNG đã quá hạn.
+ *
+ * Hai lượt quét trên đều lọc `departmentId: { $ne: null }`, nên trước đây một
+ * phiếu nằm trong hàng chờ phân công không được đo gì cả và không ai bị nhắc,
+ * dù tồn đọng bao lâu. `dueAt` chỉ được gán lúc phân công
+ * (`assignmentService`), nghĩa là đồng hồ SLA chỉ bắt đầu chạy SAU khi việc
+ * đã được giao — bỏ trống đúng giai đoạn dễ trễ nhất.
+ *
+ * Người nhận là admin vì chỉ admin có quyền phân công. Nhắc lại sau 24 giờ thay
+ * vì một lần rồi im lặng — chuỗi leo cấp hiện tại dừng ở cấp 2 rồi không bao giờ
+ * báo lại, và đó là lỗi cần tránh lặp lại.
+ */
+const remindUnassignedIssues = async (now = new Date()) => {
+  const issues = await Issue.find({
+    isDeleted: false,
+    mergedInto: null,
+    status: { $in: ['reported', 'processing'] },
+    departmentId: null,
+    intakeDueAt: { $ne: null, $lt: now },
+    $or: [
+      { intakeReminderAt: null },
+      { intakeReminderAt: { $lt: new Date(now.getTime() - 24 * HOUR_MS) } },
+    ],
+  })
+    .select('title location category intakeDueAt');
+
+  if (!issues.length) return { unassigned: 0 };
+
+  const rows = issues.map((issue) => ({
+    _id: issue._id,
+    title: issue.title,
+    location: issue.location,
+    // Tái dùng mẫu email leo cấp: cùng là "việc tồn đọng cần can thiệp", chỉ
+    // khác là chưa có đơn vị nào để đổ trách nhiệm.
+    departmentName: 'Chưa phân công',
+    overdueHours: overdueHours(issue.intakeDueAt, now),
+  }));
+
+  const admins = await User.find({ role: 'admin', isActive: true }).select('name email');
+  const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+  const shortestIntake = Math.min(...issues.map((i) => getIntakeHours(i.category)));
+
+  for (const admin of admins) {
+    if (admin.email) {
+      sendEmail(
+        admin.email,
+        `📥 ${rows.length} sự cố chưa được phân công dù đã quá hạn tiếp nhận`,
+        buildSlaEscalationEmail({ adminName: admin.name, issues: rows, clientUrl })
+      );
+    }
+    await notify(admin._id, {
+      type: 'intake_overdue',
+      title: '📥 Sự cố chờ phân công quá hạn',
+      message: `${rows.length} sự cố chưa được phân công dù đã quá hạn tiếp nhận `
+        + `(ngắn nhất ${shortestIntake} giờ). Cần phân công để đồng hồ SLA bắt đầu chạy.`,
+      issueId: issues[0]._id,
+    });
+  }
+
+  await Issue.updateMany(
+    { _id: { $in: issues.map((i) => i._id) } },
+    { intakeReminderAt: now }
+  );
+
+  return { unassigned: issues.length };
+};
+
+/**
  * Một lượt quét hoàn chỉnh. Tách khỏi cron để test và chạy tay được.
  */
 const runSlaCheck = async (now = new Date()) => {
   const reminder = await remindOverdueIssues(now);
   const escalation = await escalateOverdueIssues(now);
-  return { ...reminder, ...escalation };
+  const intake = await remindUnassignedIssues(now);
+  return { ...reminder, ...escalation, ...intake };
 };
 
-module.exports = { remindOverdueIssues, escalateOverdueIssues, runSlaCheck };
+module.exports = {
+  remindOverdueIssues,
+  escalateOverdueIssues,
+  remindUnassignedIssues,
+  runSlaCheck,
+};

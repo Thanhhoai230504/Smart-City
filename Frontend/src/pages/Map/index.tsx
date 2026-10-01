@@ -19,12 +19,11 @@ import {
 } from '@mui/icons-material';
 import { DA_NANG_CENTER, DEFAULT_ZOOM, PLACE_TYPE_MAP, CATEGORY_MAP, STATUS_MAP } from '../../utils/constants';
 import { Place, MapIssue, EnvironmentData } from '../../types';
+import { geoApi, TRAFFIC_TILE_URL } from '../../api/geoApi';
 
-const TOMTOM_API_KEY = import.meta.env.VITE_TOMTOM_API_KEY;
-const GOONG_API_KEY = import.meta.env.VITE_GOONG_API_KEY;
-
-const TRAFFIC_FLOW_TILES_URL =
-  `https://api.tomtom.com/traffic/map/4/tile/flow/relative0/{z}/{x}/{y}.png?key=${TOMTOM_API_KEY}&tileSize=256`;
+// Mọi lời gọi Goong/TomTom đi qua backend proxy để API key không rời khỏi server
+// — xem api/geoApi.ts. Trước đây key nằm công khai trong bundle.
+const TRAFFIC_FLOW_TILES_URL = TRAFFIC_TILE_URL;
 
 const iconCache = new Map<string, L.DivIcon>();
 const makeIcon = (emoji: string, color: string) => {
@@ -187,7 +186,11 @@ const MapPage: React.FC = () => {
   const endTimerRef = useRef<any>(null);
 
   useEffect(() => {
-    dispatch(fetchPlaces());
+    // Nêu trần tường minh thay vì dựa vào mặc định của server. Địa điểm là dữ
+    // liệu tĩnh và ít (bệnh viện, trường học, công viên) nên tải một lần rẻ hơn
+    // tải theo khung nhìn — bounds sẽ bắt refetch mỗi lần kéo bản đồ. Sự cố thì
+    // ngược lại, nhiều và thay đổi liên tục, nên vẫn dùng bounds (BoundsIssueLoader).
+    dispatch(fetchPlaces({ limit: '500' }));
     dispatch(fetchEnvironment());
   }, [dispatch]);
 
@@ -259,16 +262,14 @@ const MapPage: React.FC = () => {
     [filteredIssues]
   );
 
-  // Goong autocomplete search (debounced)
+  // Gợi ý địa chỉ (debounced), qua backend proxy.
   const searchGoong = useCallback(async (input: string, setSuggestions: (s: any[]) => void) => {
     if (input.trim().length < 2) { setSuggestions([]); return; }
     try {
-      const url = `https://rsapi.goong.io/Place/AutoComplete?api_key=${GOONG_API_KEY}&input=${encodeURIComponent(input)}&location=${DA_NANG_CENTER.lat},${DA_NANG_CENTER.lng}&radius=50&limit=5`;
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.status === 'OK' && data.predictions?.length) {
-        setSuggestions(data.predictions);
-      } else { setSuggestions([]); }
+      const { data } = await geoApi.autocomplete(input, {
+        lat: DA_NANG_CENTER.lat, lng: DA_NANG_CENTER.lng, radius: 50, limit: 5,
+      });
+      setSuggestions(data.data.predictions || []);
     } catch { setSuggestions([]); }
   }, []);
 
@@ -294,13 +295,8 @@ const MapPage: React.FC = () => {
     setLabel(prediction.description);
     setSuggestions([]);
     try {
-      const url = `https://rsapi.goong.io/Place/Detail?place_id=${prediction.place_id}&api_key=${GOONG_API_KEY}`;
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.status === 'OK') {
-        const loc = data.result.geometry.location;
-        setCoord([loc.lat, loc.lng]);
-      }
+      const { data } = await geoApi.placeDetail(prediction.place_id);
+      setCoord([data.data.lat, data.data.lng]);
     } catch { /* silent */ }
   }, []);
 
@@ -309,18 +305,17 @@ const MapPage: React.FC = () => {
     setRouteLoading(true);
     setRoutePath([]); setRouteInfo(null);
     try {
-      const url = `https://api.tomtom.com/routing/1/calculateRoute/${routeStartCoord[0]},${routeStartCoord[1]}:${routeEndCoord[0]},${routeEndCoord[1]}/json?key=${TOMTOM_API_KEY}&traffic=true&travelMode=car&language=vi-VN`;
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.routes?.length) {
-        const route = data.routes[0];
-        const points: [number, number][] = route.legs[0].points.map((p: any) => [p.latitude, p.longitude]);
-        setRoutePath(points);
-        const summary = route.summary;
+      // Backend đã bóc tách sẵn điểm và tóm tắt, client không phải đọc response thô.
+      const { data } = await geoApi.route(routeStartCoord, routeEndCoord);
+      const r = data.data;
+      if (r.points.length) {
+        setRoutePath(r.points);
         setRouteInfo({
-          distance: (summary.lengthInMeters / 1000).toFixed(1) + ' km',
-          time: Math.ceil(summary.travelTimeInSeconds / 60) + ' phút',
-          delay: summary.trafficDelayInSeconds > 0 ? Math.ceil(summary.trafficDelayInSeconds / 60) + ' phút chậm' : 'Không kẹt',
+          distance: ((r.distanceMeters ?? 0) / 1000).toFixed(1) + ' km',
+          time: Math.ceil((r.durationSeconds ?? 0) / 60) + ' phút',
+          delay: r.trafficDelaySeconds > 0
+            ? Math.ceil(r.trafficDelaySeconds / 60) + ' phút chậm'
+            : 'Không kẹt',
         });
       }
     } catch { /* silent */ }
@@ -338,14 +333,9 @@ const MapPage: React.FC = () => {
         setRouteStartCoord([latitude, longitude]);
         // Reverse geocode via Goong
         try {
-          const url = `https://rsapi.goong.io/Geocode?latlng=${latitude},${longitude}&api_key=${GOONG_API_KEY}`;
-          const res = await fetch(url);
-          const data = await res.json();
-          if (data.status === 'OK' && data.results?.length) {
-            setRouteStart(data.results[0].formatted_address);
-          } else {
-            setRouteStart(`${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
-          }
+          // Proxy đã fallback về chính toạ độ khi không tra được địa chỉ.
+          const { data } = await geoApi.reverse(latitude, longitude);
+          setRouteStart(data.data.address);
         } catch {
           setRouteStart(`${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
         }
@@ -631,8 +621,10 @@ const MapPage: React.FC = () => {
           url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=vi"
         />
 
-        {/* TomTom Traffic Flow Tiles overlay */}
-        {showTraffic && TOMTOM_API_KEY && (
+        {/* Lớp giao thông TomTom, tile đi qua proxy của backend (key ở server).
+            Không còn điều kiện theo API key vì client không biết key nữa; backend
+            trả 503 nếu chưa cấu hình và Leaflet chỉ đơn giản không vẽ được tile. */}
+        {showTraffic && (
           <TileLayer
             url={TRAFFIC_FLOW_TILES_URL}
             opacity={0.7}

@@ -67,6 +67,41 @@ const userSchema = new mongoose.Schema({
     default: null,
     select: false
   },
+  // ─── Chống dò mật khẩu (G18) ───
+  // Số lần đăng nhập sai LIÊN TIẾP; reset về 0 khi đăng nhập thành công.
+  // Rate limiter theo IP không đủ: nó dùng skipSuccessfulRequests nên chỉ đếm
+  // request hỏng, và kẻ tấn công đổi IP là đếm lại từ đầu. Đếm theo tài khoản
+  // mới chặn được việc dò một tài khoản cụ thể.
+  failedLoginAttempts: {
+    type: Number,
+    default: 0,
+    min: 0,
+    select: false
+  },
+  lockUntil: {
+    type: Date,
+    default: null,
+    select: false
+  },
+
+  // ─── Đặt lại mật khẩu (B7) ───
+  // Cùng mẫu an toàn với token xác thực email: chỉ lưu SHA-256 hash, có hạn,
+  // có mốc gửi để áp cooldown. Lộ database cũng không đặt lại mật khẩu được.
+  passwordResetTokenHash: {
+    type: String,
+    default: null,
+    select: false
+  },
+  passwordResetExpires: {
+    type: Date,
+    default: null,
+    select: false
+  },
+  passwordResetSentAt: {
+    type: Date,
+    default: null,
+    select: false
+  },
   emailVerificationExpires: {
     type: Date,
     default: null,
@@ -121,6 +156,11 @@ userSchema.methods.toJSON = function() {
   delete user.emailVerificationTokenHash;
   delete user.emailVerificationExpires;
   delete user.emailVerificationSentAt;
+  delete user.passwordResetTokenHash;
+  delete user.passwordResetExpires;
+  delete user.passwordResetSentAt;
+  delete user.failedLoginAttempts;
+  delete user.lockUntil;
   delete user.__v;
   return user;
 };

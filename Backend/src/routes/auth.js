@@ -7,7 +7,9 @@ const {
   registerValidator,
   loginValidator,
   verifyEmailValidator,
-  resendVerificationValidator
+  resendVerificationValidator,
+  forgotPasswordValidator,
+  resetPasswordValidator
 } = require('../validators/authValidator');
 const {
   register,
@@ -19,6 +21,9 @@ const {
   getProfile,
   updateProfile,
   changePassword,
+  forgotPassword,
+  resetPassword,
+  deleteAccount,
   googleCallback
 } = require('../controllers/authController');
 
@@ -40,6 +45,15 @@ router.post(
   resendVerification
 );
 
+// Hai route dưới đây là đường chiếm tài khoản nếu bị lạm dụng, nên dùng chung
+// authStrictLimiter với login/register. Người dùng mất tài khoản vĩnh viễn nếu
+// quên mật khẩu mà không có luồng này — trên mobile càng dễ xảy ra.
+// @route   POST /api/auth/forgot-password
+router.post('/forgot-password', authStrictLimiter, forgotPasswordValidator, validate, forgotPassword);
+
+// @route   POST /api/auth/reset-password
+router.post('/reset-password', authStrictLimiter, resetPasswordValidator, validate, resetPassword);
+
 // @route   POST /api/auth/login
 // Strict limiter chống brute-force mật khẩu
 router.post('/login', authStrictLimiter, loginValidator, validate, login);
@@ -50,6 +64,11 @@ router.post('/refresh', refresh);
 // @route   PATCH /api/auth/change-password
 // Strict limiter chống dò mật khẩu hiện tại
 router.patch('/change-password', authStrictLimiter, authMiddleware, changePassword);
+
+// Xoá tài khoản: ẩn danh hoá chứ không xoá cứng, để thống kê và lịch sử xử lý
+// không bị lệch. Dùng authStrictLimiter vì cần mật khẩu — tránh thành đường dò.
+// @route   DELETE /api/auth/account
+router.delete('/account', authStrictLimiter, authMiddleware, deleteAccount);
 
 // @route   POST /api/auth/logout
 router.post('/logout', authMiddleware, logout);

@@ -17,6 +17,8 @@ const ProfilePage = lazy(() => import('../pages/Profile'));
 const LoginPage = lazy(() => import('../pages/Login'));
 const RegisterPage = lazy(() => import('../pages/Register'));
 const VerifyEmailPage = lazy(() => import('../pages/VerifyEmail'));
+const ForgotPasswordPage = lazy(() => import('../pages/ForgotPassword'));
+const ResetPasswordPage = lazy(() => import('../pages/ResetPassword'));
 const AdminDashboard = lazy(() => import('../pages/AdminDashboard'));
 const UserManagementPage = lazy(() => import('../pages/UserManagement'));
 const AdminIssuesPage = lazy(() => import('../pages/AdminIssues'));
@@ -44,6 +46,8 @@ const AppRouter: React.FC = () => {
         <Route path="/login" element={page(<LoginPage />)} />
         <Route path="/register" element={page(<RegisterPage />)} />
         <Route path="/verify-email" element={page(<VerifyEmailPage />)} />
+        <Route path="/forgot-password" element={page(<ForgotPasswordPage />)} />
+        <Route path="/reset-password" element={page(<ResetPasswordPage />)} />
         <Route path="/auth/callback" element={page(<AuthCallbackPage />)} />
         <Route path="/statistics" element={page(<StatisticsPage />)} />
         <Route path="/cameras" element={page(<CamerasPage />)} />

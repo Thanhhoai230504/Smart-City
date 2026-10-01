@@ -7,9 +7,10 @@ const {
   createIssueValidator,
   updateIssueStatusValidator,
   duplicateCandidateValidator,
+  reopenIssueValidator,
 } = require('../validators/issueValidator');
-const { duplicateCandidateLimiter } = require('../middleware/rateLimiters');
-const { assignIssueValidator } = require('../validators/departmentValidator');
+const { duplicateCandidateLimiter, createIssueLimiter } = require('../middleware/rateLimiters');
+const { assignIssueValidator, unassignIssueValidator } = require('../validators/departmentValidator');
 // Dùng chung giới hạn số ảnh với validator của model, không khai lại con số.
 const Issue = require('../models/Issue');
 const {
@@ -42,7 +43,8 @@ const {
   getUnassignedQueue,
   addResolutionImages,
   confirmDuplicate,
-  mergeIssue
+  mergeIssue,
+  reopenIssue
 } = require('../controllers/issueController');
 
 const router = express.Router();
@@ -95,6 +97,7 @@ router.get('/:id', optionalAuthMiddleware, getIssueById);
 router.post(
   '/',
   authMiddleware,
+  createIssueLimiter,
   uploadIssueImages,
   createIssueValidator,
   validate,
@@ -124,7 +127,14 @@ router.post(
 );
 
 // @route   POST /api/issues/:id/unassign (admin only) — thu hồi phân công
-router.post('/:id/unassign', authMiddleware, adminMiddleware, unassignIssue);
+router.post(
+  '/:id/unassign',
+  authMiddleware,
+  adminMiddleware,
+  unassignIssueValidator,
+  validate,
+  unassignIssue
+);
 
 // @route   POST /api/issues/:id/claim (staff) — cán bộ tự nhận việc
 router.post('/:id/claim', authMiddleware, staffMiddleware, claimIssue);
@@ -172,6 +182,17 @@ router.delete('/:id/my', authMiddleware, deleteMyIssue);
 
 // @route   DELETE /api/issues/:id (admin only)
 router.delete('/:id', authMiddleware, adminMiddleware, deleteIssue);
+
+// Người dân mở lại sự cố khi không đồng ý kết quả xử lý. Rào chắn (đúng người,
+// trạng thái đóng, số lần, cửa sổ thời gian) nằm ở utils/reopenConfig.js.
+// @route   POST /api/issues/:id/reopen
+router.post(
+  '/:id/reopen',
+  authMiddleware,
+  reopenIssueValidator,
+  validate,
+  reopenIssue
+);
 
 // @route   POST /api/issues/:id/vote
 router.post('/:id/vote', authMiddleware, toggleVote);

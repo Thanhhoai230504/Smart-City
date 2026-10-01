@@ -17,6 +17,32 @@ const DEFAULT_SLA_HOURS = {
 
 const FALLBACK_SLA_HOURS = 72;
 
+/**
+ * Hạn TIẾP NHẬN — thời gian tối đa để admin phân công một phiếu mới cho đơn vị.
+ *
+ * Đây là đồng hồ THỨ HAI, tách khỏi DEFAULT_SLA_HOURS ở trên. Lý do không dùng
+ * chung một field `dueAt`: `getSlaStatus()` đo 'met'/'breached' của phiếu đã đóng
+ * bằng `dueAt`, và `assignmentService` reset `dueAt` mỗi lần phân công lại. Gộp
+ * hai mốc vào một field sẽ làm sai thống kê hiệu suất đơn vị (`onTimeRate`).
+ *
+ * Trước khi có mốc này, phiếu chưa phân công KHÔNG được đo gì cả: cả hai lượt quét
+ * SLA đều lọc `departmentId: { $ne: null }`, nên một phiếu có thể nằm trong hàng
+ * chờ vô thời hạn mà không sinh ra một thông báo hay email nào.
+ *
+ * Số giờ cố tình ngắn hơn SLA xử lý của cùng loại: nếu ngập nước phải xử lý trong
+ * 12 giờ mà lại cho phép chờ phân công 24 giờ thì hạn tiếp nhận dài hơn cả hạn xử lý.
+ */
+const INTAKE_SLA_HOURS = {
+  flooding: 2,      // Ngập nước — SLA xử lý chỉ 12 giờ, phải phân công gần như ngay
+  tree: 2,          // Cây đổ — nguy hiểm trực tiếp, như trên
+  garbage: 8,       // Rác thải — trong một ca làm việc
+  streetlight: 12,  // Đèn đường hỏng
+  pothole: 24,      // Ổ gà — một ngày làm việc
+  other: 24,
+};
+
+const FALLBACK_INTAKE_HOURS = 24;
+
 /** Danh sách loại sự cố — khớp với enum của model Issue */
 const ISSUE_CATEGORIES = ['pothole', 'garbage', 'streetlight', 'flooding', 'tree', 'other'];
 
@@ -53,6 +79,24 @@ const calculateDueAt = (category, departmentOverride = null, from = new Date()) 
 };
 
 /**
+ * Số giờ cho phép chờ phân công.
+ * @param {string} category - Loại sự cố
+ * @returns {number} Số giờ
+ */
+const getIntakeHours = (category) => INTAKE_SLA_HOURS[category] || FALLBACK_INTAKE_HOURS;
+
+/**
+ * Tính hạn phải phân công xong, đo từ lúc NGƯỜI DÂN BÁO CÁO (không phải từ bây giờ).
+ * @param {string} category
+ * @param {Date} from - Mốc báo cáo
+ * @returns {Date}
+ */
+const calculateIntakeDueAt = (category, from = new Date()) => {
+  const hours = getIntakeHours(category);
+  return new Date(from.getTime() + hours * 60 * 60 * 1000);
+};
+
+/**
  * Trạng thái SLA của một sự cố, dùng để hiển thị badge trên UI.
  * @returns {'none'|'on_time'|'due_soon'|'overdue'|'met'|'breached'}
  */
@@ -76,6 +120,10 @@ const getSlaStatus = (issue, now = new Date()) => {
 module.exports = {
   DEFAULT_SLA_HOURS,
   FALLBACK_SLA_HOURS,
+  INTAKE_SLA_HOURS,
+  FALLBACK_INTAKE_HOURS,
+  getIntakeHours,
+  calculateIntakeDueAt,
   ISSUE_CATEGORIES,
   ESCALATION_LEVELS,
   getSlaHours,

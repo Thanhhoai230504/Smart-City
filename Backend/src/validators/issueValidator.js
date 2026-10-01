@@ -1,4 +1,5 @@
 const { body } = require('express-validator');
+const { MIN_REASON_LENGTH, MAX_REASON_LENGTH } = require('../utils/reopenConfig');
 
 const createIssueValidator = [
   body('title')
@@ -31,7 +32,13 @@ const updateIssueStatusValidator = [
   body('status')
     .notEmpty().withMessage('Status is required')
     .isIn(['reported', 'processing', 'resolved', 'rejected'])
-    .withMessage('Invalid status')
+    .withMessage('Invalid status'),
+  // Giới hạn này trước đây chỉ tồn tại ở client nên bỏ qua được khi gọi API thẳng.
+  // Con số khớp maxlength trong models/Issue.js (statusHistory.note).
+  body('note')
+    .optional({ values: 'falsy' })
+    .trim()
+    .isLength({ max: 500 }).withMessage('Ghi chú không quá 500 ký tự')
 ];
 
 const duplicateCandidateValidator = [
@@ -55,4 +62,18 @@ const duplicateCandidateValidator = [
     .isMongoId().withMessage('issueId không hợp lệ'),
 ];
 
-module.exports = { createIssueValidator, updateIssueStatusValidator, duplicateCandidateValidator };
+// Bắt buộc nêu lý do khi mở lại: không có lý do thì đơn vị nhận lại việc mà
+// không biết phải làm gì khác lần trước. Độ dài khớp utils/reopenConfig.js.
+const reopenIssueValidator = [
+  body('reason')
+    .trim()
+    .isLength({ min: MIN_REASON_LENGTH, max: MAX_REASON_LENGTH })
+    .withMessage(`Lý do phải từ ${MIN_REASON_LENGTH} đến ${MAX_REASON_LENGTH} ký tự`),
+];
+
+module.exports = {
+  createIssueValidator,
+  updateIssueStatusValidator,
+  duplicateCandidateValidator,
+  reopenIssueValidator,
+};

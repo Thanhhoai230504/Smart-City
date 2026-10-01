@@ -5,20 +5,37 @@ import {
 import { FileDownload, TableChart, PictureAsPdf } from '@mui/icons-material';
 import { issueApi } from '../../api/issueApi';
 import { CATEGORY_MAP, STATUS_MAP } from '../../utils/constants';
+import { escapeHtml } from '../../utils/helpers';
 
 const ExportButton: React.FC = () => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [exporting, setExporting] = useState(false);
 
+  /**
+   * Trần số bản ghi một lần xuất.
+   *
+   * Trước đây hàm này lặp tới HẾT số trang, nên số request tỉ lệ thuận với tổng
+   * số phiếu: 50.000 phiếu là 500 request — vừa đủ tự đụng `generalLimiter`
+   * (500 req/15 phút), tức chức năng xuất tự chặn chính nó. Toàn bộ kết quả còn
+   * tích luỹ trong RAM trình duyệt kèm trường mô tả dài tới 2000 ký tự.
+   *
+   * Trần 5.000 ứng với tối đa 50 request — rộng hơn nhiều so với nhu cầu thật
+   * mà vẫn an toàn. Vượt trần thì báo rõ cho người dùng thay vì cắt im lặng.
+   */
+  const MAX_EXPORT_ROWS = 5000;
+  const PAGE_SIZE = 100;
+  const MAX_PAGES = MAX_EXPORT_ROWS / PAGE_SIZE;
+
+  /** @returns {{ issues: any[], truncated: boolean, total: number }} */
   const fetchAllIssues = async () => {
-    const pageSize = 100;
     const { data: firstResponse } = await issueApi.getIssues({
       page: 1,
-      limit: pageSize,
+      limit: PAGE_SIZE,
       sort: '-createdAt',
     });
     const allIssues = [...firstResponse.data.issues];
-    const totalPages = firstResponse.data.pagination.pages;
+    const total = firstResponse.data.pagination.total;
+    const totalPages = Math.min(firstResponse.data.pagination.pages, MAX_PAGES);
 
     // Tải theo lô nhỏ để không tạo hàng trăm request đồng thời khi dữ liệu lớn.
     for (let startPage = 2; startPage <= totalPages; startPage += 4) {
@@ -27,19 +44,27 @@ const ExportButton: React.FC = () => {
         (_, index) => startPage + index
       );
       const responses = await Promise.all(
-        pages.map((page) => issueApi.getIssues({ page, limit: pageSize, sort: '-createdAt' }))
+        pages.map((page) => issueApi.getIssues({ page, limit: PAGE_SIZE, sort: '-createdAt' }))
       );
       responses.forEach((response) => allIssues.push(...response.data.data.issues));
     }
 
-    return allIssues;
+    return { issues: allIssues, truncated: total > allIssues.length, total };
   };
 
   const handleExportExcel = async () => {
     setAnchorEl(null);
     setExporting(true);
     try {
-      const issues = await fetchAllIssues();
+      const { issues, truncated, total } = await fetchAllIssues();
+      if (truncated) {
+        // Báo rõ thay vì cắt im lặng — người dùng cần biết file không đầy đủ.
+        window.alert(
+          `Dữ liệu có ${total} sự cố, vượt giới hạn mỗi lần xuất.\n`
+          + `File sẽ chứa ${issues.length} sự cố mới nhất.\n\n`
+          + 'Hãy dùng bộ lọc (trạng thái, khoảng thời gian) để thu hẹp phạm vi nếu cần đầy đủ.'
+        );
+      }
       const XLSX = await import('xlsx');
 
       const rows = issues.map((issue: any, idx: number) => ({
@@ -77,18 +102,27 @@ const ExportButton: React.FC = () => {
     setAnchorEl(null);
     setExporting(true);
     try {
-      const issues = await fetchAllIssues();
+      const { issues, truncated, total } = await fetchAllIssues();
+      if (truncated) {
+        window.alert(
+          `Dữ liệu có ${total} sự cố, vượt giới hạn mỗi lần xuất.\n`
+          + `Báo cáo sẽ chứa ${issues.length} sự cố mới nhất.\n\n`
+          + 'Hãy dùng bộ lọc (trạng thái, khoảng thời gian) để thu hẹp phạm vi nếu cần đầy đủ.'
+        );
+      }
       const now = new Date();
       const dateStr = `ngày ${now.getDate()} tháng ${now.getMonth() + 1} năm ${now.getFullYear()}`;
 
+      // Mọi ô lấy từ dữ liệu người dùng đều qua escapeHtml — xem ghi chú ở hàm đó.
+      // escapeHtml trả '' cho null/undefined nên không cần `|| ''` nữa.
       const tableRows = issues.map((issue: any, idx: number) => `
         <tr>
           <td style="text-align:center">${idx + 1}</td>
-          <td>${issue.title || ''}</td>
-          <td>${CATEGORY_MAP[issue.category]?.label || issue.category}</td>
-          <td>${STATUS_MAP[issue.status]?.label || issue.status}</td>
-          <td>${issue.location || ''}</td>
-          <td>${typeof issue.userId === 'object' ? issue.userId.name : 'N/A'}</td>
+          <td>${escapeHtml(issue.title)}</td>
+          <td>${escapeHtml(CATEGORY_MAP[issue.category]?.label || issue.category)}</td>
+          <td>${escapeHtml(STATUS_MAP[issue.status]?.label || issue.status)}</td>
+          <td>${escapeHtml(issue.location)}</td>
+          <td>${escapeHtml(typeof issue.userId === 'object' ? issue.userId.name : 'N/A')}</td>
           <td style="text-align:center">${new Date(issue.createdAt).toLocaleDateString('vi-VN')}</td>
         </tr>`).join('');
 

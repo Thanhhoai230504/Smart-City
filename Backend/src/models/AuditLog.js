@@ -11,6 +11,11 @@ const AUDIT_ACTIONS = [
   'issue.claimed',
     'issue.merged',
     'issue.priority_recalculated',
+  // Người dân mở lại sự cố vì không đồng ý kết quả (G8)
+  'issue.reopened',
+  // Kiểm duyệt bình luận (G16)
+  'comment.hidden',
+  'comment.restored',
 ];
 
 const auditLogSchema = new mongoose.Schema({
@@ -33,7 +38,7 @@ const auditLogSchema = new mongoose.Schema({
   },
   entityType: {
     type: String,
-    enum: ['User', 'Issue', 'Department'],
+    enum: ['User', 'Issue', 'Department', 'Comment'],
     required: true,
     index: true,
   },

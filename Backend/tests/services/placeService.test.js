@@ -9,14 +9,25 @@ describe('PlaceService', () => {
   });
 
   describe('getPlaces()', () => {
+    /** Query chain sau khi thêm phân trang: find().sort().skip().limit() */
+    const mockFind = (result) => {
+      const chain = { then: (res, rej) => Promise.resolve(result).then(res, rej) };
+      for (const m of ['sort', 'skip', 'limit', 'lean']) chain[m] = jest.fn(() => chain);
+      Place.find.mockReturnValue(chain);
+      return chain;
+    };
+
+    beforeEach(() => {
+      Place.countDocuments.mockResolvedValue(0);
+    });
+
     it('should return all places without filters', async () => {
       const mockPlaces = [
         { _id: '1', name: 'Hospital A', type: 'hospital' },
         { _id: '2', name: 'School B', type: 'school' },
       ];
-      Place.find.mockReturnValue({
-        sort: jest.fn().mockResolvedValue(mockPlaces),
-      });
+      mockFind(mockPlaces);
+      Place.countDocuments.mockResolvedValue(2);
 
       const result = await placeService.getPlaces({});
 
@@ -25,9 +36,7 @@ describe('PlaceService', () => {
     });
 
     it('should apply type filter', async () => {
-      Place.find.mockReturnValue({
-        sort: jest.fn().mockResolvedValue([]),
-      });
+      mockFind([]);
 
       await placeService.getPlaces({ type: 'hospital' });
 
@@ -35,13 +44,74 @@ describe('PlaceService', () => {
     });
 
     it('should apply isActive filter', async () => {
-      Place.find.mockReturnValue({
-        sort: jest.fn().mockResolvedValue([]),
-      });
+      mockFind([]);
 
       await placeService.getPlaces({ isActive: 'true' });
 
       expect(Place.find).toHaveBeenCalledWith(expect.objectContaining({ isActive: true }));
+    });
+
+    // Trước đây hàm này không limit, không skip, không lọc bounds — khác hẳn mọi
+    // service danh sách còn lại. Frontend gọi không tham số rồi render 1:1 thành
+    // marker, và /api/places lại nằm trong danh sách service worker cache.
+    it('caps the result set instead of returning the whole collection', async () => {
+      const chain = mockFind([]);
+
+      await placeService.getPlaces({});
+
+      expect(chain.limit).toHaveBeenCalledWith(200);
+      expect(chain.skip).toHaveBeenCalledWith(0);
+    });
+
+    it('refuses to let a client ask for an unbounded page', async () => {
+      const chain = mockFind([]);
+
+      await placeService.getPlaces({ limit: 100000 });
+
+      expect(chain.limit).toHaveBeenCalledWith(500);
+    });
+
+    it('paginates with skip', async () => {
+      const chain = mockFind([]);
+
+      await placeService.getPlaces({ page: 3, limit: 50 });
+
+      expect(chain.skip).toHaveBeenCalledWith(100);
+      expect(chain.limit).toHaveBeenCalledWith(50);
+    });
+
+    // Cùng hợp đồng `west,south,east,north` với view=map của issueService, để
+    // client chỉ phải dựng một dạng tham số cho cả hai lớp bản đồ.
+    it('filters by map viewport when bounds are given', async () => {
+      mockFind([]);
+
+      await placeService.getPlaces({ bounds: '108.0,15.9,108.4,16.3' });
+
+      const filter = Place.find.mock.calls[0][0];
+      expect(filter.geo.$geoWithin.$geometry.type).toBe('Polygon');
+    });
+
+    it.each([
+      ['thieu gia tri', '108.0,15.9'],
+      ['khong phai so', 'a,b,c,d'],
+      ['west >= east', '108.4,15.9,108.0,16.3'],
+      ['ngoai dai hop le', '200,15.9,108.4,16.3'],
+    ])('ignores malformed bounds (%s) instead of returning nothing', async (_label, bounds) => {
+      mockFind([]);
+
+      await placeService.getPlaces({ bounds });
+
+      expect(Place.find.mock.calls[0][0].geo).toBeUndefined();
+    });
+
+    it('reports total matching rows, not just the rows on this page', async () => {
+      mockFind([{ _id: '1' }]);
+      Place.countDocuments.mockResolvedValue(312);
+
+      const result = await placeService.getPlaces({ limit: 1 });
+
+      expect(result.total).toBe(312);
+      expect(result.pagination).toMatchObject({ current: 1, limit: 1, total: 312, pages: 312 });
     });
   });
 

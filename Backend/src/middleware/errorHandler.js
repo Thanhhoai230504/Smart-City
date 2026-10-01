@@ -1,21 +1,49 @@
 const ApiError = require('../utils/apiError');
+const { logger } = require('../utils/logger');
 
 /**
  * Global error handler middleware
  * Catches all unhandled errors and returns consistent JSON responses
  */
 const errorHandler = (err, req, res, next) => {
-  console.error('❌ Error:', err.message);
+  // Trước đây chỉ log `err.message`, KHÔNG log stack — trong khi ở production
+  // message của lỗi 5xx lại bị thay bằng 'Internal Server Error' phía dưới. Kết
+  // quả là lỗi nghiêm trọng nhất lại là lỗi khó truy nhất.
+  // Lỗi nghiệp vụ 4xx là chuyện bình thường nên chỉ ghi mức warn, không kèm stack.
+  const statusForLog = err.statusCode || 500;
+  const context = {
+    method: req?.method,
+    path: req?.originalUrl,
+    userId: req?.user?.id ? String(req.user.id) : undefined,
+    status: statusForLog,
+    code: typeof err.code === 'string' ? err.code : undefined,
+  };
+
+  if (statusForLog >= 500) {
+    logger.error(err.message, { ...context, stack: err.stack });
+  } else {
+    logger.warn(err.message, context);
+  }
   
   // Default error values
   let statusCode = err.statusCode || 500;
   let message = err.message || 'Internal Server Error';
+  // Lỗi theo từng field, cùng shape với middleware/validate.js. Trước đây
+  // ValidationError của Mongoose bị gộp thành MỘT chuỗi nên client không biết lỗi
+  // thuộc field nào để hiển thị inline — app mobile cần điều đó.
+  let fieldErrors = null;
 
   // Mongoose validation error
   if (err.name === 'ValidationError') {
     statusCode = 400;
-    const messages = Object.values(err.errors).map(e => e.message);
-    message = messages.join(', ');
+    // err.errors được key theo path; lỗi Mongoose thật còn có e.path, nhưng lỗi
+    // dựng tay trong test thì không nên fallback về key.
+    fieldErrors = Object.entries(err.errors).map(([field, e]) => ({
+      field: e.path || field,
+      message: e.message,
+    }));
+    // Vẫn giữ message gộp để không phá client đang đọc trường message.
+    message = fieldErrors.map(e => e.message).join(', ');
   }
 
   // Mongoose duplicate key error
@@ -53,6 +81,8 @@ const errorHandler = (err, req, res, next) => {
   res.status(statusCode).json({
     success: false,
     message,
+    // Cùng shape với middleware/validate.js: [{ field, message }].
+    ...(fieldErrors && { errors: fieldErrors }),
     ...(typeof err.code === 'string' && { code: err.code }),
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
   });

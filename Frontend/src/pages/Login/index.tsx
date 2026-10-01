@@ -107,6 +107,9 @@ const LoginPage: React.FC = () => {
                 Chưa có tài khoản?{' '}
                 <Link component={RouterLink} to="/register" sx={{ color: 'primary.main', fontWeight: 600 }}>Đăng ký ngay</Link>
               </Typography>
+              <Typography variant="body2" color="text.secondary" textAlign="center" mt={1}>
+                <Link component={RouterLink} to="/forgot-password" sx={{ color: 'primary.main', fontWeight: 600 }}>Quên mật khẩu?</Link>
+              </Typography>
             </Box>
           </CardContent>
         </Card>

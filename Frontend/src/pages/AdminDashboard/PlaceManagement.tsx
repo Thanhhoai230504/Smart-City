@@ -13,10 +13,9 @@ import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-lea
 import L from 'leaflet';
 import { DA_NANG_CENTER, DEFAULT_ZOOM } from '../../utils/constants';
 import { GlassCard, PlaceItem, PLACE_TYPE_LABELS, PLACE_TYPES, cellSx, headCellSx } from './types';
+import { geoApi } from '../../api/geoApi';
 
-// ── Goong API ──
-const GOONG_API_KEY = import.meta.env.VITE_GOONG_API_KEY;
-
+// Gọi qua backend proxy để API key không nằm trong bundle — xem api/geoApi.ts.
 interface GoongPrediction {
   place_id: string;
   description: string;
@@ -24,19 +23,19 @@ interface GoongPrediction {
 }
 
 const searchGoongAddress = async (input: string): Promise<GoongPrediction[]> => {
-  const url = `https://rsapi.goong.io/Place/AutoComplete?api_key=${GOONG_API_KEY}&input=${encodeURIComponent(input)}&location=${DA_NANG_CENTER.lat},${DA_NANG_CENTER.lng}&radius=30&limit=5&more_compound=true`;
-  const res = await fetch(url);
-  if (!res.ok) return [];
-  const data = await res.json();
-  return data.status === 'OK' ? data.predictions : [];
+  try {
+    const { data } = await geoApi.autocomplete(input, {
+      lat: DA_NANG_CENTER.lat, lng: DA_NANG_CENTER.lng, radius: 30, limit: 5,
+    });
+    return (data.data.predictions || []) as GoongPrediction[];
+  } catch {
+    return [];
+  }
 };
 
 const getGoongPlaceDetail = async (placeId: string) => {
-  const url = `https://rsapi.goong.io/Place/Detail?place_id=${encodeURIComponent(placeId)}&api_key=${GOONG_API_KEY}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('Place detail failed');
-  const data = await res.json();
-  return { lat: data.result.geometry.location.lat, lng: data.result.geometry.location.lng, address: data.result.formatted_address || data.result.name };
+  const { data } = await geoApi.placeDetail(placeId);
+  return data.data;
 };
 
 // ── Map sub-components ──

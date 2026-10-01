@@ -190,6 +190,11 @@ export interface Issue {
   /** Virtual do backend tính, không lưu trong DB */
   slaStatus?: SlaStatus;
 
+  // ─── Mở lại sự cố (G8) ───
+  /** Số lần người báo cáo đã mở lại phiếu vì không đồng ý kết quả. Trần ở backend. */
+  reopenCount?: number;
+  lastReopenedAt?: string | null;
+
   // ─── Gộp sự cố trùng ───
   mergedInto?: { _id: string; title: string; status: IssueStatus } | string | null;
   mergedAt?: string | null;
@@ -373,10 +378,31 @@ export interface Comment {
 }
 
 // ============ Notification ============
+/**
+ * Danh sách type khớp với enum trong Backend/src/models/Notification.js.
+ * Trước đây union này chỉ liệt kê 6 giá trị gốc và đã LỆCH backend: thiếu
+ * 'issue_assigned', 'sla_reminder', 'sla_escalated', 'issue_merged' (thêm từ đợt
+ * làm SLA/phân công) — nên frontend không type-check được khi nhánh theo các type
+ * đó. Backend thêm type mới thì phải thêm vào đây.
+ */
+export type NotificationType =
+  | 'issue_created'
+  | 'issue_updated'
+  | 'issue_resolved'
+  | 'issue_rejected'
+  | 'comment'
+  | 'area_alert'
+  | 'issue_assigned'
+  | 'sla_reminder'
+  | 'sla_escalated'
+  | 'issue_merged'
+  | 'intake_overdue'
+  | 'issue_reopened';
+
 export interface Notification {
   _id: string;
   userId: string;
-  type: 'issue_created' | 'issue_updated' | 'issue_resolved' | 'issue_rejected' | 'comment' | 'area_alert';
+  type: NotificationType;
   title: string;
   message: string;
   issueId?: string;
