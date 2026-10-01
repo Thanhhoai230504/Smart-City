@@ -10,6 +10,7 @@ import {
 } from '@mui/material';
 import { Delete, Edit, Add, Close, LocationOn, Search, MyLocation, Refresh } from '@mui/icons-material';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
+import { BASE_TILE_ATTRIBUTION, BASE_TILE_URL } from '../../utils/mapTiles';
 import L from 'leaflet';
 import { DA_NANG_CENTER, DEFAULT_ZOOM } from '../../utils/constants';
 import { GlassCard, PlaceItem, PLACE_TYPE_LABELS, PLACE_TYPES, cellSx, headCellSx } from './types';
@@ -387,7 +388,7 @@ const PlaceManagement: React.FC<Props> = ({ onDataChange = () => undefined, stan
                 zoom={form.latitude ? 15 : DEFAULT_ZOOM}
                 style={{ height: 'calc(100% - 36px)', width: '100%' }}
               >
-                <TileLayer attribution='&copy; Google Maps' url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=vi" />
+                <TileLayer attribution={BASE_TILE_ATTRIBUTION} url={BASE_TILE_URL} />
                 <MapClickPicker onSelect={handleMapClick} />
                 {flyTarget && <FlyToLocation lat={flyTarget.lat} lng={flyTarget.lng} />}
                 {form.latitude && form.longitude && <Marker position={[form.latitude, form.longitude]} icon={placeMarkerIcon} />}

@@ -5,6 +5,7 @@ import { fetchPlaces } from '../../store/slices/placeSlice';
 import { fetchEnvironment } from '../../store/slices/environmentSlice';
 import { issueApi } from '../../api/issueApi';
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents, Polyline } from 'react-leaflet';
+import { BASE_TILE_ATTRIBUTION, BASE_TILE_URL } from '../../utils/mapTiles';
 import L from 'leaflet';
 import 'leaflet.heat';
 import 'leaflet/dist/leaflet.css';
@@ -616,10 +617,7 @@ const MapPage: React.FC = () => {
           onLoad={handleMapIssues}
           onLoading={handleMapIssuesLoading}
         />
-        <TileLayer
-          attribution='&copy; Google Maps'
-          url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=vi"
-        />
+        <TileLayer attribution={BASE_TILE_ATTRIBUTION} url={BASE_TILE_URL} />
 
         {/* Lớp giao thông TomTom, tile đi qua proxy của backend (key ở server).
             Không còn điều kiện theo API key vì client không biết key nữa; backend

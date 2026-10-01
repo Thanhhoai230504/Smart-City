@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
+import { BASE_TILE_ATTRIBUTION, BASE_TILE_URL } from '../../utils/mapTiles';
 import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
@@ -470,7 +471,7 @@ const IssueDetailPage: React.FC = () => {
             <Typography variant="subtitle1" fontWeight={600} sx={{ p: 2, pb: 1 }}>📍 Vị trí trên bản đồ</Typography>
             <Box sx={{ height: 350 }}>
               <MapContainer center={[issue.latitude, issue.longitude]} zoom={15} style={{ height: '100%', width: '100%' }} zoomControl={false}>
-                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap contributors" />
+                <TileLayer url={BASE_TILE_URL} attribution={BASE_TILE_ATTRIBUTION} />
                 <Marker position={[issue.latitude, issue.longitude]}
                   icon={L.divIcon({
                     html: `<div style="background:#EF4444;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3)">${cat.icon}</div>`,

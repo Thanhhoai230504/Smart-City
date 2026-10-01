@@ -9,6 +9,7 @@ import {
   ListItemButton, ListItemText, InputAdornment, IconButton, Chip,
 } from '@mui/material';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
+import { BASE_TILE_ATTRIBUTION, BASE_TILE_URL } from '../../utils/mapTiles';
 import L from 'leaflet';
 import {
   Send, CloudUpload, LocationOn, Search, MyLocation, Close, SmartToy, Phone, ThumbUp,
@@ -991,10 +992,7 @@ const ReportIssuePage: React.FC = () => {
                   style={{ position: 'absolute', inset: 0, height: '100%', width: '100%' }}
                   aria-label="Bản đồ chọn vị trí sự cố"
                 >
-                  <TileLayer
-                    attribution='&copy; Google Maps'
-                    url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=vi"
-                  />
+                  <TileLayer attribution={BASE_TILE_ATTRIBUTION} url={BASE_TILE_URL} />
                   <ResizeMap />
                   <LocationPicker onSelect={handleLocationSelect} />
                   {flyTarget && <FlyToLocation lat={flyTarget.lat} lng={flyTarget.lng} />}
