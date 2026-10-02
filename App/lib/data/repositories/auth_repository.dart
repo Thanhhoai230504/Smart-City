@@ -40,30 +40,48 @@ class AuthRepository {
         final res = await _dio.post<Object?>('/auth/login', data: {
           'email': email.trim(),
           'password': password,
-          'deviceType': _info.deviceType,
-          'deviceName': _info.deviceName,
+          ..._device,
         });
-        final data = dataOf(res.data);
-        final access = asString(data['accessToken']);
-        final refresh = asString(data['refreshToken']);
-        if (access == null || refresh == null) {
-          throw const AppException(
-            kind: AppErrorKind.unknown,
-            message: 'Máy chủ không trả phiên đăng nhập cho thiết bị di động.',
-          );
-        }
-        _tokens.accessToken = access;
-        await _tokens.saveRefreshToken(refresh);
-        // Login trả `departmentId` dạng chuỗi; lấy profile đầy đủ ngay sau đó
-        // nếu được, nhưng không bắt buộc (mạng có thể vừa rớt).
-        var user = AppUser.fromJson(data['user']);
-        try {
-          user = await fetchProfile();
-        } on AppException {
-          await _tokens.saveCachedUser(user.encode());
-        }
-        return user;
+        return _startSession(res.data);
       });
+
+  /// B4 — ID token lấy từ SDK Google trên máy; backend kiểm tra rồi cấp phiên
+  /// giống hệt `/auth/login` (tìm/liên kết/tạo tài khoản như luồng web).
+  Future<AppUser> loginWithGoogle(String idToken) => _call(() async {
+        final res = await _dio.post<Object?>('/auth/google/id-token', data: {
+          'idToken': idToken,
+          ..._device,
+        });
+        return _startSession(res.data);
+      });
+
+  Map<String, String> get _device => {
+        'deviceType': _info.deviceType,
+        'deviceName': _info.deviceName,
+      };
+
+  Future<AppUser> _startSession(Object? body) async {
+    final data = dataOf(body);
+    final access = asString(data['accessToken']);
+    final refresh = asString(data['refreshToken']);
+    if (access == null || refresh == null) {
+      throw const AppException(
+        kind: AppErrorKind.unknown,
+        message: 'Máy chủ không trả phiên đăng nhập cho thiết bị di động.',
+      );
+    }
+    _tokens.accessToken = access;
+    await _tokens.saveRefreshToken(refresh);
+    // Login trả `departmentId` dạng chuỗi; lấy profile đầy đủ ngay sau đó
+    // nếu được, nhưng không bắt buộc (mạng có thể vừa rớt).
+    var user = AppUser.fromJson(data['user']);
+    try {
+      user = await fetchProfile();
+    } on AppException {
+      await _tokens.saveCachedUser(user.encode());
+    }
+    return user;
+  }
 
   Future<RegisterResult> register(String name, String email, String password) =>
       _call(() async {

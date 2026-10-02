@@ -1,6 +1,6 @@
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const User = require('../models/User');
+const { findOrCreateGoogleUser } = require('../services/googleAuthService');
 
 const BACKEND_URL = process.env.NODE_ENV === 'production'
   ? 'https://smart-city-tgsf.onrender.com'
@@ -12,44 +12,14 @@ passport.use(new GoogleStrategy({
   callbackURL: `${BACKEND_URL}/api/auth/google/callback`,
 }, async (accessToken, refreshToken, profile, done) => {
   try {
-    // Check if user already exists with this Google ID
-    let user = await User.findOne({ provider: 'google', providerId: profile.id });
-
-    if (user) {
-      if (!user.isVerified) {
-        user.isVerified = true;
-        await user.save();
-      }
-      return done(null, user);
-    }
-
-    // Check if email already registered as local account
-    const email = profile.emails?.[0]?.value;
-    if (email) {
-      const existingLocal = await User.findOne({ email, provider: 'local' });
-      if (existingLocal) {
-        // Link Google to existing local account
-        existingLocal.provider = 'google';
-        existingLocal.providerId = profile.id;
-        existingLocal.avatar = profile.photos?.[0]?.value || null;
-        existingLocal.isVerified = true;
-        existingLocal.emailVerificationTokenHash = null;
-        existingLocal.emailVerificationExpires = null;
-        await existingLocal.save();
-        return done(null, existingLocal);
-      }
-    }
-
-    // Create new user
-    user = await User.create({
+    // Logic tìm/liên kết/tạo tài khoản dùng chung với đăng nhập Google của app
+    // (services/googleAuthService.js) để cùng một người ra cùng một tài khoản.
+    const user = await findOrCreateGoogleUser({
+      googleId: profile.id,
+      email: profile.emails?.[0]?.value,
       name: profile.displayName,
-      email: email,
-      provider: 'google',
-      providerId: profile.id,
-      avatar: profile.photos?.[0]?.value || null,
-      isVerified: true,
+      avatar: profile.photos?.[0]?.value,
     });
-
     done(null, user);
   } catch (error) {
     done(error, null);

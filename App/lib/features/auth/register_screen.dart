@@ -7,6 +7,7 @@ import '../../core/router/route_guard.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../data/repositories/auth_repository.dart';
+import 'google_sign_in.dart';
 import 'widgets.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -22,6 +23,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _password = TextEditingController();
   final _confirm = TextEditingController();
   bool _busy = false;
+  bool _googleBusy = false;
   final Map<String, String?> _errors = {};
   String? _formError;
 
@@ -94,14 +96,27 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     return AuthScaffold(
       title: 'Tạo tài khoản',
       subtitle: 'Một tài khoản dùng chung cho app và website Smart City Đà Nẵng.',
-      bottom: SizedBox(
-        width: double.infinity,
-        child: FilledButton(
-          onPressed: _busy ? null : _submit,
-          child: _busy
-              ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
-              : const Text('Đăng ký'),
-        ),
+      bottom: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _busy || _googleBusy ? null : _submit,
+              child: _busy
+                  ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Text('Đăng ký'),
+            ),
+          ),
+          // Tài khoản Google chưa có sẽ được tạo ngay — không cần mật khẩu hay
+          // bước xác thực email.
+          GoogleSignInSection(
+            returnPath: null,
+            enabled: !_busy,
+            onBusyChanged: (busy) => setState(() => _googleBusy = busy),
+            onError: (message) => setState(() => _formError = message),
+          ),
+        ],
       ),
       children: [
         if (_formError != null) FormNotice(message: _formError!, colors: palette.danger),

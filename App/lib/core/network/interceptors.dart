@@ -157,10 +157,11 @@ class RefreshInterceptor extends Interceptor {
   final Dio _dio;
   final RefreshCoordinator _coordinator;
 
-  /// Cùng danh sách loại trừ với web: lỗi 401 ở đây là sai mật khẩu, không phải
-  /// token hết hạn.
+  /// Cùng danh sách loại trừ với web: lỗi 401 ở đây là sai mật khẩu (hay ID
+  /// token Google bị từ chối), không phải token hết hạn.
   static const _authPaths = [
     '/auth/login',
+    '/auth/google/id-token',
     '/auth/register',
     '/auth/refresh',
     '/auth/forgot-password',

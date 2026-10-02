@@ -60,7 +60,12 @@ class AppUpdateController extends Notifier<UpdateState> {
     return const UpdateState();
   }
 
-  Future<void> check() async {
+  Future<void>? _inFlight;
+
+  /// Gộp các lần gọi trùng (lúc mở app và màn đăng nhập có thể cùng gọi).
+  Future<void> check() => _inFlight ??= _check().whenComplete(() => _inFlight = null);
+
+  Future<void> _check() async {
     try {
       final config = await ref.read(publicRepositoryProvider).appConfig();
       state = decideUpdate(ref.read(appInfoProvider).version, config);

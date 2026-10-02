@@ -42,6 +42,18 @@ const loginValidator = [
     .notEmpty().withMessage('Password is required')
 ];
 
+// ID token Google là JWT cỡ 1–2 KB; chặn chuỗi bất thường trước khi tới bước
+// xác minh (bước đó gọi ra Google lấy khoá công khai).
+const googleIdTokenValidator = [
+  ...deviceValidators,
+  body('idToken')
+    .isString().withMessage('Thiếu ID token của Google')
+    .bail()
+    .trim()
+    .notEmpty().withMessage('Thiếu ID token của Google')
+    .isLength({ max: 4096 }).withMessage('ID token của Google không hợp lệ'),
+];
+
 const verifyEmailValidator = [
   query('token')
     .notEmpty().withMessage('Verification token is required')
@@ -80,6 +92,7 @@ module.exports = {
   resetPasswordValidator,
   registerValidator,
   loginValidator,
+  googleIdTokenValidator,
   verifyEmailValidator,
   resendVerificationValidator
 };

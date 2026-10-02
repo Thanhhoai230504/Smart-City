@@ -152,12 +152,17 @@ class RemoteAppConfig {
     required this.latestVersion,
     this.androidStoreUrl,
     this.iosStoreUrl,
+    this.googleServerClientId,
   });
 
   final String minSupportedVersion;
   final String latestVersion;
   final String? androidStoreUrl;
   final String? iosStoreUrl;
+
+  /// Client ID web của Google, dùng làm `serverClientId` (B4). `null` = máy chủ
+  /// chưa cấu hình → ẩn nút đăng nhập Google.
+  final String? googleServerClientId;
 
   factory RemoteAppConfig.fromJson(Object? value) {
     final m = asMap(value);
@@ -167,6 +172,7 @@ class RemoteAppConfig {
       latestVersion: asStringOr(m['latestVersion'], '0.0.0'),
       androidStoreUrl: asString(store['android']),
       iosStoreUrl: asString(store['ios']),
+      googleServerClientId: asString(asMap(m['googleSignIn'])['serverClientId']),
     );
   }
 }

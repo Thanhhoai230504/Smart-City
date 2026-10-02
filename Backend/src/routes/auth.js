@@ -6,6 +6,7 @@ const { authStrictLimiter } = require('../middleware/rateLimiters');
 const {
   registerValidator,
   loginValidator,
+  googleIdTokenValidator,
   verifyEmailValidator,
   resendVerificationValidator,
   forgotPasswordValidator,
@@ -24,6 +25,7 @@ const {
   forgotPassword,
   resetPassword,
   deleteAccount,
+  googleIdTokenLogin,
   googleCallback
 } = require('../controllers/authController');
 
@@ -80,6 +82,11 @@ router.get('/profile', authMiddleware, getProfile);
 router.patch('/profile', authMiddleware, updateProfile);
 
 // ============ GOOGLE OAUTH ============
+
+// @route   POST /api/auth/google/id-token
+// App mobile (B4): ID token từ SDK Google của hệ điều hành → phiên như /login.
+// Cùng limiter với /login: token sai cũng là một lần thử đăng nhập hỏng.
+router.post('/google/id-token', authStrictLimiter, googleIdTokenValidator, validate, googleIdTokenLogin);
 
 // @route   GET /api/auth/google
 router.get('/google', passport.authenticate('google', {

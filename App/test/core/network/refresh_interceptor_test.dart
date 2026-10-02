@@ -138,6 +138,18 @@ void main() {
     expect(adapter.countPath('/auth/refresh'), 0);
   });
 
+  test('401 ở /auth/google/id-token là token Google bị từ chối — không refresh, không đá phiên', () async {
+    final adapter = FakeAdapter(
+      (o) => const FakeResponse(401, {'success': false, 'code': 'GOOGLE_TOKEN_INVALID'}),
+    );
+    final dio = build(adapter).dio;
+
+    await expectLater(dio.post<Object?>('/auth/google/id-token', data: {}), throwsA(isA<DioException>()));
+    expect(adapter.countPath('/auth/refresh'), 0);
+    expect(sessionExpired, 0);
+    expect(await tokens.readRefreshToken(), 'refresh-1');
+  });
+
   test('retry sau refresh vẫn 401 → dừng, không vòng lặp refresh vô hạn', () async {
     var refreshes = 0;
     final adapter = FakeAdapter((o) {

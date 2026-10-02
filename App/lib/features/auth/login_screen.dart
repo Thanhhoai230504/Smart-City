@@ -9,6 +9,7 @@ import '../../core/router/route_guard.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import 'auth_controller.dart';
+import 'google_sign_in.dart';
 import 'widgets.dart';
 
 /// Thông điệp hiển thị cho lỗi đăng nhập. Phân nhánh theo `code`/status,
@@ -38,6 +39,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   bool _busy = false;
+  bool _googleBusy = false;
   String? _emailError;
   String? _passwordError;
   String? _formError;
@@ -100,11 +102,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed: _busy ? null : _submit,
+              onPressed: _busy || _googleBusy ? null : _submit,
               child: _busy
                   ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
                   : const Text('Đăng nhập'),
             ),
+          ),
+          GoogleSignInSection(
+            returnPath: widget.from,
+            enabled: !_busy,
+            onBusyChanged: (busy) => setState(() => _googleBusy = busy),
+            onError: (message) => setState(() {
+              _formError = message;
+              _locked = false;
+              _emailError = null;
+              _passwordError = null;
+            }),
           ),
           Gap.h8,
           Row(
@@ -112,7 +125,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             children: [
               const Flexible(child: Text('Chưa có tài khoản?')),
               TextButton(
-                onPressed: _busy ? null : () => context.push(Routes.register),
+                onPressed: _busy || _googleBusy ? null : () => context.push(Routes.register),
                 child: const Text('Đăng ký'),
               ),
             ],

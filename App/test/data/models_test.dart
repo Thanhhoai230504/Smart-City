@@ -194,6 +194,12 @@ void main() {
     test('cấu hình phiên bản app (0.8)', () {
       final c = RemoteAppConfig.fromJson(fixtureData('app_config'));
       expect(c.minSupportedVersion, '1.0.0');
+      expect(c.googleServerClientId, 'test-web-client.apps.googleusercontent.com');
+    });
+
+    test('máy chủ chưa cấu hình Google (googleSignIn: null) → không có client ID', () {
+      final c = RemoteAppConfig.fromJson({'minSupportedVersion': '1.0.0', 'googleSignIn': null});
+      expect(c.googleServerClientId, isNull);
     });
   });
 }

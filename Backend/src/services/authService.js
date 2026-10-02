@@ -458,6 +458,8 @@ const generateTokensForUser = async (user, { deviceType, deviceName } = {}) => {
       name: user.name,
       email: user.email,
       role: user.role,
+      // Cùng hình dạng với loginUser — app cán bộ cần đơn vị ngay sau đăng nhập.
+      departmentId: user.departmentId || null,
       provider: user.provider,
       avatar: user.avatar,
       isVerified: true,

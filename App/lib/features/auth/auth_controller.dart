@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/network/api_client.dart';
 import '../../core/network/app_exception.dart';
+import '../../core/platform/google_sign_in_gateway.dart';
 import '../../data/models/user.dart';
 import '../../data/repositories/auth_repository.dart';
 
@@ -80,14 +81,25 @@ class AuthController extends Notifier<AuthState> {
     return user;
   }
 
+  /// B4 — `null` khi người dùng đóng bảng chọn tài khoản Google.
+  Future<AppUser?> loginWithGoogle(String serverClientId) async {
+    final idToken = await ref.read(googleSignInGatewayProvider).obtainIdToken(serverClientId: serverClientId);
+    if (idToken == null) return null;
+    final user = await _repo.loginWithGoogle(idToken);
+    state = AuthSignedIn(user);
+    return user;
+  }
+
   Future<void> logout() async {
     await _repo.logout();
+    await ref.read(googleSignInGatewayProvider).signOut();
     state = const AuthGuest();
   }
 
   /// Sau khi xoá tài khoản ở server — chỉ dọn phía máy.
   Future<void> signOutLocally({String? notice}) async {
     await _repo.clearLocal();
+    await ref.read(googleSignInGatewayProvider).signOut();
     state = AuthGuest(notice: notice);
   }
 

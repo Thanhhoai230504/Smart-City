@@ -1,5 +1,6 @@
 const authService = require('../services/authService');
 const accountService = require('../services/accountService');
+const googleAuthService = require('../services/googleAuthService');
 
 const register = async (req, res, next) => {
   try {
@@ -185,6 +186,26 @@ const deleteAccount = async (req, res, next) => {
   }
 };
 
+/**
+ * Đăng nhập Google cho app mobile (B4): app gửi ID token lấy từ SDK Google của
+ * hệ điều hành. Trả phiên giống hệt /auth/login — mobile nhận refresh token
+ * trong body, nên không lặp lại lỗ hổng L8 (token trên URL) của luồng redirect.
+ */
+const googleIdTokenLogin = async (req, res, next) => {
+  try {
+    const result = await googleAuthService.loginWithGoogleIdToken(req.body);
+    const bodyToken = attachRefreshToken(res, result);
+
+    res.json({
+      success: true,
+      message: 'Login successful.',
+      data: { accessToken: result.accessToken, user: result.user, ...bodyToken }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const googleCallback = async (req, res) => {
   try {
     const result = await authService.generateTokensForUser(req.user);
@@ -221,5 +242,6 @@ module.exports = {
   forgotPassword,
   resetPassword,
   deleteAccount,
+  googleIdTokenLogin,
   googleCallback
 };

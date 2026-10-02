@@ -27,6 +27,9 @@ class ApiError extends Error {
    *   ALREADY_RATED             - mỗi phiếu chỉ được đánh giá một lần
    *   EMAIL_NOT_VERIFIED        - tài khoản chưa xác thực email (services/authService.js)
    *   TOKEN_EXPIRED             - access token hết hạn (middleware/auth.js)
+   *   GOOGLE_TOKEN_INVALID      - ID token Google sai chữ ký/hết hạn/sai `aud` (services/googleAuthService.js)
+   *   GOOGLE_EMAIL_NOT_VERIFIED - Google chưa xác minh email của tài khoản đó
+   *   GOOGLE_SIGN_IN_DISABLED   - máy chủ chưa cấu hình GOOGLE_CLIENT_ID
    */
   static badRequestWithCode(message, code) {
     const error = new ApiError(400, message);

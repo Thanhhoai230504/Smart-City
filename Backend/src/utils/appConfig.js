@@ -10,6 +10,11 @@
  *   MOBILE_MIN_SUPPORTED_VERSION  bản thấp nhất còn dùng được (mặc định 1.0.0)
  *   MOBILE_LATEST_VERSION         bản mới nhất trên store (mặc định = min)
  *   ANDROID_STORE_URL, IOS_STORE_URL
+ *
+ * Kèm client ID web của Google (GOOGLE_CLIENT_ID) để app dùng làm
+ * `serverClientId` khi đăng nhập Google: một nguồn duy nhất, nên `aud` của ID
+ * token luôn khớp với thứ backend kiểm tra. Client ID không phải bí mật — nó đã
+ * nằm trên URL đăng nhập Google của web.
  */
 
 const DEFAULT_VERSION = '1.0.0';
@@ -52,6 +57,8 @@ const readMobileConfig = (env = process.env) => {
     ? minSupportedVersion
     : latestRaw;
 
+  const googleClientId = String(env.GOOGLE_CLIENT_ID || '').trim();
+
   return {
     minSupportedVersion,
     latestVersion,
@@ -59,6 +66,8 @@ const readMobileConfig = (env = process.env) => {
       android: httpsOrNull(env.ANDROID_STORE_URL),
       ios: httpsOrNull(env.IOS_STORE_URL),
     },
+    // null = máy chủ chưa cấu hình Google → app ẩn nút đăng nhập Google.
+    googleSignIn: googleClientId ? { serverClientId: googleClientId } : null,
   };
 };
 

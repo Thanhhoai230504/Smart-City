@@ -44,6 +44,18 @@ describe('readMobileConfig', () => {
   });
 });
 
+describe('readMobileConfig — đăng nhập Google', () => {
+  it('đưa client ID web làm serverClientId cho app (cùng giá trị backend dùng kiểm tra aud)', () => {
+    expect(readMobileConfig({ GOOGLE_CLIENT_ID: ' web-client.apps.googleusercontent.com ' }).googleSignIn)
+      .toEqual({ serverClientId: 'web-client.apps.googleusercontent.com' });
+  });
+
+  it('chưa cấu hình → null để app ẩn nút Google', () => {
+    expect(readMobileConfig({}).googleSignIn).toBeNull();
+    expect(readMobileConfig({ GOOGLE_CLIENT_ID: '  ' }).googleSignIn).toBeNull();
+  });
+});
+
 describe('buildAppConfig', () => {
   const env = { MOBILE_MIN_SUPPORTED_VERSION: '1.2.0', MOBILE_LATEST_VERSION: '1.4.0' };
 

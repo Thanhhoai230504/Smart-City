@@ -10,6 +10,9 @@
     "clientVersion": "1.0.0",
     "forceUpdate": false,
     "updateAvailable": false,
-    "enumsUrl": "/api/meta/enums"
+    "enumsUrl": "/api/meta/enums",
+    "googleSignIn": {
+      "serverClientId": "test-web-client.apps.googleusercontent.com"
+    }
   }
 }

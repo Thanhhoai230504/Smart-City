@@ -51,6 +51,8 @@ FakeAdapter fixtureBackend() {
       '/badges/me' => 'badges_me',
       '/badges/leaderboard' => 'leaderboard',
       '/app/config' => 'app_config',
+      // Cùng hình dạng phản hồi với /auth/login (backend dùng chung một hàm cấp phiên).
+      '/auth/google/id-token' => 'login_mobile',
       _ => null,
     };
     if (p.endsWith('/comments')) name = 'comments';
@@ -101,6 +103,7 @@ Future<ProviderContainer> pumpScreen(
   AppUser? user,
   bool online = true,
   List<Override> overrides = const [],
+  FakeAdapter? backend,
 }) async {
   AppTypography.displayFontEnabled = false;
   mapTilesEnabled = false;
@@ -126,7 +129,7 @@ Future<ProviderContainer> pumpScreen(
       tokens: tokens,
       appVersion: '1.0.0',
       onSessionExpired: () {},
-      adapter: fixtureBackend(),
+      adapter: backend ?? fixtureBackend(),
     )),
     connectivityProvider.overrideWith((ref) => Stream.value(online)),
     draftStoreProvider.overrideWithValue(MemoryDraftStore()),
