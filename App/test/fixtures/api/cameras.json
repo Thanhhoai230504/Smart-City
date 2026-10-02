@@ -1,0 +1,122 @@
+{
+  "success": true,
+  "data": {
+    "cameras": [
+      {
+        "id": "cau-rong-tay",
+        "name": "Nút giao thông tây Cầu Rồng",
+        "type": "traffic",
+        "coords": {
+          "lat": 16.0612,
+          "lng": 108.2275
+        },
+        "embedUrl": "https://www.youtube.com/embed/oC8ttZHG50I?autoplay=1&mute=1&rel=0",
+        "thumbnailUrl": "https://i.ytimg.com/vi/oC8ttZHG50I/hqdefault.jpg",
+        "watchUrl": "https://www.youtube.com/watch?v=oC8ttZHG50I"
+      },
+      {
+        "id": "cau-tran-thi-ly",
+        "name": "Cầu Trần Thị Lý",
+        "type": "traffic",
+        "coords": {
+          "lat": 16.0525,
+          "lng": 108.2275
+        },
+        "embedUrl": "https://www.youtube.com/embed/qv_qe9n1Gx4?autoplay=1&mute=1&rel=0",
+        "thumbnailUrl": "https://i.ytimg.com/vi/qv_qe9n1Gx4/hqdefault.jpg",
+        "watchUrl": "https://www.youtube.com/watch?v=qv_qe9n1Gx4"
+      },
+      {
+        "id": "benh-vien-c-cong-sau",
+        "name": "Cổng sau Bệnh viện C Đà Nẵng",
+        "type": "public",
+        "coords": {
+          "lat": 16.0732,
+          "lng": 108.2166
+        },
+        "embedUrl": "https://www.youtube.com/embed/oif_zZFIfB4?autoplay=1&mute=1&rel=0",
+        "thumbnailUrl": "https://i.ytimg.com/vi/oif_zZFIfB4/hqdefault.jpg",
+        "watchUrl": "https://www.youtube.com/watch?v=oif_zZFIfB4"
+      },
+      {
+        "id": "benh-vien-da-nang-cong-trinh",
+        "name": "Công trình Bệnh viện Đà Nẵng",
+        "type": "construction",
+        "coords": {
+          "lat": 16.073,
+          "lng": 108.2154
+        },
+        "embedUrl": "https://www.youtube.com/embed/x8tUUv-NGXs?autoplay=1&mute=1&rel=0",
+        "thumbnailUrl": "https://i.ytimg.com/vi/x8tUUv-NGXs/hqdefault.jpg",
+        "watchUrl": "https://www.youtube.com/watch?v=x8tUUv-NGXs"
+      },
+      {
+        "id": "truong-nguyen-hue",
+        "name": "Cổng trường Nguyễn Huệ",
+        "type": "school",
+        "coords": {
+          "lat": 16.0748,
+          "lng": 108.216
+        },
+        "embedUrl": "https://www.youtube.com/embed/sJvEFrG0wq0?autoplay=1&mute=1&rel=0",
+        "thumbnailUrl": "https://i.ytimg.com/vi/sJvEFrG0wq0/hqdefault.jpg",
+        "watchUrl": "https://www.youtube.com/watch?v=sJvEFrG0wq0"
+      },
+      {
+        "id": "truong-ly-tu-trong-cong",
+        "name": "Cổng trường Lý Tự Trọng (12 Lý Tự Trọng)",
+        "type": "school",
+        "coords": {
+          "lat": 16.0774,
+          "lng": 108.2217
+        },
+        "embedUrl": "https://www.youtube.com/embed/RUrUS1JluRs?autoplay=1&mute=1&rel=0",
+        "thumbnailUrl": "https://i.ytimg.com/vi/RUrUS1JluRs/hqdefault.jpg",
+        "watchUrl": "https://www.youtube.com/watch?v=RUrUS1JluRs"
+      },
+      {
+        "id": "truong-ly-tu-trong-ptz",
+        "name": "Trường Tiểu học Lý Tự Trọng (PTZ)",
+        "type": "school",
+        "coords": {
+          "lat": 16.0779,
+          "lng": 108.2212
+        },
+        "embedUrl": "https://www.youtube.com/embed/1EamsYw_Xyo?autoplay=1&mute=1&rel=0",
+        "thumbnailUrl": "https://i.ytimg.com/vi/1EamsYw_Xyo/hqdefault.jpg",
+        "watchUrl": "https://www.youtube.com/watch?v=1EamsYw_Xyo"
+      },
+      {
+        "id": "truong-ly-tu-trong-song-han",
+        "name": "Trường Lý Tự Trọng — hướng KS Sông Hàn",
+        "type": "school",
+        "coords": {
+          "lat": 16.0774,
+          "lng": 108.2217
+        },
+        "embedUrl": "https://www.youtube.com/embed/NeJGBQAY-bE?autoplay=1&mute=1&rel=0",
+        "thumbnailUrl": "https://i.ytimg.com/vi/NeJGBQAY-bE/hqdefault.jpg",
+        "watchUrl": "https://www.youtube.com/watch?v=NeJGBQAY-bE"
+      },
+      {
+        "id": "ks-hai-trieu",
+        "name": "Khách sạn Hải Triều (PTZ)",
+        "type": "public",
+        "coords": null,
+        "embedUrl": "https://www.youtube.com/embed/MeimXMs6t1o?autoplay=1&mute=1&rel=0",
+        "thumbnailUrl": "https://i.ytimg.com/vi/MeimXMs6t1o/hqdefault.jpg",
+        "watchUrl": "https://www.youtube.com/watch?v=MeimXMs6t1o"
+      },
+      {
+        "id": "phuong-tran",
+        "name": "Trang phục biểu diễn Phương Trần (PTZ)",
+        "type": "public",
+        "coords": null,
+        "embedUrl": "https://www.youtube.com/embed/G_G8A6JU_LI?autoplay=1&mute=1&rel=0",
+        "thumbnailUrl": "https://i.ytimg.com/vi/G_G8A6JU_LI/hqdefault.jpg",
+        "watchUrl": "https://www.youtube.com/watch?v=G_G8A6JU_LI"
+      }
+    ],
+    "total": 10
+  }
+}

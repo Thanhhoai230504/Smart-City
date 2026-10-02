@@ -1,0 +1,22 @@
+{
+  "success": false,
+  "message": "Validation failed",
+  "errors": [
+    {
+      "field": "name",
+      "message": "Name is required"
+    },
+    {
+      "field": "email",
+      "message": "Please enter a valid email"
+    },
+    {
+      "field": "password",
+      "message": "Password is required"
+    },
+    {
+      "field": "password",
+      "message": "Mật khẩu phải có từ 8 đến 128 ký tự"
+    }
+  ]
+}

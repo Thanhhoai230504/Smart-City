@@ -1,0 +1,15 @@
+{
+  "success": true,
+  "data": {
+    "minSupportedVersion": "1.0.0",
+    "latestVersion": "1.0.0",
+    "storeUrls": {
+      "android": null,
+      "ios": null
+    },
+    "clientVersion": "1.0.0",
+    "forceUpdate": false,
+    "updateAvailable": false,
+    "enumsUrl": "/api/meta/enums"
+  }
+}

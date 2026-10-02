@@ -1,0 +1,45 @@
+{
+  "success": true,
+  "data": {
+    "candidates": [
+      {
+        "issue": {
+          "_id": "6abf1d2f954088cb9891422c",
+          "title": "Ổ gà lớn trước số 120 Lê Duẩn",
+          "description": "Ổ gà sâu khoảng 15cm, rộng gần 1m ngay làn xe máy, trời mưa đọng nước rất nguy hiểm.",
+          "category": "pothole",
+          "status": "reported",
+          "location": "120 Lê Duẩn, Hải Châu, Đà Nẵng",
+          "district": "Hải Châu",
+          "latitude": 16.0712,
+          "longitude": 108.2165,
+          "imageUrl": "https://picsum.photos/seed/pothole-le-duan/960/720",
+          "voteCount": 1,
+          "createdAt": "2026-10-01T23:55:43.371Z"
+        },
+        "distanceMeters": 0,
+        "duplicateScore": 0.7172,
+        "confidence": "possible",
+        "method": "lexical_fallback",
+        "semanticSimilarity": 0.5652,
+        "geoProximity": 1,
+        "sameCategory": true,
+        "recency": 0.9958,
+        "reasons": [
+          "Độ giống từ khóa 57%",
+          "Cách vị trí báo cáo 0 m",
+          "Cùng loại sự cố",
+          "Được báo trong vòng 24 giờ"
+        ]
+      }
+    ],
+    "meta": {
+      "version": "duplicate-v1",
+      "mode": "lexical_fallback",
+      "provider": "disabled",
+      "model": "none",
+      "providerError": "Embedding provider unavailable",
+      "geoCandidatesScanned": 2
+    }
+  }
+}

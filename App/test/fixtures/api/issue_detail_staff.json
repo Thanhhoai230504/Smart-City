@@ -1,0 +1,194 @@
+{
+  "success": true,
+  "data": {
+    "issue": {
+      "geo": {
+        "type": "Point",
+        "coordinates": [
+          108.2111,
+          16.0596
+        ]
+      },
+      "rating": {
+        "score": null,
+        "comment": null,
+        "ratedAt": null
+      },
+      "embedding": {
+        "model": null,
+        "version": null,
+        "dimensions": null,
+        "sourceHash": null,
+        "status": "pending",
+        "generatedAt": null,
+        "processingStartedAt": null,
+        "attempts": 0,
+        "lastError": null
+      },
+      "_id": "6abf1d2f954088cb9891422f",
+      "title": "Mặt đường lún sụt đoạn Nguyễn Văn Linh",
+      "description": "Đoạn gần ngã tư Nguyễn Văn Linh – Hàm Nghi bị lún, xe tải đi qua rất rung.",
+      "category": "pothole",
+      "location": "45 Nguyễn Văn Linh, Hải Châu, Đà Nẵng",
+      "latitude": 16.0596,
+      "longitude": 108.2111,
+      "district": "Hải Châu",
+      "phone": "0912345678",
+      "imageUrl": "https://picsum.photos/seed/nvl-subsidence/960/720",
+      "imagePublicId": null,
+      "images": [
+        {
+          "url": "https://picsum.photos/seed/nvl-subsidence/960/720",
+          "publicId": null
+        }
+      ],
+      "status": "processing",
+      "userId": {
+        "_id": "6abf1d2e954088cb9891421f",
+        "name": "Nguyễn Văn An",
+        "email": "nguoidan@demo.vn"
+      },
+      "adminId": {
+        "_id": "6abf1d2e954088cb98914221",
+        "name": "Lê Minh Cường",
+        "email": "canbo.giaothong@demo.vn"
+      },
+      "resolvedAt": null,
+      "votes": [],
+      "followers": [
+        "6abf1d2e954088cb9891421f"
+      ],
+      "voteCount": 0,
+      "statusHistory": [
+        {
+          "status": "reported",
+          "changedBy": {
+            "_id": "6abf1d2e954088cb9891421f",
+            "name": "Nguyễn Văn An",
+            "email": "nguoidan@demo.vn"
+          },
+          "changedAt": "2026-10-01T06:55:43.371Z",
+          "note": "Sự cố được báo cáo",
+          "_id": "6abf1d2f954088cb98914230",
+          "id": "6abf1d2f954088cb98914230"
+        },
+        {
+          "status": "reported",
+          "changedBy": {
+            "_id": "6abf1d2e954088cb98914224",
+            "name": "Quản trị Demo",
+            "email": "quantri@demo.vn"
+          },
+          "changedAt": "2026-10-01T16:55:43.371Z",
+          "note": "Phân công cho Phòng Quản lý Hạ tầng Giao thông",
+          "_id": "6abf1d2f954088cb98914231",
+          "id": "6abf1d2f954088cb98914231"
+        },
+        {
+          "status": "processing",
+          "changedBy": {
+            "_id": "6abf1d2e954088cb98914221",
+            "name": "Lê Minh Cường",
+            "email": "canbo.giaothong@demo.vn"
+          },
+          "changedAt": "2026-10-01T20:55:43.371Z",
+          "note": "Đã khảo sát hiện trường, chờ vật tư.",
+          "_id": "6abf1d2f954088cb98914232",
+          "id": "6abf1d2f954088cb98914232"
+        }
+      ],
+      "departmentId": {
+        "_id": "6abf1d2e954088cb98914218",
+        "name": "Phòng Quản lý Hạ tầng Giao thông",
+        "code": "HTGT",
+        "email": "hatang.gt@danang.gov.vn",
+        "phone": "0236 3821 234"
+      },
+      "assigneeId": {
+        "_id": "6abf1d2e954088cb98914221",
+        "name": "Lê Minh Cường",
+        "email": "canbo.giaothong@demo.vn"
+      },
+      "assignedBy": "6abf1d2e954088cb98914224",
+      "assignedAt": "2026-10-01T16:55:43.371Z",
+      "dueAt": "2026-10-04T04:55:43.371Z",
+      "escalationLevel": 0,
+      "lastReminderAt": null,
+      "reopenCount": 0,
+      "lastReopenedAt": null,
+      "intakeDueAt": "2026-10-02T06:55:43.371Z",
+      "intakeReminderAt": null,
+      "mergedInto": null,
+      "mergedAt": null,
+      "mergedBy": null,
+      "duplicateCount": 0,
+      "priorityScore": 26.7,
+      "priorityLevel": "low",
+      "priorityVersion": "priority-v1",
+      "priorityCalculatedAt": "2026-10-02T02:55:43.416Z",
+      "isDeleted": false,
+      "deletedAt": null,
+      "deletedBy": null,
+      "createdAt": "2026-10-01T06:55:43.371Z",
+      "resolutionImages": [],
+      "priorityFactors": [
+        {
+          "code": "severity",
+          "rawValue": {
+            "category": "pothole"
+          },
+          "normalizedScore": 75,
+          "weight": 0.3,
+          "points": 22.5,
+          "message": "Mức nghiêm trọng của loại sự cố: 75/100"
+        },
+        {
+          "code": "age_sla",
+          "rawValue": {
+            "ageHours": 20,
+            "hoursUntilDue": 50,
+            "dueAt": "2026-10-04T04:55:43.371Z"
+          },
+          "normalizedScore": 16.7,
+          "weight": 0.25,
+          "points": 4.2,
+          "message": "Đã dùng 16.7% thời gian SLA"
+        },
+        {
+          "code": "votes",
+          "rawValue": {
+            "voteCount": 0,
+            "cap": 50
+          },
+          "normalizedScore": 0,
+          "weight": 0.15,
+          "points": 0,
+          "message": "0 lượt ủng hộ"
+        },
+        {
+          "code": "nearby_density",
+          "rawValue": {
+            "nearbyCount": 0,
+            "radiusMeters": 500
+          },
+          "normalizedScore": 0,
+          "weight": 0.15,
+          "points": 0,
+          "message": "0 sự cố đang mở trong bán kính 500 m"
+        },
+        {
+          "code": "sensitive_place",
+          "rawValue": null,
+          "normalizedScore": 0,
+          "weight": 0.15,
+          "points": 0,
+          "message": "Không có bệnh viện/trường học trong 500 m"
+        }
+      ],
+      "updatedAt": "2026-10-02T02:55:43.435Z",
+      "__v": 0,
+      "slaStatus": "on_time",
+      "id": "6abf1d2f954088cb9891422f"
+    }
+  }
+}

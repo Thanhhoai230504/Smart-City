@@ -1,0 +1,4 @@
+{
+  "APP_ENV": "prod",
+  "API_URL": "https://ten-backend-cua-ban.onrender.com/api"
+}

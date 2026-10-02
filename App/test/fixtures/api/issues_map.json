@@ -1,0 +1,104 @@
+{
+  "success": true,
+  "data": {
+    "issues": [
+      {
+        "_id": "6abf1d2f954088cb98914253",
+        "title": "Ngập sâu đường Ông Ích Khiêm sau mưa",
+        "category": "flooding",
+        "location": "300 Ông Ích Khiêm, Thanh Khê, Đà Nẵng",
+        "latitude": 16.0671,
+        "longitude": 108.2112,
+        "district": "Thanh Khê",
+        "imageUrl": null,
+        "status": "reported",
+        "voteCount": 0,
+        "createdAt": "2026-10-02T01:55:43.371Z"
+      },
+      {
+        "_id": "6abf1d2f954088cb9891422c",
+        "title": "Ổ gà lớn trước số 120 Lê Duẩn",
+        "category": "pothole",
+        "location": "120 Lê Duẩn, Hải Châu, Đà Nẵng",
+        "latitude": 16.0712,
+        "longitude": 108.2165,
+        "district": "Hải Châu",
+        "imageUrl": "https://picsum.photos/seed/pothole-le-duan/960/720",
+        "status": "reported",
+        "voteCount": 1,
+        "createdAt": "2026-10-01T23:55:43.371Z"
+      },
+      {
+        "_id": "6abf1d2f954088cb9891424f",
+        "title": "Rác tồn đọng ở chân cầu Rồng",
+        "category": "garbage",
+        "location": "Chân cầu Rồng, Sơn Trà, Đà Nẵng",
+        "latitude": 16.061,
+        "longitude": 108.229,
+        "district": "Sơn Trà",
+        "imageUrl": "https://picsum.photos/seed/garbage-dragon-bridge/960/720",
+        "status": "processing",
+        "voteCount": 0,
+        "createdAt": "2026-10-01T18:55:43.371Z"
+      },
+      {
+        "_id": "6abf1d2f954088cb9891422f",
+        "title": "Mặt đường lún sụt đoạn Nguyễn Văn Linh",
+        "category": "pothole",
+        "location": "45 Nguyễn Văn Linh, Hải Châu, Đà Nẵng",
+        "latitude": 16.0596,
+        "longitude": 108.2111,
+        "district": "Hải Châu",
+        "imageUrl": "https://picsum.photos/seed/nvl-subsidence/960/720",
+        "status": "processing",
+        "voteCount": 0,
+        "createdAt": "2026-10-01T06:55:43.371Z"
+      },
+      {
+        "_id": "6abf1d2f954088cb98914234",
+        "title": "Hố ga mất nắp trên đường Trần Phú",
+        "category": "pothole",
+        "location": "210 Trần Phú, Hải Châu, Đà Nẵng",
+        "latitude": 16.0646,
+        "longitude": 108.2237,
+        "district": "Hải Châu",
+        "imageUrl": "https://picsum.photos/seed/manhole-tran-phu/960/720",
+        "status": "processing",
+        "voteCount": 0,
+        "createdAt": "2026-09-29T04:55:43.371Z"
+      },
+      {
+        "_id": "6abf1d2f954088cb98914239",
+        "title": "Vỉa hè vỡ nhiều mảng trên Bạch Đằng",
+        "category": "pothole",
+        "location": "30 Bạch Đằng, Hải Châu, Đà Nẵng",
+        "latitude": 16.0718,
+        "longitude": 108.2246,
+        "district": "Hải Châu",
+        "imageUrl": "https://picsum.photos/seed/sidewalk-bach-dang/960/720",
+        "status": "processing",
+        "voteCount": 0,
+        "createdAt": "2026-09-27T12:55:43.371Z"
+      },
+      {
+        "_id": "6abf1d2f954088cb98914249",
+        "title": "Ổ gà tái xuất hiện ở Phan Đình Phùng",
+        "category": "pothole",
+        "location": "12 Phan Đình Phùng, Hải Châu, Đà Nẵng",
+        "latitude": 16.0703,
+        "longitude": 108.2208,
+        "district": "Hải Châu",
+        "imageUrl": "https://picsum.photos/seed/pdp-pothole/960/720",
+        "status": "processing",
+        "voteCount": 0,
+        "createdAt": "2026-09-21T06:55:43.371Z"
+      }
+    ],
+    "pagination": {
+      "current": 1,
+      "pages": 1,
+      "total": 7,
+      "limit": 500
+    }
+  }
+}

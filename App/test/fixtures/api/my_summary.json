@@ -1,0 +1,12 @@
+{
+  "success": true,
+  "data": {
+    "summary": {
+      "total": 5,
+      "reported": 1,
+      "processing": 2,
+      "resolved": 1,
+      "rejected": 1
+    }
+  }
+}

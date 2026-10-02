@@ -1,0 +1,5 @@
+{
+  "success": false,
+  "message": "Vui lòng nêu rõ lý do từ chối để người dân hiểu được quyết định.",
+  "code": "REJECT_REASON_REQUIRED"
+}

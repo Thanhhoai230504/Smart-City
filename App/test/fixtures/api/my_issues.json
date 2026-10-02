@@ -1,0 +1,378 @@
+{
+  "success": true,
+  "data": {
+    "issues": [
+      {
+        "rating": {
+          "score": null,
+          "comment": null,
+          "ratedAt": null
+        },
+        "_id": "6abf1d2f954088cb9891422c",
+        "title": "Ổ gà lớn trước số 120 Lê Duẩn",
+        "description": "Ổ gà sâu khoảng 15cm, rộng gần 1m ngay làn xe máy, trời mưa đọng nước rất nguy hiểm.",
+        "category": "pothole",
+        "location": "120 Lê Duẩn, Hải Châu, Đà Nẵng",
+        "latitude": 16.0712,
+        "longitude": 108.2165,
+        "district": "Hải Châu",
+        "imageUrl": "https://picsum.photos/seed/pothole-le-duan/960/720",
+        "status": "reported",
+        "userId": "6abf1d2e954088cb9891421f",
+        "adminId": null,
+        "resolvedAt": null,
+        "voteCount": 1,
+        "departmentId": null,
+        "assigneeId": null,
+        "assignedAt": null,
+        "dueAt": null,
+        "escalationLevel": 0,
+        "reopenCount": 0,
+        "lastReopenedAt": null,
+        "duplicateCount": 0,
+        "priorityScore": 38.9,
+        "priorityLevel": "medium",
+        "priorityVersion": "priority-v1",
+        "priorityCalculatedAt": "2026-10-02T02:55:43.416Z",
+        "createdAt": "2026-10-01T23:55:43.371Z",
+        "priorityFactors": [
+          {
+            "code": "severity",
+            "rawValue": {
+              "category": "pothole"
+            },
+            "normalizedScore": 75,
+            "weight": 0.3,
+            "points": 22.5,
+            "message": "Mức nghiêm trọng của loại sự cố: 75/100"
+          },
+          {
+            "code": "age_sla",
+            "rawValue": {
+              "ageHours": 3,
+              "referenceSlaHours": 72
+            },
+            "normalizedScore": 4.2,
+            "weight": 0.25,
+            "points": 1,
+            "message": "Tồn đọng 3 giờ (mốc tham chiếu 72 giờ)"
+          },
+          {
+            "code": "votes",
+            "rawValue": {
+              "voteCount": 1,
+              "cap": 50
+            },
+            "normalizedScore": 17.6,
+            "weight": 0.15,
+            "points": 2.6,
+            "message": "1 lượt ủng hộ"
+          },
+          {
+            "code": "nearby_density",
+            "rawValue": {
+              "nearbyCount": 1,
+              "radiusMeters": 500
+            },
+            "normalizedScore": 10,
+            "weight": 0.15,
+            "points": 1.5,
+            "message": "1 sự cố đang mở trong bán kính 500 m"
+          },
+          {
+            "code": "sensitive_place",
+            "rawValue": {
+              "placeId": "6abf1d2f954088cb98914256",
+              "name": "Bệnh viện Đà Nẵng",
+              "type": "hospital",
+              "distanceMeters": 282
+            },
+            "normalizedScore": 75,
+            "weight": 0.15,
+            "points": 11.3,
+            "message": "Cách bệnh viện gần nhất 282 m"
+          }
+        ],
+        "updatedAt": "2026-10-02T02:55:43.438Z",
+        "slaStatus": "none",
+        "id": "6abf1d2f954088cb9891422c"
+      },
+      {
+        "rating": {
+          "score": null,
+          "comment": null,
+          "ratedAt": null
+        },
+        "_id": "6abf1d2f954088cb9891424f",
+        "title": "Rác tồn đọng ở chân cầu Rồng",
+        "description": "Rác sinh hoạt đổ trộm thành đống lớn, bốc mùi.",
+        "category": "garbage",
+        "location": "Chân cầu Rồng, Sơn Trà, Đà Nẵng",
+        "latitude": 16.061,
+        "longitude": 108.229,
+        "district": "Sơn Trà",
+        "imageUrl": "https://picsum.photos/seed/garbage-dragon-bridge/960/720",
+        "status": "processing",
+        "userId": "6abf1d2e954088cb9891421f",
+        "adminId": null,
+        "resolvedAt": null,
+        "voteCount": 0,
+        "departmentId": "6abf1d2e954088cb98914219",
+        "assigneeId": null,
+        "assignedAt": "2026-10-01T21:55:43.371Z",
+        "dueAt": "2026-10-02T21:55:43.371Z",
+        "escalationLevel": 0,
+        "reopenCount": 0,
+        "lastReopenedAt": null,
+        "duplicateCount": 0,
+        "priorityScore": 23.2,
+        "priorityLevel": "low",
+        "priorityVersion": "priority-v1",
+        "priorityCalculatedAt": "2026-10-02T02:55:43.416Z",
+        "createdAt": "2026-10-01T18:55:43.371Z",
+        "priorityFactors": [
+          {
+            "code": "severity",
+            "rawValue": {
+              "category": "garbage"
+            },
+            "normalizedScore": 60,
+            "weight": 0.3,
+            "points": 18,
+            "message": "Mức nghiêm trọng của loại sự cố: 60/100"
+          },
+          {
+            "code": "age_sla",
+            "rawValue": {
+              "ageHours": 8,
+              "hoursUntilDue": 19,
+              "dueAt": "2026-10-02T21:55:43.371Z"
+            },
+            "normalizedScore": 20.8,
+            "weight": 0.25,
+            "points": 5.2,
+            "message": "Đã dùng 20.8% thời gian SLA"
+          },
+          {
+            "code": "votes",
+            "rawValue": {
+              "voteCount": 0,
+              "cap": 50
+            },
+            "normalizedScore": 0,
+            "weight": 0.15,
+            "points": 0,
+            "message": "0 lượt ủng hộ"
+          },
+          {
+            "code": "nearby_density",
+            "rawValue": {
+              "nearbyCount": 0,
+              "radiusMeters": 500
+            },
+            "normalizedScore": 0,
+            "weight": 0.15,
+            "points": 0,
+            "message": "0 sự cố đang mở trong bán kính 500 m"
+          },
+          {
+            "code": "sensitive_place",
+            "rawValue": null,
+            "normalizedScore": 0,
+            "weight": 0.15,
+            "points": 0,
+            "message": "Không có bệnh viện/trường học trong 500 m"
+          }
+        ],
+        "updatedAt": "2026-10-02T02:55:43.436Z",
+        "slaStatus": "on_time",
+        "id": "6abf1d2f954088cb9891424f"
+      },
+      {
+        "rating": {
+          "score": null,
+          "comment": null,
+          "ratedAt": null
+        },
+        "_id": "6abf1d2f954088cb9891422f",
+        "title": "Mặt đường lún sụt đoạn Nguyễn Văn Linh",
+        "description": "Đoạn gần ngã tư Nguyễn Văn Linh – Hàm Nghi bị lún, xe tải đi qua rất rung.",
+        "category": "pothole",
+        "location": "45 Nguyễn Văn Linh, Hải Châu, Đà Nẵng",
+        "latitude": 16.0596,
+        "longitude": 108.2111,
+        "district": "Hải Châu",
+        "imageUrl": "https://picsum.photos/seed/nvl-subsidence/960/720",
+        "status": "processing",
+        "userId": "6abf1d2e954088cb9891421f",
+        "adminId": {
+          "_id": "6abf1d2e954088cb98914221",
+          "name": "Lê Minh Cường",
+          "email": "canbo.giaothong@demo.vn"
+        },
+        "resolvedAt": null,
+        "voteCount": 0,
+        "departmentId": "6abf1d2e954088cb98914218",
+        "assigneeId": "6abf1d2e954088cb98914221",
+        "assignedAt": "2026-10-01T16:55:43.371Z",
+        "dueAt": "2026-10-04T04:55:43.371Z",
+        "escalationLevel": 0,
+        "reopenCount": 0,
+        "lastReopenedAt": null,
+        "duplicateCount": 0,
+        "priorityScore": 26.7,
+        "priorityLevel": "low",
+        "priorityVersion": "priority-v1",
+        "priorityCalculatedAt": "2026-10-02T02:55:43.416Z",
+        "createdAt": "2026-10-01T06:55:43.371Z",
+        "priorityFactors": [
+          {
+            "code": "severity",
+            "rawValue": {
+              "category": "pothole"
+            },
+            "normalizedScore": 75,
+            "weight": 0.3,
+            "points": 22.5,
+            "message": "Mức nghiêm trọng của loại sự cố: 75/100"
+          },
+          {
+            "code": "age_sla",
+            "rawValue": {
+              "ageHours": 20,
+              "hoursUntilDue": 50,
+              "dueAt": "2026-10-04T04:55:43.371Z"
+            },
+            "normalizedScore": 16.7,
+            "weight": 0.25,
+            "points": 4.2,
+            "message": "Đã dùng 16.7% thời gian SLA"
+          },
+          {
+            "code": "votes",
+            "rawValue": {
+              "voteCount": 0,
+              "cap": 50
+            },
+            "normalizedScore": 0,
+            "weight": 0.15,
+            "points": 0,
+            "message": "0 lượt ủng hộ"
+          },
+          {
+            "code": "nearby_density",
+            "rawValue": {
+              "nearbyCount": 0,
+              "radiusMeters": 500
+            },
+            "normalizedScore": 0,
+            "weight": 0.15,
+            "points": 0,
+            "message": "0 sự cố đang mở trong bán kính 500 m"
+          },
+          {
+            "code": "sensitive_place",
+            "rawValue": null,
+            "normalizedScore": 0,
+            "weight": 0.15,
+            "points": 0,
+            "message": "Không có bệnh viện/trường học trong 500 m"
+          }
+        ],
+        "updatedAt": "2026-10-02T02:55:43.435Z",
+        "slaStatus": "on_time",
+        "id": "6abf1d2f954088cb9891422f"
+      },
+      {
+        "rating": {
+          "score": null,
+          "comment": null,
+          "ratedAt": null
+        },
+        "_id": "6abf1d2f954088cb9891423e",
+        "title": "Ổ gà trước cổng trường Phan Châu Trinh",
+        "description": "Ổ gà ngay cổng trường, giờ tan học học sinh đi xe đạp rất dễ ngã.",
+        "category": "pothole",
+        "location": "154 Lê Lợi, Hải Châu, Đà Nẵng",
+        "latitude": 16.0748,
+        "longitude": 108.2203,
+        "district": "Hải Châu",
+        "imageUrl": "https://picsum.photos/seed/school-gate-pothole/960/720",
+        "status": "resolved",
+        "userId": "6abf1d2e954088cb9891421f",
+        "adminId": {
+          "_id": "6abf1d2e954088cb98914221",
+          "name": "Lê Minh Cường",
+          "email": "canbo.giaothong@demo.vn"
+        },
+        "resolvedAt": "2026-09-30T21:55:43.371Z",
+        "voteCount": 1,
+        "departmentId": "6abf1d2e954088cb98914218",
+        "assigneeId": "6abf1d2e954088cb98914221",
+        "assignedAt": "2026-09-28T18:55:43.371Z",
+        "dueAt": "2026-10-01T18:55:43.371Z",
+        "escalationLevel": 0,
+        "reopenCount": 0,
+        "lastReopenedAt": null,
+        "duplicateCount": 0,
+        "priorityScore": null,
+        "priorityLevel": null,
+        "priorityVersion": null,
+        "priorityCalculatedAt": null,
+        "createdAt": "2026-09-28T08:55:43.371Z",
+        "priorityFactors": [],
+        "updatedAt": "2026-09-28T08:55:43.371Z",
+        "slaStatus": "met",
+        "id": "6abf1d2f954088cb9891423e"
+      },
+      {
+        "rating": {
+          "score": null,
+          "comment": null,
+          "ratedAt": null
+        },
+        "_id": "6abf1d2f954088cb98914244",
+        "title": "Đường bị đào chưa hoàn trả ở Hùng Vương",
+        "description": "Đơn vị cấp nước đào đường từ tuần trước nhưng chưa hoàn trả mặt bằng.",
+        "category": "pothole",
+        "location": "88 Hùng Vương, Hải Châu, Đà Nẵng",
+        "latitude": 16.0681,
+        "longitude": 108.2189,
+        "district": "Hải Châu",
+        "imageUrl": null,
+        "status": "rejected",
+        "userId": "6abf1d2e954088cb9891421f",
+        "adminId": {
+          "_id": "6abf1d2e954088cb98914221",
+          "name": "Lê Minh Cường",
+          "email": "canbo.giaothong@demo.vn"
+        },
+        "resolvedAt": null,
+        "voteCount": 0,
+        "departmentId": "6abf1d2e954088cb98914218",
+        "assigneeId": "6abf1d2e954088cb98914221",
+        "assignedAt": "2026-09-26T06:55:43.371Z",
+        "dueAt": "2026-09-29T06:55:43.371Z",
+        "escalationLevel": 0,
+        "reopenCount": 0,
+        "lastReopenedAt": null,
+        "duplicateCount": 0,
+        "priorityScore": null,
+        "priorityLevel": null,
+        "priorityVersion": null,
+        "priorityCalculatedAt": null,
+        "createdAt": "2026-09-25T20:55:43.371Z",
+        "priorityFactors": [],
+        "updatedAt": "2026-09-25T20:55:43.371Z",
+        "slaStatus": "breached",
+        "id": "6abf1d2f954088cb98914244"
+      }
+    ],
+    "pagination": {
+      "current": 1,
+      "pages": 1,
+      "total": 5,
+      "limit": 10
+    }
+  }
+}

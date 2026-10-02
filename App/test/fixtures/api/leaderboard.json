@@ -1,0 +1,55 @@
+{
+  "success": true,
+  "data": [
+    {
+      "issueCount": 4,
+      "userId": "6abf1d2e954088cb98914220",
+      "name": "Trần Thị Bình",
+      "avatar": null,
+      "rank": 1,
+      "badges": [
+        {
+          "id": "first_report",
+          "label": "Khởi đầu",
+          "icon": "🌱",
+          "threshold": 1,
+          "description": "Báo cáo sự cố đầu tiên",
+          "earned": true
+        }
+      ],
+      "topBadge": {
+        "id": "first_report",
+        "label": "Khởi đầu",
+        "icon": "🌱",
+        "threshold": 1,
+        "description": "Báo cáo sự cố đầu tiên",
+        "earned": true
+      }
+    },
+    {
+      "issueCount": 4,
+      "userId": "6abf1d2e954088cb9891421f",
+      "name": "Nguyễn Văn An",
+      "avatar": null,
+      "rank": 2,
+      "badges": [
+        {
+          "id": "first_report",
+          "label": "Khởi đầu",
+          "icon": "🌱",
+          "threshold": 1,
+          "description": "Báo cáo sự cố đầu tiên",
+          "earned": true
+        }
+      ],
+      "topBadge": {
+        "id": "first_report",
+        "label": "Khởi đầu",
+        "icon": "🌱",
+        "threshold": 1,
+        "description": "Báo cáo sự cố đầu tiên",
+        "earned": true
+      }
+    }
+  ]
+}

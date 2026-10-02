@@ -1,0 +1,125 @@
+{
+  "success": true,
+  "data": {
+    "overview": {
+      "totalIssues": 9,
+      "resolvedCount": 1,
+      "resolutionRate": 11,
+      "avgResolutionHours": 61
+    },
+    "issuesByStatus": {
+      "reported": 2,
+      "processing": 5,
+      "resolved": 1,
+      "rejected": 1
+    },
+    "issuesByCategory": [
+      {
+        "category": "pothole",
+        "label": "Ổ gà",
+        "count": 7
+      },
+      {
+        "category": "flooding",
+        "label": "Ngập nước",
+        "count": 1
+      },
+      {
+        "category": "garbage",
+        "label": "Rác thải",
+        "count": 1
+      }
+    ],
+    "issuesTrend": [
+      {
+        "date": "2026-09-21",
+        "count": 1
+      },
+      {
+        "date": "2026-09-25",
+        "count": 1
+      },
+      {
+        "date": "2026-09-27",
+        "count": 1
+      },
+      {
+        "date": "2026-09-28",
+        "count": 1
+      },
+      {
+        "date": "2026-09-29",
+        "count": 1
+      },
+      {
+        "date": "2026-10-01",
+        "count": 3
+      },
+      {
+        "date": "2026-10-02",
+        "count": 1
+      }
+    ],
+    "issuesByDistrict": [
+      {
+        "district": "Hải Châu",
+        "total": 7,
+        "resolved": 1,
+        "rate": 14
+      },
+      {
+        "district": "Thanh Khê",
+        "total": 1,
+        "resolved": 0,
+        "rate": 0
+      },
+      {
+        "district": "Sơn Trà",
+        "total": 1,
+        "resolved": 0,
+        "rate": 0
+      },
+      {
+        "district": "Ngũ Hành Sơn",
+        "total": 0,
+        "resolved": 0,
+        "rate": 0
+      },
+      {
+        "district": "Liên Chiểu",
+        "total": 0,
+        "resolved": 0,
+        "rate": 0
+      },
+      {
+        "district": "Cẩm Lệ",
+        "total": 0,
+        "resolved": 0,
+        "rate": 0
+      },
+      {
+        "district": "Hòa Vang",
+        "total": 0,
+        "resolved": 0,
+        "rate": 0
+      },
+      {
+        "district": "Hoàng Sa",
+        "total": 0,
+        "resolved": 0,
+        "rate": 0
+      }
+    ],
+    "rating": {
+      "average": 0,
+      "total": 0,
+      "distribution": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0
+      }
+    }
+  }
+}

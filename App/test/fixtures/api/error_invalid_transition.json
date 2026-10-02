@@ -1,0 +1,5 @@
+{
+  "success": false,
+  "message": "Không thể chuyển từ \"processing\" sang \"reported\".",
+  "code": "INVALID_STATUS_TRANSITION"
+}

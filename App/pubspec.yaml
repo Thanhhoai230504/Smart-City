@@ -1,0 +1,71 @@
+name: smart_city_app
+description: "Ứng dụng di động Smart City Đà Nẵng — người dân báo cáo sự cố, cán bộ xử lý tại hiện trường."
+publish_to: 'none'
+
+# versionName+versionCode. Server so sánh phần trước dấu "+" với
+# minSupportedVersion ở GET /api/app/config (task 0.8).
+version: 1.0.0+1
+
+environment:
+  # Pin đúng bản đã kiểm chứng trên máy phát triển (Phase 0.0d của kế hoạch).
+  sdk: ^3.11.1
+  flutter: ">=3.41.4"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # State + routing
+  flutter_riverpod: ^2.6.1
+  go_router: ^17.5.0
+
+  # Mạng + realtime
+  dio: ^5.11.1
+  socket_io_client: ^3.1.6
+  connectivity_plus: ^7.3.2
+
+  # Lưu trữ: refresh token vào Keychain/Keystore, hàng đợi offline vào Hive
+  flutter_secure_storage: ^11.2.0
+  shared_preferences: ^2.5.5
+  hive_ce: ^2.20.1
+  hive_ce_flutter: ^2.3.4
+
+  # Bản đồ + vị trí
+  flutter_map: ^8.3.2
+  latlong2: ^0.10.1
+  geolocator: ^14.0.1
+
+  # Ảnh
+  image_picker: ^1.2.3
+  flutter_image_compress: ^2.5.1
+  crypto: ^3.0.7
+
+  # Thiết bị + mở ứng dụng ngoài
+  device_info_plus: ^13.3.0
+  package_info_plus: ^10.2.2
+  url_launcher: ^6.3.2
+  webview_flutter: ^4.14.1
+
+  # Hiển thị
+  intl: any # bản do flutter_localizations ghim
+  fl_chart: ^1.2.0
+  google_fonts: ^8.2.1
+  collection: ^1.19.1
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  fake_async: ^1.3.3
+
+flutter:
+  uses-material-design: true
+
+  # Inter (font tiêu đề, giống web). google_fonts ưu tiên file trong thư mục này;
+  # thiếu file thì tải một lần qua mạng rồi cache trên máy. Xem
+  # assets/google_fonts/README.md để đóng gói sẵn cho bản release.
+  assets:
+    - assets/google_fonts/

@@ -1,0 +1,16 @@
+{
+  "success": true,
+  "message": "Login successful.",
+  "data": {
+    "accessToken": "<redacted>",
+    "user": {
+      "id": "6abf1d2e954088cb9891421f",
+      "name": "Nguyễn Văn An",
+      "email": "nguoidan@demo.vn",
+      "role": "user",
+      "departmentId": null,
+      "isVerified": true
+    },
+    "refreshToken": "<redacted>"
+  }
+}

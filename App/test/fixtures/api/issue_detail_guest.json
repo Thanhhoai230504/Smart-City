@@ -1,0 +1,160 @@
+{
+  "success": true,
+  "data": {
+    "issue": {
+      "geo": {
+        "type": "Point",
+        "coordinates": [
+          108.2203,
+          16.0748
+        ]
+      },
+      "rating": {
+        "score": null,
+        "comment": null,
+        "ratedAt": null
+      },
+      "embedding": {
+        "model": null,
+        "version": null,
+        "dimensions": null,
+        "sourceHash": null,
+        "status": "pending",
+        "generatedAt": null,
+        "processingStartedAt": null,
+        "attempts": 0,
+        "lastError": null
+      },
+      "_id": "6abf1d2f954088cb9891423e",
+      "title": "Ổ gà trước cổng trường Phan Châu Trinh",
+      "description": "Ổ gà ngay cổng trường, giờ tan học học sinh đi xe đạp rất dễ ngã.",
+      "category": "pothole",
+      "location": "154 Lê Lợi, Hải Châu, Đà Nẵng",
+      "latitude": 16.0748,
+      "longitude": 108.2203,
+      "district": "Hải Châu",
+      "imageUrl": "https://picsum.photos/seed/school-gate-pothole/960/720",
+      "imagePublicId": null,
+      "images": [
+        {
+          "url": "https://picsum.photos/seed/school-gate-pothole/960/720",
+          "publicId": null
+        }
+      ],
+      "resolutionImages": [
+        {
+          "url": "https://picsum.photos/seed/school-gate-fixed/960/720",
+          "publicId": null,
+          "uploadedBy": "6abf1d2e954088cb98914221",
+          "uploadedAt": "2026-09-30T20:55:43.371Z"
+        },
+        {
+          "url": "https://picsum.photos/seed/school-gate-fixed-2/960/720",
+          "publicId": null,
+          "uploadedBy": "6abf1d2e954088cb98914221",
+          "uploadedAt": "2026-09-30T20:55:43.371Z"
+        }
+      ],
+      "status": "resolved",
+      "userId": {
+        "_id": "6abf1d2e954088cb9891421f",
+        "name": "Nguyễn Văn An"
+      },
+      "adminId": {
+        "_id": "6abf1d2e954088cb98914221",
+        "name": "Lê Minh Cường"
+      },
+      "resolvedAt": "2026-09-30T21:55:43.371Z",
+      "votes": [
+        "6abf1d2e954088cb98914220"
+      ],
+      "followers": [
+        "6abf1d2e954088cb9891421f"
+      ],
+      "voteCount": 1,
+      "statusHistory": [
+        {
+          "status": "reported",
+          "changedBy": {
+            "_id": "6abf1d2e954088cb9891421f",
+            "name": "Nguyễn Văn An"
+          },
+          "changedAt": "2026-09-28T08:55:43.371Z",
+          "note": "Sự cố được báo cáo",
+          "_id": "6abf1d2f954088cb9891423f",
+          "id": "6abf1d2f954088cb9891423f"
+        },
+        {
+          "status": "reported",
+          "changedBy": {
+            "_id": "6abf1d2e954088cb98914224",
+            "name": "Quản trị Demo"
+          },
+          "changedAt": "2026-09-28T18:55:43.371Z",
+          "note": "Phân công cho Phòng Quản lý Hạ tầng Giao thông",
+          "_id": "6abf1d2f954088cb98914240",
+          "id": "6abf1d2f954088cb98914240"
+        },
+        {
+          "status": "processing",
+          "changedBy": {
+            "_id": "6abf1d2e954088cb98914221",
+            "name": "Lê Minh Cường"
+          },
+          "changedAt": "2026-09-29T14:55:43.371Z",
+          "note": "Đã rào chắn tạm thời.",
+          "_id": "6abf1d2f954088cb98914241",
+          "id": "6abf1d2f954088cb98914241"
+        },
+        {
+          "status": "resolved",
+          "changedBy": {
+            "_id": "6abf1d2e954088cb98914221",
+            "name": "Lê Minh Cường"
+          },
+          "changedAt": "2026-09-30T21:55:43.371Z",
+          "note": "Đã vá bằng bê tông nhựa nóng, thông xe.",
+          "_id": "6abf1d2f954088cb98914242",
+          "id": "6abf1d2f954088cb98914242"
+        }
+      ],
+      "departmentId": {
+        "_id": "6abf1d2e954088cb98914218",
+        "name": "Phòng Quản lý Hạ tầng Giao thông",
+        "code": "HTGT",
+        "email": "hatang.gt@danang.gov.vn",
+        "phone": "0236 3821 234"
+      },
+      "assigneeId": {
+        "_id": "6abf1d2e954088cb98914221",
+        "name": "Lê Minh Cường"
+      },
+      "assignedBy": "6abf1d2e954088cb98914224",
+      "assignedAt": "2026-09-28T18:55:43.371Z",
+      "dueAt": "2026-10-01T18:55:43.371Z",
+      "escalationLevel": 0,
+      "lastReminderAt": null,
+      "reopenCount": 0,
+      "lastReopenedAt": null,
+      "intakeDueAt": "2026-09-29T08:55:43.371Z",
+      "intakeReminderAt": null,
+      "mergedInto": null,
+      "mergedAt": null,
+      "mergedBy": null,
+      "duplicateCount": 0,
+      "priorityScore": null,
+      "priorityLevel": null,
+      "priorityVersion": null,
+      "priorityCalculatedAt": null,
+      "isDeleted": false,
+      "deletedAt": null,
+      "deletedBy": null,
+      "createdAt": "2026-09-28T08:55:43.371Z",
+      "priorityFactors": [],
+      "updatedAt": "2026-09-28T08:55:43.371Z",
+      "__v": 0,
+      "slaStatus": "met",
+      "id": "6abf1d2f954088cb9891423e"
+    }
+  }
+}

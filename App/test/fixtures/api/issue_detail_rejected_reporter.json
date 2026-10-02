@@ -1,0 +1,129 @@
+{
+  "success": true,
+  "data": {
+    "issue": {
+      "geo": {
+        "type": "Point",
+        "coordinates": [
+          108.2189,
+          16.0681
+        ]
+      },
+      "rating": {
+        "score": null,
+        "comment": null,
+        "ratedAt": null
+      },
+      "embedding": {
+        "model": null,
+        "version": null,
+        "dimensions": null,
+        "sourceHash": null,
+        "status": "pending",
+        "generatedAt": null,
+        "processingStartedAt": null,
+        "attempts": 0,
+        "lastError": null
+      },
+      "_id": "6abf1d2f954088cb98914244",
+      "title": "Đường bị đào chưa hoàn trả ở Hùng Vương",
+      "description": "Đơn vị cấp nước đào đường từ tuần trước nhưng chưa hoàn trả mặt bằng.",
+      "category": "pothole",
+      "location": "88 Hùng Vương, Hải Châu, Đà Nẵng",
+      "latitude": 16.0681,
+      "longitude": 108.2189,
+      "district": "Hải Châu",
+      "imageUrl": null,
+      "imagePublicId": null,
+      "status": "rejected",
+      "userId": {
+        "_id": "6abf1d2e954088cb9891421f",
+        "name": "Nguyễn Văn An"
+      },
+      "adminId": {
+        "_id": "6abf1d2e954088cb98914221",
+        "name": "Lê Minh Cường"
+      },
+      "resolvedAt": null,
+      "votes": [],
+      "followers": [
+        "6abf1d2e954088cb9891421f"
+      ],
+      "voteCount": 0,
+      "statusHistory": [
+        {
+          "status": "reported",
+          "changedBy": {
+            "_id": "6abf1d2e954088cb9891421f",
+            "name": "Nguyễn Văn An"
+          },
+          "changedAt": "2026-09-25T20:55:43.371Z",
+          "note": "Sự cố được báo cáo",
+          "_id": "6abf1d2f954088cb98914245",
+          "id": "6abf1d2f954088cb98914245"
+        },
+        {
+          "status": "reported",
+          "changedBy": {
+            "_id": "6abf1d2e954088cb98914224",
+            "name": "Quản trị Demo"
+          },
+          "changedAt": "2026-09-26T06:55:43.371Z",
+          "note": "Phân công cho Phòng Quản lý Hạ tầng Giao thông",
+          "_id": "6abf1d2f954088cb98914246",
+          "id": "6abf1d2f954088cb98914246"
+        },
+        {
+          "status": "rejected",
+          "changedBy": {
+            "_id": "6abf1d2e954088cb98914221",
+            "name": "Lê Minh Cường"
+          },
+          "changedAt": "2026-09-27T02:55:43.371Z",
+          "note": "Công trình thuộc Công ty Cấp nước, đã chuyển văn bản yêu cầu họ hoàn trả trước 15/10.",
+          "_id": "6abf1d2f954088cb98914247",
+          "id": "6abf1d2f954088cb98914247"
+        }
+      ],
+      "departmentId": {
+        "_id": "6abf1d2e954088cb98914218",
+        "name": "Phòng Quản lý Hạ tầng Giao thông",
+        "code": "HTGT",
+        "email": "hatang.gt@danang.gov.vn",
+        "phone": "0236 3821 234"
+      },
+      "assigneeId": {
+        "_id": "6abf1d2e954088cb98914221",
+        "name": "Lê Minh Cường"
+      },
+      "assignedBy": "6abf1d2e954088cb98914224",
+      "assignedAt": "2026-09-26T06:55:43.371Z",
+      "dueAt": "2026-09-29T06:55:43.371Z",
+      "escalationLevel": 0,
+      "lastReminderAt": null,
+      "reopenCount": 0,
+      "lastReopenedAt": null,
+      "intakeDueAt": "2026-09-26T20:55:43.371Z",
+      "intakeReminderAt": null,
+      "mergedInto": null,
+      "mergedAt": null,
+      "mergedBy": null,
+      "duplicateCount": 0,
+      "priorityScore": null,
+      "priorityLevel": null,
+      "priorityVersion": null,
+      "priorityCalculatedAt": null,
+      "isDeleted": false,
+      "deletedAt": null,
+      "deletedBy": null,
+      "createdAt": "2026-09-25T20:55:43.371Z",
+      "images": [],
+      "resolutionImages": [],
+      "priorityFactors": [],
+      "updatedAt": "2026-09-25T20:55:43.371Z",
+      "__v": 0,
+      "slaStatus": "breached",
+      "id": "6abf1d2f954088cb98914244"
+    }
+  }
+}

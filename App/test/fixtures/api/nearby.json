@@ -1,0 +1,61 @@
+{
+  "success": true,
+  "data": {
+    "issues": [
+      {
+        "_id": "6abf1d2f954088cb98914249",
+        "title": "Ổ gà tái xuất hiện ở Phan Đình Phùng",
+        "category": "pothole",
+        "location": "12 Phan Đình Phùng, Hải Châu, Đà Nẵng",
+        "latitude": 16.0703,
+        "longitude": 108.2208,
+        "district": "Hải Châu",
+        "imageUrl": "https://picsum.photos/seed/pdp-pothole/960/720",
+        "status": "processing",
+        "userId": {
+          "_id": "6abf1d2e954088cb98914220",
+          "name": "Trần Thị Bình"
+        },
+        "voteCount": 0,
+        "createdAt": "2026-09-21T06:55:43.371Z",
+        "distance": 504
+      },
+      {
+        "_id": "6abf1d2f954088cb98914239",
+        "title": "Vỉa hè vỡ nhiều mảng trên Bạch Đằng",
+        "category": "pothole",
+        "location": "30 Bạch Đằng, Hải Châu, Đà Nẵng",
+        "latitude": 16.0718,
+        "longitude": 108.2246,
+        "district": "Hải Châu",
+        "imageUrl": "https://picsum.photos/seed/sidewalk-bach-dang/960/720",
+        "status": "processing",
+        "userId": {
+          "_id": "6abf1d2e954088cb98914220",
+          "name": "Trần Thị Bình"
+        },
+        "voteCount": 0,
+        "createdAt": "2026-09-27T12:55:43.371Z",
+        "distance": 568
+      },
+      {
+        "_id": "6abf1d2f954088cb9891422c",
+        "title": "Ổ gà lớn trước số 120 Lê Duẩn",
+        "category": "pothole",
+        "location": "120 Lê Duẩn, Hải Châu, Đà Nẵng",
+        "latitude": 16.0712,
+        "longitude": 108.2165,
+        "district": "Hải Châu",
+        "imageUrl": "https://picsum.photos/seed/pothole-le-duan/960/720",
+        "status": "reported",
+        "userId": {
+          "_id": "6abf1d2e954088cb9891421f",
+          "name": "Nguyễn Văn An"
+        },
+        "voteCount": 1,
+        "createdAt": "2026-10-01T23:55:43.371Z",
+        "distance": 571
+      }
+    ]
+  }
+}

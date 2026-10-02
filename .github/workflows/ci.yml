@@ -160,12 +160,53 @@ jobs:
           fi
 
   # ============================================
+  # MOBILE APP (FLUTTER)
+  # ============================================
+  flutter:
+    name: "📱 Flutter App CI"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: App
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      # Ghim đúng bản đã kiểm chứng trên máy phát triển (Phase 0.0d) — để CI
+      # không nhảy sang bản khác rồi hỏng theo kiểu khó truy.
+      - name: 🐦 Setup Flutter 3.41.4
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.41.4
+          channel: stable
+          cache: true
+
+      - name: ☕ Setup Java 17 (Gradle)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: 📦 Install dependencies
+        run: flutter pub get
+
+      - name: 🔍 Analyze
+        run: flutter analyze
+
+      - name: 🧪 Unit + widget tests
+        run: flutter test
+
+      - name: 🏗️ Build debug APK
+        run: flutter build apk --debug --dart-define-from-file=config/dev.json
+
+  # ============================================
   # CI STATUS SUMMARY
   # ============================================
   ci-status:
     name: "✅ CI Status"
     runs-on: ubuntu-latest
-    needs: [frontend, backend, security]
+    needs: [frontend, backend, flutter, security]
     if: always()
 
     steps:
@@ -186,6 +227,12 @@ jobs:
             echo "❌ **Backend** — Failed (${{ needs.backend.result }})" >> $GITHUB_STEP_SUMMARY
           fi
 
+          if [ "${{ needs.flutter.result }}" == "success" ]; then
+            echo "✅ **Flutter app** — Analyze, tests, APK build passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Flutter app** — Failed (${{ needs.flutter.result }})" >> $GITHUB_STEP_SUMMARY
+          fi
+
           if [ "${{ needs.security.result }}" == "success" ]; then
             echo "✅ **Security** — Audit passed" >> $GITHUB_STEP_SUMMARY
           else
@@ -193,5 +240,5 @@ jobs:
           fi
 
       - name: Fail if critical jobs failed
-        if: needs.frontend.result == 'failure' || needs.backend.result == 'failure'
+        if: needs.frontend.result == 'failure' || needs.backend.result == 'failure' || needs.flutter.result == 'failure'
         run: exit 1

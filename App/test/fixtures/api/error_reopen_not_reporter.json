@@ -1,0 +1,5 @@
+{
+  "success": false,
+  "message": "Chỉ người báo cáo mới có thể mở lại sự cố này",
+  "code": "NOT_REPORTER"
+}

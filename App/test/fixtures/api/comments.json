@@ -1,0 +1,49 @@
+{
+  "success": true,
+  "data": {
+    "comments": [
+      {
+        "_id": "6abf1d2f954088cb9891425c",
+        "issueId": "6abf1d2f954088cb9891423e",
+        "userId": {
+          "_id": "6abf1d2e954088cb9891421f",
+          "name": "Nguyễn Văn An",
+          "email": "nguoidan@demo.vn",
+          "role": "user"
+        },
+        "content": "Cảm ơn đơn vị đã xử lý nhanh!",
+        "isDeleted": false,
+        "deletedAt": null,
+        "deletedBy": null,
+        "deletedReason": null,
+        "__v": 0,
+        "createdAt": "2026-10-02T02:55:43.411Z",
+        "updatedAt": "2026-10-02T02:55:43.411Z"
+      },
+      {
+        "_id": "6abf1d2f954088cb9891425b",
+        "issueId": "6abf1d2f954088cb9891423e",
+        "userId": {
+          "_id": "6abf1d2e954088cb98914221",
+          "name": "Lê Minh Cường",
+          "email": "canbo.giaothong@demo.vn",
+          "role": "staff"
+        },
+        "content": "Đơn vị đã xử lý xong, cảm ơn người dân đã phản ánh.",
+        "isDeleted": false,
+        "deletedAt": null,
+        "deletedBy": null,
+        "deletedReason": null,
+        "__v": 0,
+        "createdAt": "2026-10-02T02:55:43.411Z",
+        "updatedAt": "2026-10-02T02:55:43.411Z"
+      }
+    ],
+    "pagination": {
+      "current": 1,
+      "pages": 1,
+      "total": 2,
+      "limit": 30
+    }
+  }
+}

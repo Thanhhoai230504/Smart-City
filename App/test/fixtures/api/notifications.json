@@ -1,0 +1,38 @@
+{
+  "success": true,
+  "data": {
+    "notifications": [
+      {
+        "_id": "6abf1d2f954088cb9891425f",
+        "userId": "6abf1d2e954088cb9891421f",
+        "type": "comment",
+        "title": "Bình luận mới",
+        "message": "Cán bộ Lê Minh Cường đã bình luận trên sự cố của bạn",
+        "issueId": "6abf1d2f954088cb9891423e",
+        "isRead": true,
+        "__v": 0,
+        "createdAt": "2026-10-02T02:55:43.413Z",
+        "updatedAt": "2026-10-02T02:55:43.413Z"
+      },
+      {
+        "_id": "6abf1d2f954088cb9891425e",
+        "userId": "6abf1d2e954088cb9891421f",
+        "type": "issue_resolved",
+        "title": "Sự cố Đã xử lý",
+        "message": "Sự cố \"Ổ gà trước cổng trường Phan Châu Trinh\" đã được cập nhật trạng thái: Đã xử lý",
+        "issueId": "6abf1d2f954088cb9891423e",
+        "isRead": false,
+        "__v": 0,
+        "createdAt": "2026-10-02T02:55:43.412Z",
+        "updatedAt": "2026-10-02T02:55:43.412Z"
+      }
+    ],
+    "unreadCount": 1,
+    "pagination": {
+      "current": 1,
+      "pages": 1,
+      "total": 2,
+      "limit": 20
+    }
+  }
+}
