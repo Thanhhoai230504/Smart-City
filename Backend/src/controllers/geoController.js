@@ -66,6 +66,11 @@ const trafficTile = async (req, res, next) => {
     });
     res.set('Content-Type', contentType);
     res.set('Cache-Control', 'public, max-age=900');
+    // Web nhúng tile bằng <img> từ một origin KHÁC (dev: :3000 -> :5000, production:
+    // Vercel -> Render). helmet() mặc định gắn `same-origin`, khiến trình duyệt chặn
+    // toàn bộ tile (ERR_BLOCKED_BY_RESPONSE.NotSameOrigin) và lớp giao thông biến mất
+    // không báo lỗi. Chỉ nới cho route ảnh công khai này, không nới cho cả API.
+    res.set('Cross-Origin-Resource-Policy', 'cross-origin');
     res.send(buffer);
   } catch (error) {
     next(error);
