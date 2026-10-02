@@ -54,4 +54,16 @@ abstract final class Fmt {
     if (h < 48) return '${NumberFormat('#,##0.#', 'vi').format(h)} giờ';
     return '${NumberFormat('#,##0.#', 'vi').format(h / 24)} ngày';
   }
+
+  static final _letter = RegExp(r'\p{L}', unicode: true);
+
+  /// Chữ cái đầu cho avatar, bỏ qua ký hiệu ("[TEST] An" → "T"); tên rỗng → "?".
+  static String initial(String? name) => _letter.firstMatch(name ?? '')?.group(0)!.toUpperCase() ?? '?';
+
+  /// Tên gọi trong lời chào — từ cuối của họ tên Việt ("Nguyễn Văn An" → "An");
+  /// '' nếu tên không có chữ.
+  static String givenName(String? name) {
+    final words = (name ?? '').trim().split(RegExp(r'\s+')).where(_letter.hasMatch);
+    return words.isEmpty ? '' : words.last;
+  }
 }

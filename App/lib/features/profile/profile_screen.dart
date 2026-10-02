@@ -6,6 +6,7 @@ import '../../core/router/app_shell.dart';
 import '../../core/router/route_guard.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/utils/formatters.dart';
 import '../../core/widgets/async_states.dart';
 import '../../core/widgets/offline_banner.dart';
 import '../../data/models/issue.dart';
@@ -92,7 +93,7 @@ class ProfileScreen extends ConsumerWidget {
                     radius: 28,
                     backgroundColor: palette.primary,
                     child: Text(
-                      user.name.characters.first.toUpperCase(),
+                      Fmt.initial(user.name),
                       style: textTheme.titleLarge?.copyWith(color: palette.onPrimary),
                     ),
                   ),

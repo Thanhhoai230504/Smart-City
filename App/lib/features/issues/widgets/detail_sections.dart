@@ -652,7 +652,7 @@ class _CommentsSectionState extends ConsumerState<CommentsSection> {
                   radius: 16,
                   backgroundColor: c.isFromHandler ? palette.primary : palette.surfaceAlt,
                   child: Text(
-                    (c.author?.name ?? '?').characters.first.toUpperCase(),
+                    Fmt.initial(c.author?.name),
                     style: TextStyle(color: c.isFromHandler ? palette.onPrimary : palette.textPrimary),
                   ),
                 ),

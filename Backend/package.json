@@ -19,7 +19,8 @@
     "backfill:embeddings": "node src/scripts/backfillIssueEmbeddings.js",
     "evaluate:duplicates": "node src/scripts/evaluateDuplicateDetection.js",
     "migrate:sessions": "node src/scripts/migrateRefreshSessions.js",
-    "seed:app-demo": "node src/seeds/seedAppDemo.js"
+    "seed:app-demo": "node src/seeds/seedAppDemo.js",
+    "test-accounts": "node src/scripts/appTestAccounts.js"
   },
   "keywords": [
     "smart-city",

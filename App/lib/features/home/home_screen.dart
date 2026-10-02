@@ -24,6 +24,11 @@ final _recentIssuesProvider = FutureProvider.autoDispose<Paged<Issue>>(
   (ref) => ref.read(issueRepositoryProvider).list(const IssueQuery(), limit: 5),
 );
 
+String _greeting(String? name) {
+  final given = Fmt.givenName(name);
+  return given.isEmpty ? 'Xin chào!' : 'Xin chào, $given!';
+}
+
 /// Trang chủ rút gọn (task 2.1) — **không port landing page 828 dòng của web**:
 /// mobile cần vào việc nhanh. Thống kê nhanh + 4 lối vào + sự cố mới.
 class HomeScreen extends ConsumerWidget {
@@ -62,7 +67,7 @@ class HomeScreen extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(Gap.screen, Gap.lg, Gap.screen, 96),
           children: [
             Text(
-              user == null ? 'Xin chào!' : 'Xin chào, ${user.name.split(' ').last}!',
+              _greeting(user?.name),
               style: textTheme.headlineMedium,
             ),
             Gap.h4,
