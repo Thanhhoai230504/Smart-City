@@ -163,7 +163,7 @@ const NotificationCenter: React.FC = () => {
                 <ListItemButton key={notif._id} onClick={() => handleClick(notif)}
                   sx={{
                     py: 1.5, px: 2,
-                    bgcolor: notif.isRead ? 'transparent' : 'rgba(14,165,233,0.04)',
+                    bgcolor: notif.isRead ? 'transparent' : 'rgba(11,94,142,0.05)',
                     borderLeft: notif.isRead ? 'none' : '3px solid',
                     borderColor: 'primary.main',
                     '&:hover': { bgcolor: '#F2F7F8' },

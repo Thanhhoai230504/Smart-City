@@ -100,7 +100,7 @@ const ChatbotWidget: React.FC = () => {
               <Stack key={i} direction="row" justifyContent={msg.role === 'user' ? 'flex-end' : 'flex-start'}
                 sx={{ mb: 1.5 }}>
                 {msg.role === 'assistant' && (
-                  <Avatar sx={{ width: 28, height: 28, mr: 1, bgcolor: '#0EA5E9', fontSize: 14 }}>
+                  <Avatar sx={{ width: 28, height: 28, mr: 1, bgcolor: '#176B87', fontSize: 14 }}>
                     <SmartToy sx={{ fontSize: 16 }} />
                   </Avatar>
                 )}
@@ -114,7 +114,7 @@ const ChatbotWidget: React.FC = () => {
                   </Typography>
                 </Box>
                 {msg.role === 'user' && (
-                  <Avatar sx={{ width: 28, height: 28, ml: 1, bgcolor: '#3B82F6', fontSize: 14 }}>
+                  <Avatar sx={{ width: 28, height: 28, ml: 1, bgcolor: '#0B5E8E', fontSize: 14 }}>
                     <Person sx={{ fontSize: 16 }} />
                   </Avatar>
                 )}
@@ -122,7 +122,7 @@ const ChatbotWidget: React.FC = () => {
             ))}
             {loading && (
               <Stack direction="row" sx={{ mb: 1.5 }}>
-                <Avatar sx={{ width: 28, height: 28, mr: 1, bgcolor: '#0EA5E9' }}>
+                <Avatar sx={{ width: 28, height: 28, mr: 1, bgcolor: '#176B87' }}>
                   <SmartToy sx={{ fontSize: 16 }} />
                 </Avatar>
                 <Box sx={{ px: 1.5, py: 1, borderRadius: '12px', bgcolor: '#F7FAFA', border: '1px solid #E1EAED' }}>

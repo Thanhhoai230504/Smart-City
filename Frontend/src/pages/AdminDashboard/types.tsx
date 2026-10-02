@@ -3,6 +3,7 @@ import {
   Box, Paper, Typography, Stack, Avatar,
 } from '@mui/material';
 import { Department, UserRole } from '../../types';
+import { STATUS_MAP } from '../../utils/constants';
 
 // ─── Interfaces ───
 export interface DashboardStats {
@@ -65,9 +66,12 @@ export interface PlaceItem {
 }
 
 // ─── Constants ───
-export const STATUS_COLORS: Record<string, string> = {
-  reported: '#F59E0B', processing: '#3B82F6', resolved: '#10B981', rejected: '#EF4444',
-};
+// Lấy từ STATUS_MAP dùng chung. Trước đây admin tô khác hẳn trang công khai:
+// "Mới báo cáo" vàng cam (công khai: đỏ), "Đang xử lý" xanh dương (công khai: vàng
+// cam), "Từ chối" đỏ (công khai: xám) — cùng một phiếu đổi màu khi đổi trang.
+export const STATUS_COLORS: Record<string, string> = Object.fromEntries(
+  Object.entries(STATUS_MAP).map(([status, s]) => [status, s.color]),
+);
 export const STATUS_LABELS: Record<string, string> = {
   reported: 'Mới báo cáo', processing: 'Đang xử lý', resolved: 'Đã xử lý', rejected: 'Từ chối',
 };

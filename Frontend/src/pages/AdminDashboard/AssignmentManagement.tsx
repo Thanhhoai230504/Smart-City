@@ -437,7 +437,7 @@ const AssignmentManagement: React.FC = () => {
                       <TableRow
                         key={issue._id}
                         hover
-                        sx={{ '&:hover': { bgcolor: 'rgba(14,165,233,0.04)' } }}
+                        sx={{ '&:hover': { bgcolor: 'rgba(11,94,142,0.04)' } }}
                       >
                         <TableCell sx={cellSx}>
                           <Chip
@@ -504,10 +504,10 @@ const AssignmentManagement: React.FC = () => {
                                 whiteSpace: 'nowrap',
                                 textTransform: 'none',
                                 borderColor: '#BAE6FD',
-                                color: '#0284C7',
+                                color: '#0B5E8E',
                                 '&:hover': {
-                                  borderColor: '#0284C7',
-                                  bgcolor: 'rgba(14,165,233,0.06)',
+                                  borderColor: '#0B5E8E',
+                                  bgcolor: 'rgba(11,94,142,0.06)',
                                 },
                               }}
                             >
@@ -576,7 +576,7 @@ const AssignmentManagement: React.FC = () => {
                     <TableRow
                       key={issue._id}
                       hover
-                      sx={{ '&:hover': { bgcolor: 'rgba(14,165,233,0.04)' } }}
+                      sx={{ '&:hover': { bgcolor: 'rgba(11,94,142,0.04)' } }}
                     >
                       <TableCell sx={{ ...cellSx, minWidth: 210, maxWidth: 300 }}>
                         <Typography variant="body2" fontWeight={600} noWrap>{issue.title}</Typography>
@@ -623,10 +623,10 @@ const AssignmentManagement: React.FC = () => {
                               whiteSpace: 'nowrap',
                               textTransform: 'none',
                               borderColor: '#BAE6FD',
-                              color: '#0284C7',
+                              color: '#0B5E8E',
                               '&:hover': {
-                                borderColor: '#0284C7',
-                                bgcolor: 'rgba(14,165,233,0.06)',
+                                borderColor: '#0B5E8E',
+                                bgcolor: 'rgba(11,94,142,0.06)',
                               },
                             }}
                           >

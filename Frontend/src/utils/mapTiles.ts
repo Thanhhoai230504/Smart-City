@@ -11,5 +11,7 @@
  * ⚠️ URL dưới đây không phải API chính thức của Google Maps Platform (dùng ngoài
  * API là trái điều khoản của Google). Muốn đổi nhà cung cấp thì chỉ sửa ở đây.
  */
-export const BASE_TILE_URL = 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=vi';
+// `apistyle=s.t:2|p.v:off` ẩn lớp điểm đến (POI) của Google — nhà hàng, khách sạn,
+// chợ… vốn là các chấm màu trông y hệt marker sự cố. Tên đường vẫn giữ nguyên.
+export const BASE_TILE_URL = 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=vi&apistyle=s.t%3A2%7Cp.v%3Aoff';
 export const BASE_TILE_ATTRIBUTION = '&copy; Google Maps';

@@ -195,35 +195,35 @@ const DepartmentPerformance: React.FC = () => {
           icon={<Business />}
           label="Đơn vị hoạt động"
           value={totals.activeUnits}
-          color="#0EA5E9"
+          color="#0B5E8E"
           helper={`${numberFormatter.format(stats.length)} đơn vị tổng cộng`}
         />
         <SummaryCard
           icon={<TaskAlt />}
           label="Tổng việc"
           value={totals.total}
-          color="#8B5CF6"
+          color="#397DA5"
           helper="Đã giao cho các đơn vị"
         />
         <SummaryCard
           icon={<Groups />}
           label="Đang xử lý"
           value={totals.processing}
-          color="#3B82F6"
+          color="#B26A00"
           helper="Gồm việc mới và đang làm"
         />
         <SummaryCard
           icon={<CheckCircle />}
           label="Đã hoàn tất"
           value={totals.resolved}
-          color="#10B981"
+          color="#2F7D64"
           helper="Đã xử lý xong"
         />
         <SummaryCard
           icon={<WarningAmber />}
           label="Đang quá hạn"
           value={totals.overdue}
-          color="#EF4444"
+          color="#C62828"
           helper="Việc mở đã quá SLA"
         />
       </Box>

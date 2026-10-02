@@ -45,7 +45,7 @@ const LoginPage: React.FC = () => {
       background: 'linear-gradient(135deg, #F4F7F8 0%, #EAF2F4 100%)',
       position: 'relative', overflow: 'hidden',
     }}>
-      <Box sx={{ position: 'absolute', top: -100, right: -100, width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(14,165,233,0.1), transparent 70%)', filter: 'blur(60px)' }} />
+      <Box sx={{ position: 'absolute', top: -100, right: -100, width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(11,94,142,0.08), transparent 70%)', filter: 'blur(60px)' }} />
 
       <Container maxWidth="sm">
         <Card sx={{ p: { xs: 2, md: 4 }, bgcolor: '#FFFFFF' }}>

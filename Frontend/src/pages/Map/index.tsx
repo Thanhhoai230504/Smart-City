@@ -27,23 +27,31 @@ import { geoApi, TRAFFIC_TILE_URL } from '../../api/geoApi';
 const TRAFFIC_FLOW_TILES_URL = TRAFFIC_TILE_URL;
 
 const iconCache = new Map<string, L.DivIcon>();
-const makeIcon = (emoji: string, color: string) => {
-  const cacheKey = `${emoji}-${color}`;
+/**
+ * Hai kiểu marker để màu chỉ mang MỘT nghĩa trên bản đồ:
+ * - 'solid' (sự cố): nền đặc theo màu TRẠNG THÁI — nổi nhất, dành cho việc cần xử lý.
+ * - 'outline' (địa điểm, môi trường): nền trắng, viền màu loại, nhỏ hơn — lùi ra sau.
+ * Trước đây mọi lớp đều là chấm màu đặc: bệnh viện và sự cố cùng đỏ, trường học
+ * trùng xanh với ngập nước, công viên trùng xanh lá với cây đổ.
+ */
+const makeIcon = (emoji: string, color: string, variant: 'solid' | 'outline' = 'solid') => {
+  const cacheKey = `${emoji}-${color}-${variant}`;
   const cached = iconCache.get(cacheKey);
   if (cached) return cached;
 
+  const size = variant === 'solid' ? 32 : 26;
+  const look = variant === 'solid'
+    ? `background:${color};border:2px solid white;font-size:16px`
+    : `background:#FFFFFF;border:2px solid ${color};font-size:13px`;
   const icon = L.divIcon({
-    html: `<div style="background:${color};width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3)">${emoji}</div>`,
-    className: '', iconSize: [32, 32], iconAnchor: [16, 32], popupAnchor: [0, -32],
+    html: `<div style="${look};width:${size}px;height:${size}px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.3)">${emoji}</div>`,
+    className: '', iconSize: [size, size], iconAnchor: [size / 2, size], popupAnchor: [0, -size],
   });
   iconCache.set(cacheKey, icon);
   return icon;
 };
 
-const envIcon = L.divIcon({
-  html: `<div style="background:#10B981;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3)">🌡️</div>`,
-  className: '', iconSize: [28, 28], iconAnchor: [14, 28], popupAnchor: [0, -28],
-});
+const envIcon = makeIcon('🌡️', '#2F7D64', 'outline');
 
 // Heatmap layer component
 const HeatmapLayer: React.FC<{ points: [number, number, number][] }> = ({ points }) => {
@@ -415,6 +423,18 @@ const MapPage: React.FC = () => {
 
             <FormControlLabel control={<Switch checked={showIssues} onChange={(_, c) => setShowIssues(c)} size="small" />}
               label={<Typography variant="body2">📍 Sự cố đô thị</Typography>} sx={{ mb: 0.5 }} />
+            {showIssues && filteredIssues.length > 0 && (
+              <Stack direction="row" flexWrap="wrap" useFlexGap spacing={0.75} alignItems="center" sx={{ mt: -0.5, mb: 1, ml: 4 }}>
+                {(['reported', 'processing', 'resolved', 'rejected'] as const)
+                  .filter((s) => filteredIssues.some((i: MapIssue) => i.status === s))
+                  .map((s) => (
+                    <Stack key={s} direction="row" spacing={0.5} alignItems="center">
+                      <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: STATUS_MAP[s].color, boxShadow: '0 0 0 1px rgba(0,0,0,0.15)' }} />
+                      <Typography variant="caption">{STATUS_MAP[s].label}</Typography>
+                    </Stack>
+                  ))}
+              </Stack>
+            )}
 
             <FormControlLabel control={<Switch checked={showHeatmap} onChange={(_, c) => setShowHeatmap(c)} size="small" />}
               label={<Typography variant="body2">🔥 Heatmap mật độ sự cố</Typography>} sx={{ mb: 0.5 }} />
@@ -519,7 +539,7 @@ const MapPage: React.FC = () => {
         {/* Toggle Button */}
         <Box sx={{ p: 1.5, cursor: 'pointer' }} onClick={() => setShowRouting(!showRouting)}>
           <Stack direction="row" alignItems="center" spacing={1}>
-            <Directions sx={{ color: '#3B82F6', fontSize: 20 }} />
+            <Directions sx={{ color: 'primary.main', fontSize: 20 }} />
             <Typography fontWeight={600} fontSize={14}>🗺️ Chỉ đường</Typography>
             {showRouting ? <ExpandLess sx={{ fontSize: 18, ml: 'auto' }} /> : <ExpandMore sx={{ fontSize: 18, ml: 'auto' }} />}
           </Stack>
@@ -585,10 +605,10 @@ const MapPage: React.FC = () => {
               )}
             </Stack>
             {routeInfo && (
-              <Paper sx={{ p: 1.5, bgcolor: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '10px' }}>
+              <Paper sx={{ p: 1.5, bgcolor: 'rgba(11,94,142,0.06)', border: '1px solid rgba(11,94,142,0.18)', borderRadius: '10px' }}>
                 <Stack direction="row" spacing={2} justifyContent="space-between">
                   <Box textAlign="center">
-                    <Typography fontWeight={700} fontSize={16} color="#3B82F6">{routeInfo.distance}</Typography>
+                    <Typography fontWeight={700} fontSize={16} color="primary.main">{routeInfo.distance}</Typography>
                     <Typography variant="caption" color="text.secondary">Khoảng cách</Typography>
                   </Box>
                   <Box textAlign="center">
@@ -638,7 +658,7 @@ const MapPage: React.FC = () => {
           const info = PLACE_TYPE_MAP[place.type] || PLACE_TYPE_MAP.hospital;
           return (
             <Marker key={place._id} position={[place.latitude, place.longitude]}
-              icon={makeIcon(info.icon, info.color)}>
+              icon={makeIcon(info.icon, info.color, 'outline')}>
               <Popup>
                 <div style={{ color: '#333', minWidth: 180 }}>
                   <strong>{info.icon} {place.name}</strong><br />
@@ -657,12 +677,12 @@ const MapPage: React.FC = () => {
           const st = STATUS_MAP[issue.status] || STATUS_MAP.reported;
           return (
             <Marker key={issue._id} position={[issue.latitude, issue.longitude]}
-              icon={makeIcon(cat.icon, '#EF4444')}>
+              icon={makeIcon(cat.icon, st.color)}>
               <Popup>
                 <div style={{ color: '#333', minWidth: 200 }}>
                   <strong>{cat.icon} {issue.title}</strong><br />
                   <span style={{ background: st.bg, color: st.text, padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600 }}>{st.label}</span>
-                  <span style={{ background: cat.color, color: '#fff', padding: '2px 8px', borderRadius: 4, fontSize: 11, marginLeft: 4 }}>{cat.label}</span>
+                  <span style={{ background: '#FFFFFF', color: '#172B3A', border: `1px solid ${cat.color}`, padding: '1px 7px', borderRadius: 4, fontSize: 11, marginLeft: 4 }}>{cat.label}</span>
                   <br /><span style={{ fontSize: 12, color: '#666' }}>📍 {issue.location}</span>
                 </div>
               </Popup>

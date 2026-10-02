@@ -41,7 +41,7 @@ const AuthCallbackPage: React.FC = () => {
       alignItems: 'center', justifyContent: 'center',
       background: 'linear-gradient(135deg, #F4F7F8 0%, #EAF2F4 100%)',
     }}>
-      <CircularProgress size={48} sx={{ mb: 3, color: '#0EA5E9' }} />
+      <CircularProgress size={48} sx={{ mb: 3, color: 'primary.main' }} />
       <Typography variant="h6" fontWeight={600}>Đang xác thực...</Typography>
       <Typography color="text.secondary" mt={1}>Vui lòng chờ trong giây lát</Typography>
     </Box>

@@ -271,7 +271,7 @@ const PlaceManagement: React.FC<Props> = ({ onDataChange = () => undefined, stan
                 <Typography color="text.secondary">Chưa có địa điểm</Typography>
               </TableCell></TableRow>
             ) : pagedPlaces.map(p => (
-              <TableRow key={p._id} hover sx={{ '&:hover': { bgcolor: 'rgba(14,165,233,0.04)' } }}>
+              <TableRow key={p._id} hover sx={{ '&:hover': { bgcolor: 'rgba(11,94,142,0.04)' } }}>
                 <TableCell sx={{ ...cellSx, maxWidth: 180 }}><Typography variant="body2" fontWeight={500} noWrap>{p.name}</Typography></TableCell>
                 <TableCell sx={cellSx}><Chip size="small" label={PLACE_TYPE_LABELS[p.type] || p.type} sx={{ height: 24, fontSize: '0.7rem', bgcolor: '#F5EAF0', color: '#8F4967' }} /></TableCell>
                 <TableCell sx={{ ...cellSx, maxWidth: 180 }}><Typography variant="caption" noWrap>{p.address || '—'}</Typography></TableCell>

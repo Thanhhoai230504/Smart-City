@@ -70,7 +70,7 @@ const CUBIC = 'cubic-bezier(.16,1,.3,1)';
 const LIGHT_TEXT = {
   ink: '#101820',
   body: '#465B67',
-  muted: '#657985',
+  muted: '#5A6E7B',
 } as const;
 
 // Shared landing-page accents keep the data surfaces tied to the civic palette.
@@ -104,11 +104,11 @@ interface Overview {
 
 // ─── chapter data ─────────────────────────────────────────────────────────────
 const chapters = [
-  { id: 0, label: '01', name: 'Phản ánh sự cố', sub: 'Incident reporting layer', path: '/report' },
-  { id: 1, label: '02', name: 'Bản đồ đô thị',  sub: 'Urban map & zone layer',  path: '/map' },
-  { id: 2, label: '03', name: 'Giao thông',      sub: 'Traffic & route layer',   path: '/map' },
-  { id: 3, label: '04', name: 'Môi trường',       sub: 'Environment & AQI layer', path: '/map' },
-  { id: 4, label: '05', name: 'Camera giám sát', sub: 'Surveillance layer',      path: '/cameras' },
+  { id: 0, label: '01', name: 'Phản ánh sự cố', sub: 'Ghi nhận và theo dõi phản ánh', path: '/report' },
+  { id: 1, label: '02', name: 'Bản đồ đô thị',  sub: 'Sự cố, địa điểm và khu vực',  path: '/map' },
+  { id: 2, label: '03', name: 'Giao thông',      sub: 'Tình trạng đường và chỉ đường',   path: '/map' },
+  { id: 3, label: '04', name: 'Môi trường',       sub: 'Nhiệt độ, độ ẩm và thời tiết', path: '/map' },
+  { id: 4, label: '05', name: 'Camera giám sát', sub: 'Camera công cộng trực tiếp',      path: '/cameras' },
 ];
 
 // ─── SVG chapter visuals ─────────────────────────────────────────────────────
@@ -217,7 +217,7 @@ const EnvVisual = () => {
       {[50, 100, 150, 200, 250].map(y => (
         <line key={y} x1="0" y1={y} x2="360" y2={y} stroke="rgba(148,163,184,.08)" strokeWidth=".8" strokeDasharray="4 6" />
       ))}
-      {/* AQI area */}
+      {/* vùng biểu đồ môi trường */}
       <path d={area} fill="url(#aqi-grad)" />
       <path d={path} fill="none" stroke="#10B981" strokeWidth="2" />
       {/* data points */}
@@ -225,7 +225,7 @@ const EnvVisual = () => {
         <circle key={i} cx={x} cy={y} r="4" fill="#10B981" style={{ filter: 'drop-shadow(0 0 5px #10B981)' }} />
       ))}
       {/* labels */}
-      {[['AQI', 20, 35], ['PM2.5', 20, 65], ['NO₂', 20, 95]].map(([l, x, y]) => (
+      {[['NHIỆT ĐỘ', 20, 35], ['ĐỘ ẨM', 20, 65], ['THỜI TIẾT', 20, 95]].map(([l, x, y]) => (
         <text key={String(l)} x={Number(x)} y={Number(y)} fontSize="8.5" fontFamily="JetBrains Mono, monospace" fill="rgba(52,211,153,.55)" letterSpacing=".5">{l}</text>
       ))}
       <text x="340" y="290" fontSize="9" fontFamily="JetBrains Mono, monospace" fill="rgba(52,211,153,.45)" textAnchor="end" letterSpacing="1">TỐT</text>
@@ -367,7 +367,9 @@ const Wordmark: React.FC<{ visible: boolean }> = ({ visible }) => {
               opacity: visible ? 1 : 0,
               transition: `transform 1.2s ${CUBIC} ${delay}ms, opacity 0.6s ease ${delay}ms`,
             }}>
-              {ch}
+              {/* Dấu cách thường trong ô inline-block co về độ rộng 0, làm chữ
+                  hiện thành "ĐÀNẴNG" — dùng dấu cách không ngắt. */}
+              {ch === ' ' ? '\u00A0' : ch}
             </Box>
           </Box>
         );
@@ -489,8 +491,8 @@ const HomePage: React.FC = () => {
           <Reveal visible={heroVisible} delay={600}>
             <Stack direction="row" spacing={{ xs: 2, md: 3 }} alignItems="flex-start" sx={{
               mb: { xs: 5, md: 7 },
-              fontSize: { xs: '9px', md: '10px' },
-              ...MONO, textTransform: 'uppercase', letterSpacing: '0.18em',
+              fontSize: { xs: '11px', md: '12px' },
+              ...MONO, letterSpacing: '0.02em',
             }}>
               {/* left col */}
               <Stack spacing={0.4} sx={{ width: { xs: '22%', md: '14%' }, color: LIGHT_TEXT.muted }}>
@@ -516,7 +518,7 @@ const HomePage: React.FC = () => {
                   <Box sx={{ w: 7, h: 7, borderRadius: '50%', bgcolor: '#63B38D', animation: `${breathe} 2s ease infinite` }} />
                   <Box sx={{ fontWeight: 700, color: '#0B5E8E' }}>ĐANG HOẠT ĐỘNG</Box>
                 </Stack>
-                <Box>24/7 · Realtime</Box>
+                <Box>24/7 · Trực tiếp</Box>
               </Stack>
             </Stack>
           </Reveal>
@@ -605,15 +607,15 @@ const HomePage: React.FC = () => {
                 }}>
                   {/* header */}
                   <Stack direction="row" justifyContent="space-between" alignItems="center"
-                    sx={{ px: 2.5, py: 1.8, borderBottom: `1px solid ${CIVIC_LINE}` }}>
+                    sx={{ px: 2.5, py: 1.8, borderBottom: `1px solid ${CIVIC_LINE}`, flexWrap: 'wrap', rowGap: 1, columnGap: 1 }}>
                     <Stack direction="row" spacing={1.2} alignItems="center">
                       <Box sx={{ w: 8, h: 8, borderRadius: '50%', bgcolor: CIVIC_MINT, boxShadow: `0 0 12px ${CIVIC_MINT}`, animation: `${breathe} 2s ease infinite` }} />
-                      <Typography sx={{ fontSize: '10px', ...MONO, fontWeight: 700, letterSpacing: '.14em', color: '#D7E7E6' }}>
+                      <Typography sx={{ fontSize: '11px', ...MONO, fontWeight: 700, letterSpacing: '.08em', color: '#D7E7E6' }}>
                         SỰ CỐ ĐANG XỬ LÝ
                       </Typography>
                     </Stack>
-                    <Chip label="REALTIME" size="small" sx={{
-                      height: 22, fontSize: '9px', fontWeight: 800, color: '#93D1B5',
+                    <Chip label="TRỰC TIẾP" size="small" sx={{
+                      height: 22, fontSize: '11px', fontWeight: 800, color: '#93D1B5',
                       bgcolor: 'rgba(111,182,154,.14)', border: '1px solid rgba(111,182,154,.3)',
                     }} />
                   </Stack>
@@ -632,7 +634,7 @@ const HomePage: React.FC = () => {
                         <Typography sx={{ fontSize: { xs: '1.1rem', sm: '1.35rem' }, fontWeight: 750, color: '#F4F7F8' }}>
                           {item.value}
                         </Typography>
-                        <Typography sx={{ fontSize: '10px', color: '#A3BCC3', ...MONO, letterSpacing: '.08em' }}>
+                        <Typography sx={{ fontSize: '11px', color: '#A3BCC3', ...MONO, letterSpacing: '.04em' }}>
                           {item.label}
                         </Typography>
                       </Box>
@@ -646,7 +648,7 @@ const HomePage: React.FC = () => {
                       endIcon={<NorthEastRounded sx={{ fontSize: 14 }} />}
                       onClick={() => navigate('/statistics')}
                       sx={{
-                        fontSize: '10px', ...MONO, textTransform: 'uppercase', letterSpacing: '.12em',
+                        fontSize: '11px', ...MONO, textTransform: 'uppercase', letterSpacing: '.08em',
                         color: '#FFFFFF', fontWeight: 700,
                         '& .MuiButton-endIcon': { color: CIVIC_GOLD },
                         '&:hover': { bgcolor: 'rgba(210,174,109,.12)' },
@@ -667,7 +669,7 @@ const HomePage: React.FC = () => {
               mt: 'auto', pt: 4, color: LIGHT_TEXT.muted,
             }}>
               <KeyboardArrowDownRounded sx={{ animation: `${float} 2.2s ease-in-out infinite`, fontSize: 22 }} />
-              <Typography sx={{ fontSize: '10px', ...MONO, letterSpacing: '.13em', fontWeight: 650 }}>
+              <Typography sx={{ fontSize: '11px', ...MONO, letterSpacing: '.08em', fontWeight: 650 }}>
                 CUỘN ĐỂ KHÁM PHÁ
               </Typography>
             </Stack>
@@ -708,7 +710,7 @@ const HomePage: React.FC = () => {
                   animation: exploreMotion ? `${accentDraw} 1100ms ${CUBIC} both` : 'none',
                 }} />
                 <Typography sx={{
-                  fontSize: '10px', ...MONO, letterSpacing: '.18em',
+                  fontSize: '11px', ...MONO, letterSpacing: '.1em',
                   color: '#A9C7CD', fontWeight: 700,
                   animation: exploreMotion ? `${sectionLift} 900ms ${CUBIC} both` : 'none',
                 }}>
@@ -739,7 +741,7 @@ const HomePage: React.FC = () => {
                 animation: exploreMotion ? `${sectionLift} 950ms ${CUBIC} 380ms both` : 'none',
               }}>
                 <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: '#6FB69A', animation: `${signalPulse} 3.6s ease-in-out infinite` }} />
-                <Typography sx={{ fontSize: '9px', ...MONO, letterSpacing: '.13em', fontWeight: 650 }}>
+                <Typography sx={{ fontSize: '11px', ...MONO, letterSpacing: '.08em', fontWeight: 650 }}>
                   DỮ LIỆU CÔNG KHAI · CẬP NHẬT LIÊN TỤC
                 </Typography>
               </Stack>
@@ -750,7 +752,7 @@ const HomePage: React.FC = () => {
                 { number: '01', icon: <ReportProblemRounded />, label: 'Sự cố đô thị', note: 'Theo dõi phản ánh và tiến độ xử lý', path: '/issues' },
                 { number: '02', icon: <MapRounded />, label: 'Bản đồ thành phố', note: 'Quan sát sự cố và các lớp dữ liệu vị trí', path: '/map' },
                 { number: '03', icon: <InsightsRounded />, label: 'Thống kê công khai', note: 'Xem số liệu, tỷ lệ và xu hướng xử lý', path: '/statistics' },
-                { number: '04', icon: <SensorsRounded />, label: 'Môi trường', note: 'Theo dõi nhiệt độ, độ ẩm và chất lượng không khí', path: '/map' },
+                { number: '04', icon: <SensorsRounded />, label: 'Môi trường', note: 'Theo dõi nhiệt độ, độ ẩm và thời tiết', path: '/map' },
                 { number: '05', icon: <VideocamRounded />, label: 'Camera công cộng', note: 'Truy cập các điểm quan sát đang hoạt động', path: '/cameras' },
               ].map((item, index) => (
                 <Button
@@ -779,8 +781,8 @@ const HomePage: React.FC = () => {
                 >
                   <Stack direction="row" alignItems="center" spacing={{ xs: 1.5, sm: 2.25 }} sx={{ width: '100%' }}>
                     <Typography sx={{
-                      width: 24, flexShrink: 0, color: '#7998A1',
-                      fontSize: '9px', ...MONO, letterSpacing: '.12em',
+                      width: 24, flexShrink: 0, color: '#90AAB1',
+                      fontSize: '11px', ...MONO, letterSpacing: '.06em',
                     }} className="discovery-number">
                       {item.number}
                     </Typography>
@@ -828,8 +830,8 @@ const HomePage: React.FC = () => {
               Vận hành thành phố qua dữ liệu minh bạch & kết quả rõ ràng.
             </Typography>
             <Stack direction="row" spacing={2} useFlexGap flexWrap="wrap" sx={{ mb: 2 }}>
-              <Typography sx={{ fontSize: { xs: '9px', md: '10px' }, ...MONO, textTransform: 'uppercase', letterSpacing: '.16em', color: LIGHT_TEXT.body }}>
-                KHÔNG CHỈ HIỂN THỊ SỐ LIỆU / HỆ THỐNG TẠO RA KẾT QUẢ
+              <Typography sx={{ fontSize: { xs: '12px', md: '13px' }, ...MONO, letterSpacing: '.02em', color: LIGHT_TEXT.body }}>
+                Không chỉ hiển thị số liệu — hệ thống tạo ra kết quả.
               </Typography>
             </Stack>
             <Stack direction="row" spacing={2} useFlexGap flexWrap="wrap">
@@ -838,7 +840,7 @@ const HomePage: React.FC = () => {
                   px: 2, py: 1.4, height: 'auto', borderRadius: 20,
                   border: '1px solid #C8D6DE',
                   bgcolor: '#FFFFFF', color: '#0B5E8E',
-                  fontSize: '9px', ...MONO, textTransform: 'uppercase', letterSpacing: '.14em', fontWeight: 600,
+                  fontSize: '11px', ...MONO, textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 600,
                   '&:hover': { bgcolor: '#0B2942', color: '#FFFFFF', borderColor: '#0B2942' },
                 }} />
               ))}
@@ -879,7 +881,7 @@ const HomePage: React.FC = () => {
               </Box>
 
               {/* chapter counter */}
-              <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mt: 4, minHeight: '1.65em', overflow: 'visible', fontSize: '10px', ...MONO, letterSpacing: '.15em', color: LIGHT_TEXT.muted }}>
+              <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mt: 4, minHeight: '1.65em', overflow: 'visible', fontSize: '11px', ...MONO, letterSpacing: '.08em', color: LIGHT_TEXT.muted }}>
                 <Box sx={{ minWidth: '2.2ch', minHeight: '1.65em', display: 'inline-flex', alignItems: 'center', position: 'relative', overflow: 'visible', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
                   <Box key={activeChapter} sx={{
                     color: '#0B5E8E',
@@ -899,7 +901,7 @@ const HomePage: React.FC = () => {
               {/* top bar */}
               <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }}
                 spacing={{ xs: 1, sm: 0 }}
-                sx={{ px: { xs: 2, sm: 4 }, py: { xs: 2, sm: 2.5 }, borderBottom: '1px solid #D8E1E7', overflow: 'visible', fontSize: '10px', ...MONO, color: LIGHT_TEXT.muted, letterSpacing: '.12em' }}>
+                sx={{ px: { xs: 2, sm: 4 }, py: { xs: 2, sm: 2.5 }, borderBottom: '1px solid #D8E1E7', overflow: 'visible', fontSize: '12px', ...MONO, color: LIGHT_TEXT.muted, letterSpacing: '.03em' }}>
                 <Box sx={{ lineHeight: 1.5, maxWidth: { xs: '100%', sm: '72%' } }}>Báo cáo nhanh. Xử lý minh bạch. Dữ liệu công khai.</Box>
                 <Box sx={{ minHeight: '1.65em', display: 'inline-flex', alignItems: 'center', position: 'relative', overflow: 'visible', whiteSpace: 'nowrap', alignSelf: { xs: 'flex-end', sm: 'auto' } }}>
                   <Box key={activeChapter} sx={{
@@ -921,7 +923,7 @@ const HomePage: React.FC = () => {
                     sx={{
                       py: { xs: 2.25, md: 2.7 }, px: { xs: 2, sm: 4 }, cursor: 'pointer',
                       borderBottom: '1px solid #D8E1E7',
-                      color: isActive ? LIGHT_TEXT.ink : '#6F818C',
+                      color: isActive ? LIGHT_TEXT.ink : LIGHT_TEXT.muted,
                       transition: 'background-color 300ms ease, color 300ms ease',
                       '&:hover': { color: LIGHT_TEXT.ink, bgcolor: '#EDF3F6' },
                     }}
@@ -934,7 +936,7 @@ const HomePage: React.FC = () => {
                         }}>
                           {ch.name}
                         </Typography>
-                        <Typography sx={{ fontSize: '11px', ...MONO, color: isActive ? '#0B5E8E' : '#768995', letterSpacing: '.08em', lineHeight: 1.45 }}>
+                        <Typography sx={{ fontSize: '12px', ...MONO, color: isActive ? '#0B5E8E' : LIGHT_TEXT.muted, letterSpacing: '.02em', lineHeight: 1.45 }}>
                           {ch.sub}
                         </Typography>
                       </Box>
@@ -949,7 +951,7 @@ const HomePage: React.FC = () => {
           </Stack>
 
           {/* footer strip */}
-          <Box sx={{ mt: 0, pt: 4, borderTop: '1px solid #D8E1E7', fontSize: '9px', ...MONO, letterSpacing: '.14em', color: LIGHT_TEXT.muted, textAlign: 'center' }}>
+          <Box sx={{ mt: 0, pt: 4, borderTop: '1px solid #D8E1E7', fontSize: '11px', ...MONO, letterSpacing: '.1em', color: LIGHT_TEXT.muted, textAlign: 'center' }}>
             DỮ LIỆU ĐÔ THỊ CHO MỌI CÔNG DÂN
           </Box>
         </Container>

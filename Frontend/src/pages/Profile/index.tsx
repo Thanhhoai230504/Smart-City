@@ -134,7 +134,7 @@ const ProfilePage: React.FC = () => {
             <CardContent>
               <Avatar sx={{
                 width: 96, height: 96, mx: 'auto', mb: 2.5, fontSize: '2.5rem', fontWeight: 700,
-                background: 'linear-gradient(135deg, #0EA5E9, #10B981)',
+                background: 'linear-gradient(135deg, #0B5E8E, #2F7D64)',
               }}>
                 {user.name.charAt(0).toUpperCase()}
               </Avatar>
@@ -162,7 +162,7 @@ const ProfilePage: React.FC = () => {
                 label={user.role === 'admin' ? 'Quản trị viên' : 'Người dùng'}
                 sx={{
                   mb: 3,
-                  bgcolor: user.role === 'admin' ? 'rgba(14,165,233,0.15)' : 'rgba(16,185,129,0.15)',
+                  bgcolor: user.role === 'admin' ? 'rgba(11,94,142,0.12)' : 'rgba(47,125,100,0.12)',
                   color: user.role === 'admin' ? 'primary.main' : 'secondary.main',
                   fontWeight: 600,
                 }}
@@ -172,8 +172,8 @@ const ProfilePage: React.FC = () => {
 
               <Stack spacing={2.5} textAlign="left">
                 <Box display="flex" alignItems="center" gap={2}>
-                  <Box sx={{ width: 42, height: 42, borderRadius: '12px', bgcolor: 'rgba(59,130,246,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Email sx={{ color: '#3B82F6' }} />
+                  <Box sx={{ width: 42, height: 42, borderRadius: '12px', bgcolor: 'rgba(11,94,142,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Email sx={{ color: 'primary.main' }} />
                   </Box>
                   <Box>
                     <Typography variant="caption" color="text.secondary">Email</Typography>
@@ -221,7 +221,7 @@ const ProfilePage: React.FC = () => {
               <Typography variant="h6" fontWeight={700} mb={2}>📊 Sự cố của tôi</Typography>
 
               <Stack direction="row" spacing={2} mb={2}>
-                <Box sx={{ textAlign: 'center', flex: 1, p: 1.5, borderRadius: '12px', bgcolor: 'rgba(14,165,233,0.08)' }}>
+                <Box sx={{ textAlign: 'center', flex: 1, p: 1.5, borderRadius: '12px', bgcolor: 'rgba(11,94,142,0.06)' }}>
                   <BugReport sx={{ color: 'primary.main', mb: 0.5 }} />
                   <Typography variant="h5" fontWeight={700}>{issueStats.total}</Typography>
                   <Typography variant="caption" color="text.secondary">Tổng cộng</Typography>
@@ -331,7 +331,7 @@ const ProfilePage: React.FC = () => {
           <Card sx={{ p: { xs: 2, md: 3 } }}>
             <CardContent>
               <Stack direction="row" alignItems="center" spacing={1} mb={1}>
-                <LocationOn sx={{ color: '#3B82F6' }} />
+                <LocationOn sx={{ color: 'primary.main' }} />
                 <Typography variant="h6" fontWeight={700}>Theo dõi khu vực</Typography>
               </Stack>
               <Typography variant="body2" color="text.secondary" mb={2}>

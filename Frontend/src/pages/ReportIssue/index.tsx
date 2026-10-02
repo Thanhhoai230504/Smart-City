@@ -850,9 +850,9 @@ const ReportIssuePage: React.FC = () => {
                                 color={candidate.confidence === 'high' ? 'error' : 'warning'}
                                 size="small" sx={{ fontSize: '0.65rem', height: 20 }} />
                               <Chip label={CATEGORY_MAP[candidateIssue.category]?.label || candidateIssue.category}
-                                size="small" sx={{ fontSize: '0.65rem', height: 20, bgcolor: 'rgba(14,165,233,0.15)' }} />
+                                size="small" sx={{ fontSize: '0.65rem', height: 20, bgcolor: 'rgba(11,94,142,0.1)' }} />
                               <Chip label={`👍 ${candidateIssue.voteCount || 0}`}
-                                size="small" sx={{ fontSize: '0.65rem', height: 20, bgcolor: 'rgba(59,130,246,0.15)' }} />
+                                size="small" sx={{ fontSize: '0.65rem', height: 20, bgcolor: 'rgba(11,94,142,0.1)' }} />
                             </Stack>
                             <Typography variant="caption" color="text.secondary" display="block" mt={0.65}>
                               {candidate.reasons.join(' · ')}

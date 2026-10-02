@@ -145,7 +145,7 @@ const Header: React.FC = () => {
                     justifyContent: 'center',
                     color: location.pathname === item.path ? 'primary.main' : 'text.secondary',
                     fontWeight: location.pathname === item.path ? 600 : 400,
-                    '&:hover': { color: 'primary.light', bgcolor: 'rgba(14,165,233,0.08)' },
+                    '&:hover': { color: 'primary.light', bgcolor: 'rgba(11,94,142,0.06)' },
                   }}
                 >
                   {item.label}

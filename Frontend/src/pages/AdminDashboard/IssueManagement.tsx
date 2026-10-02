@@ -11,10 +11,10 @@ import {
 } from '@mui/material';
 import { CallMerge, Delete, Refresh, Search, Visibility, ThumbUp } from '@mui/icons-material';
 import {
-  GlassCard, STATUS_COLORS, STATUS_LABELS, CATEGORY_LABELS,
+  GlassCard, STATUS_LABELS, CATEGORY_LABELS,
   cellSx, headCellSx,
 } from './types';
-import { getAllowedStatusTargets } from '../../utils/constants';
+import { getAllowedStatusTargets, STATUS_MAP } from '../../utils/constants';
 import {
   DuplicateCandidate,
   DuplicateCandidateMeta,
@@ -298,7 +298,7 @@ const IssueManagement: React.FC<Props> = ({ onDataChange = () => undefined }) =>
                 <Typography color="text.secondary">Không tìm thấy sự cố phù hợp với bộ lọc.</Typography>
               </TableCell></TableRow>
             ) : issues.map(issue => (
-              <TableRow key={issue._id} hover sx={{ '&:hover': { bgcolor: 'rgba(14,165,233,0.04)' } }}>
+              <TableRow key={issue._id} hover sx={{ '&:hover': { bgcolor: 'rgba(11,94,142,0.04)' } }}>
                 <TableCell sx={{ ...cellSx, minWidth: 260, maxWidth: 360 }}>
                   <Typography variant="body2" fontWeight={650} noWrap>{issue.title}</Typography>
                   <Typography variant="caption" color="text.secondary" noWrap display="block">{CATEGORY_LABELS[issue.category] || issue.category} · {issue.district || 'Chưa xác định địa bàn'}</Typography>
@@ -311,7 +311,7 @@ const IssueManagement: React.FC<Props> = ({ onDataChange = () => undefined }) =>
                   <Select size="small" value={issue.status}
                     disabled={getAllowedStatusTargets(issue.status).length === 0}
                     onChange={(event: SelectChangeEvent) => handleStatusChange(issue._id, event.target.value as IssueStatus)}
-                    sx={{ height: 30, minWidth: 125, fontSize: '0.74rem', bgcolor: `${STATUS_COLORS[issue.status]}12`, color: STATUS_COLORS[issue.status], '& .MuiOutlinedInput-notchedOutline': { borderColor: `${STATUS_COLORS[issue.status]}35` } }}>
+                    sx={{ height: 30, minWidth: 125, fontSize: '0.74rem', bgcolor: STATUS_MAP[issue.status]?.bg, color: STATUS_MAP[issue.status]?.text, '& .MuiOutlinedInput-notchedOutline': { borderColor: `${STATUS_MAP[issue.status]?.text}33` } }}>
                     {/* Trước đây hiện cả 4 trạng thái kể cả 'reported', nên admin lùi
                         được phiếu đã xử lý về "mới" ngay trên giao diện — backend giờ
                         chặn. Chỉ hiện đích đến hợp lệ; trạng thái đóng thì tắt bộ chọn.
@@ -351,7 +351,7 @@ const IssueManagement: React.FC<Props> = ({ onDataChange = () => undefined }) =>
                 </TableCell>
                 <TableCell sx={cellSx}>
                   <Stack direction="row" spacing={0.5}>
-                    <Tooltip title="Xem"><IconButton size="small" onClick={() => navigate(`/issues/${issue._id}`)} sx={{ color: '#0EA5E9' }}><Visibility fontSize="small" /></IconButton></Tooltip>
+                    <Tooltip title="Xem"><IconButton size="small" onClick={() => navigate(`/issues/${issue._id}`)} sx={{ color: 'primary.main' }}><Visibility fontSize="small" /></IconButton></Tooltip>
                     <Tooltip title="Gộp vào sự cố gốc">
                       <IconButton size="small" onClick={() => openMergeDialog(issue)} sx={{ color: '#8B5CF6' }}>
                         <CallMerge fontSize="small" />

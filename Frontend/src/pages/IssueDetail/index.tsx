@@ -300,7 +300,7 @@ const IssueDetailPage: React.FC = () => {
               disabled={voting || !isAuthenticated}
               sx={{
                 borderRadius: '20px', textTransform: 'none', fontWeight: 600,
-                ...(hasVoted && { bgcolor: '#0EA5E9', '&:hover': { bgcolor: '#0284C7' } }),
+                ...(hasVoted && { bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' } }),
               }}
             >
               {voteCount} Ủng hộ
@@ -437,7 +437,7 @@ const IssueDetailPage: React.FC = () => {
                         </Avatar>
                         <Typography variant="body2" fontWeight={600}>{c.userId.name}</Typography>
                         {c.userId.role === 'admin' && (
-                          <Chip label="Admin" size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: 'rgba(14,165,233,0.15)', color: 'primary.main' }} />
+                          <Chip label="Admin" size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: 'rgba(11,94,142,0.12)', color: 'primary.main' }} />
                         )}
                         <Typography variant="caption" color="text.secondary">{formatDate(c.createdAt)}</Typography>
                       </Stack>
@@ -492,7 +492,7 @@ const IssueDetailPage: React.FC = () => {
 
           {/* ADMIN CONTROLS — chỉ hiện cho admin khi sự cố chưa xử lý xong */}
           {canChangeStatus && (
-            <Card sx={{ mb: 3, bgcolor: 'rgba(14,165,233,0.06)', border: '1px solid rgba(14,165,233,0.2)' }}>
+            <Card sx={{ mb: 3, bgcolor: 'rgba(11,94,142,0.05)', border: '1px solid rgba(11,94,142,0.18)' }}>
               <CardContent>
                 <Typography fontWeight={600} color="primary.main" mb={2}>
                   🛠️ Xử lý sự cố
@@ -563,7 +563,7 @@ const IssueDetailPage: React.FC = () => {
                       {dept.email && (
                         <Button size="small" startIcon={<Email />}
                           href={`mailto:${dept.email}?subject=Yêu cầu xử lý sự cố: ${issue.title}&body=Kính gửi ${dept.name},%0A%0ASự cố: ${issue.title}%0AĐịa điểm: ${issue.location}%0AMô tả: ${issue.description}%0ATọa độ: ${issue.latitude}, ${issue.longitude}%0A%0AKính đề nghị quý đơn vị xử lý. Trân trọng.`}
-                          sx={{ justifyContent: 'flex-start', color: '#0EA5E9', textTransform: 'none' }}>
+                          sx={{ justifyContent: 'flex-start', color: 'primary.main', textTransform: 'none' }}>
                           {dept.email}
                         </Button>
                       )}
@@ -609,7 +609,7 @@ const IssueDetailPage: React.FC = () => {
   .header { text-align: center; margin-bottom: 30px; }
   .header h3 { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
   .header p { font-size: 12px; color: #555; margin-top: 4px; }
-  .header hr { border: none; border-top: 2px solid #0EA5E9; margin: 12px 80px 0; }
+  .header hr { border: none; border-top: 2px solid #0B5E8E; margin: 12px 80px 0; }
   .meta { display: flex; justify-content: space-between; margin: 20px 0; font-size: 13px; }
   .title { text-align: center; font-size: 16px; font-weight: 700; text-transform: uppercase; margin: 25px 0; color: #1a1a1a; }
   .recipient { font-size: 14px; font-weight: 500; margin-bottom: 20px; }
@@ -623,7 +623,7 @@ const IssueDetailPage: React.FC = () => {
   @media print { body { padding: 30px; } .no-print { display: none; } }
 </style></head><body>
   <div class="no-print" style="text-align:center;margin-bottom:20px">
-    <button onclick="window.print()" style="padding:10px 30px;font-size:14px;background:#0EA5E9;color:white;border:none;border-radius:8px;cursor:pointer">🖨️ In / Lưu PDF</button>
+    <button onclick="window.print()" style="padding:10px 30px;font-size:14px;background:#0B5E8E;color:white;border:none;border-radius:8px;cursor:pointer">🖨️ In / Lưu PDF</button>
   </div>
   <div class="header">
     <h3>UBND Thành phố Đà Nẵng</h3>

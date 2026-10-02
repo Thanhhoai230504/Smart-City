@@ -165,7 +165,7 @@ const IssuePhotoComparison: React.FC<Props> = ({ issue }) => {
                   overflow: 'hidden',
                   borderRadius: 1.25,
                   border: index === selectedIndex
-                    ? '2px solid #0EA5E9'
+                    ? '2px solid #0B5E8E'
                     : '1px solid #DCE7EB',
                   bgcolor: 'transparent',
                   cursor: 'pointer',

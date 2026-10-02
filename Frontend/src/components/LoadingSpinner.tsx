@@ -20,9 +20,9 @@ const LoadingSpinner: React.FC<{ text?: string }> = ({ text = 'Đang tải...' }
       borderRadius: '22px',
       display: 'grid',
       placeItems: 'center',
-      bgcolor: 'rgba(14,165,233,0.08)',
-      border: '1px solid rgba(56,189,248,0.16)',
-      boxShadow: '0 18px 40px rgba(14,165,233,0.12)',
+      bgcolor: 'rgba(11,94,142,0.06)',
+      border: '1px solid rgba(11,94,142,0.14)',
+      boxShadow: '0 18px 40px rgba(11,94,142,0.1)',
     }}>
       <CircularProgress size={34} thickness={4.5} sx={{ color: 'primary.light' }} />
     </Box>

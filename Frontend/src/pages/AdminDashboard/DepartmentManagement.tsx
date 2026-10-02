@@ -363,7 +363,7 @@ const DepartmentManagement: React.FC = () => {
                   hover
                   sx={{
                     opacity: department.isActive ? 1 : 0.55,
-                    '&:hover': { bgcolor: 'rgba(14,165,233,0.04)' },
+                    '&:hover': { bgcolor: 'rgba(11,94,142,0.04)' },
                   }}
                 >
                   <TableCell sx={{ ...cellSx, minWidth: 190 }}>
@@ -418,7 +418,7 @@ const DepartmentManagement: React.FC = () => {
                         <IconButton
                           size="small"
                           onClick={() => openStaffDialog(department)}
-                          sx={{ color: '#0EA5E9' }}
+                          sx={{ color: 'primary.main' }}
                         >
                           <Groups fontSize="small" />
                         </IconButton>

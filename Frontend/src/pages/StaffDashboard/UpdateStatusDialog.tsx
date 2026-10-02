@@ -28,7 +28,7 @@ import {
   PhotoLibrary,
 } from '@mui/icons-material';
 import { issueApi } from '../../api/issueApi';
-import { getAllowedStatusTargets } from '../../utils/constants';
+import { getAllowedStatusTargets, STATUS_MAP } from '../../utils/constants';
 import {
   Issue,
   IssueStatus,
@@ -54,9 +54,10 @@ const MAX_IMAGES = 5;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 const STATUS_OPTIONS: Array<{ value: EditableStatus; label: string; color: string }> = [
-  { value: 'processing', label: 'Đang xử lý', color: '#3B82F6' },
-  { value: 'resolved', label: 'Đã xử lý', color: '#10B981' },
-  { value: 'rejected', label: 'Từ chối', color: '#EF4444' },
+  // Màu lấy từ STATUS_MAP — trước đây "Đang xử lý" xanh dương, "Từ chối" đỏ, lệch trang công khai.
+  { value: 'processing', label: 'Đang xử lý', color: STATUS_MAP.processing.color },
+  { value: 'resolved', label: 'Đã xử lý', color: STATUS_MAP.resolved.color },
+  { value: 'rejected', label: 'Từ chối', color: STATUS_MAP.rejected.color },
 ];
 
 const getErrorMessage = (error: unknown, fallback: string) => {
@@ -270,8 +271,8 @@ const UpdateStatusDialog: React.FC<Props> = ({
               sx={{
                 p: 2,
                 borderRadius: 2.5,
-                border: '1px dashed rgba(14,165,233,0.35)',
-                bgcolor: 'rgba(14,165,233,0.05)',
+                border: '1px dashed rgba(11,94,142,0.35)',
+                bgcolor: 'rgba(11,94,142,0.05)',
               }}
             >
               <Stack spacing={1.5}>
