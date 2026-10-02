@@ -47,6 +47,7 @@ const auditLogRoutes = require('./src/routes/auditLogs');
 const cameraRoutes = require('./src/routes/cameras');
 const geoRoutes = require('./src/routes/geo');
 const metaRoutes = require('./src/routes/meta');
+const appRoutes = require('./src/routes/app');
 
 // Initialize Express app
 const app = express();
@@ -74,7 +75,9 @@ app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:3000',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  // X-App-Version: app mobile gửi để server quyết định có buộc cập nhật không
+  // (task 0.8). App native không chịu CORS, nhưng bản build web để xem thử thì có.
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-App-Version']
 }));
 
 // Body parsing
@@ -128,6 +131,7 @@ app.use('/api/cameras', generalLimiter, cameraRoutes);
 // nhiều), nên không bọc generalLimiter ở đây để hai limiter không chồng nhau.
 app.use('/api/geo', geoRoutes);
 app.use('/api/meta', generalLimiter, metaRoutes);
+app.use('/api/app', generalLimiter, appRoutes);
 
 // ============ ERROR HANDLING ============
 

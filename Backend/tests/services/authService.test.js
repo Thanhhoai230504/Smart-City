@@ -491,19 +491,34 @@ describe('AuthService', () => {
   });
 
   describe('getProfile()', () => {
+    // Query mongoose có .populate() trả về chính nó rồi mới resolve.
+    const queryResolving = (value) => ({ populate: jest.fn().mockResolvedValue(value) });
+
     it('should throw if user not found', async () => {
-      User.findById.mockResolvedValue(null);
+      User.findById.mockReturnValue(queryResolving(null));
 
       await expect(authService.getProfile('invalid')).rejects.toThrow('User not found.');
     });
 
     it('should return user profile', async () => {
       const mockUser = { _id: 'user123', name: 'Test', email: 'test@test.com' };
-      User.findById.mockResolvedValue(mockUser);
+      User.findById.mockReturnValue(queryResolving(mockUser));
 
       const result = await authService.getProfile('user123');
 
       expect(result).toEqual(mockUser);
+    });
+
+    // App cán bộ hiện tên đơn vị trên tab "Công việc"; trước đây profile chỉ trả
+    // ObjectId nên app phải gọi thêm một request. Chỉ lấy `name code` — đúng hai
+    // field web (StaffDashboard, WorkspaceSidebar) đang đọc.
+    it('populate tên + mã đơn vị của cán bộ', async () => {
+      const query = queryResolving({ _id: 'staff1' });
+      User.findById.mockReturnValue(query);
+
+      await authService.getProfile('staff1');
+
+      expect(query.populate).toHaveBeenCalledWith('departmentId', 'name code');
     });
   });
 
@@ -514,11 +529,14 @@ describe('AuthService', () => {
 
     it('should update and return user', async () => {
       const updatedUser = { _id: 'user123', name: 'New Name' };
-      User.findByIdAndUpdate.mockResolvedValue(updatedUser);
+      const query = { populate: jest.fn().mockResolvedValue(updatedUser) };
+      User.findByIdAndUpdate.mockReturnValue(query);
 
       const result = await authService.updateProfile('user123', { name: 'New Name' });
 
       expect(result).toEqual(updatedUser);
+      // Cùng hình dạng với getProfile — client không phải xử lý hai kiểu.
+      expect(query.populate).toHaveBeenCalledWith('departmentId', 'name code');
       expect(User.findByIdAndUpdate).toHaveBeenCalledWith(
         'user123',
         { name: 'New Name' },

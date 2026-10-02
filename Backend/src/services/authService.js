@@ -385,8 +385,13 @@ const logoutUser = async (userId, refreshToken) => {
   }
 };
 
+// Tên + mã đơn vị của cán bộ: app mobile hiện trên tab "Công việc" mà không phải
+// gọi thêm request; web (StaffDashboard, WorkspaceSidebar) đọc đúng hai field này
+// và đã xử lý cả dạng chuỗi lẫn object.
+const PROFILE_DEPARTMENT_FIELDS = 'name code';
+
 const getProfile = async (userId) => {
-  const user = await User.findById(userId);
+  const user = await User.findById(userId).populate('departmentId', PROFILE_DEPARTMENT_FIELDS);
   if (!user) {
     throw ApiError.notFound('User not found.');
   }
@@ -409,7 +414,8 @@ const updateProfile = async (userId, { name, watchedDistricts }) => {
     throw ApiError.badRequest('Nothing to update');
   }
 
-  const user = await User.findByIdAndUpdate(userId, updateData, { new: true, runValidators: true });
+  const user = await User.findByIdAndUpdate(userId, updateData, { new: true, runValidators: true })
+    .populate('departmentId', PROFILE_DEPARTMENT_FIELDS);
   if (!user) throw ApiError.notFound('User not found');
   return user;
 };
