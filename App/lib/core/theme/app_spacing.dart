@@ -29,16 +29,20 @@ abstract final class Gap {
   static const SizedBox w4 = SizedBox(width: xs);
   static const SizedBox w8 = SizedBox(width: sm);
   static const SizedBox w12 = SizedBox(width: md);
+  static const SizedBox w16 = SizedBox(width: lg);
 }
 
-/// Bo góc: card 14 · nút 12 · input 12 · chip 8 · bottom sheet 20 · ảnh 10.
+/// Bo góc mềm, lớn hơn bản đầu để app có dáng riêng: card 20 · nút 16 ·
+/// input 14 · ảnh 14 · chip dạng viên thuốc · bottom sheet 28 · header 28.
 abstract final class Radii {
-  static const double card = 14;
-  static const double button = 12;
-  static const double input = 12;
-  static const double chip = 8;
-  static const double sheet = 20;
-  static const double image = 10;
+  static const double card = 20;
+  static const double button = 16;
+  static const double input = 14;
+  static const double chip = 999;
+  static const double sheet = 28;
+  static const double image = 14;
+  static const double hero = 28;
+  static const double tile = 16;
 }
 
 /// Chuyển động 150–250 ms, `easeOutCubic`, không quá 300 ms.

@@ -87,7 +87,42 @@ export const NOTIFICATION_TYPES = [
   'issue_assigned', 'sla_reminder', 'sla_escalated',
   'issue_merged', 'intake_overdue', 'issue_reopened',
   'issue_rated', 'issue_unassigned',
+  'department_evaluated',
 ] as const;
+
+/**
+ * Hành động trong nhật ký — khớp ĐÚNG `AUDIT_ACTIONS` của model backend (có test đối
+ * chiếu). Kiểu `AuditAction` sinh từ mảng này, nên thiếu nhãn cho một hành động là tsc báo lỗi.
+ */
+export const AUDIT_ACTIONS = [
+  'user.role_changed', 'user.active_changed', 'department.staff_changed',
+  'issue.deleted', 'issue.status_changed', 'issue.assigned', 'issue.unassigned',
+  'issue.claimed', 'issue.merged', 'issue.priority_recalculated', 'issue.reopened',
+  'comment.hidden', 'comment.restored',
+  'department.evaluated', 'department.evaluation_revoked',
+] as const;
+
+/**
+ * Nhãn gợi ý khi đánh giá đơn vị (backend: utils/departmentScoreConfig.js). Chỉ là GỢI Ý
+ * để lãnh đạo xem xét. Màu đi kèm icon và chữ — không bao giờ chỉ dựa vào màu.
+ */
+export const DEPARTMENT_SCORE_LABEL_STYLE = {
+  commend: { text: '#17543E', bg: '#E6F2EC' },      // 7.70:1
+  meet: { text: '#0B5E8E', bg: '#E6EFF5' },         // 6.00:1
+  improve: { text: '#8C1D16', bg: '#FBE7E5' },      // 7.67:1
+  insufficient: { text: '#485862', bg: '#EDF1F4' }, // 6.49:1
+} as const;
+
+/**
+ * Quyết định của lãnh đạo (khác với nhãn GỢI Ý ở trên). Dùng lại các cặp chữ/nền đã đo;
+ * "Nhắc nhở" mượn cặp của trạng thái "Đang xử lý" để khác hẳn "Phê bình".
+ */
+export const EVALUATION_DECISION_STYLE = {
+  commend: { text: '#17543E', bg: '#E6F2EC' },
+  acknowledge: { text: '#0B5E8E', bg: '#E6EFF5' },
+  remind: { text: '#7D4F05', bg: '#FDF2E0' },
+  criticize: { text: '#8C1D16', bg: '#FBE7E5' },
+} as const;
 
 /** Badge "phiếu bị người dân mở lại" (G8) — cặp chữ/nền đã đo 6.66:1. */
 export const REOPENED_BADGE = { text: '#8A3D10', bg: '#FCEDE2' } as const;

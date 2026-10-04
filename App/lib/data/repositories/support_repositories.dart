@@ -59,6 +59,17 @@ class GeoRepository {
         final address = asString(dataOf(res.data)['address']);
         return address == null || address.isEmpty ? null : address;
       });
+
+  /// Chỉ đường bằng ô tô, có tính kẹt xe (TomTom). Không tìm được tuyến → 404.
+  Future<RouteResult> route(double fromLat, double fromLng, double toLat, double toLng) => _call(() async {
+        final res = await _dio.get<Object?>('/geo/route', queryParameters: {
+          'fromLat': fromLat,
+          'fromLng': fromLng,
+          'toLat': toLat,
+          'toLng': toLng,
+        });
+        return RouteResult.fromJson(dataOf(res.data));
+      });
 }
 
 class AiRepository {
@@ -169,6 +180,13 @@ class PublicRepository {
 
   /// Địa điểm là dữ liệu tĩnh và ít — tải một lần với trần **tường minh** thay vì
   /// tải theo khung nhìn (cùng quyết định với web, G-B6).
+  Future<List<EnvironmentReading>> environment() => _call(() async {
+        final res = await _dio.get<Object?>('/environment');
+        return [
+          for (final e in asList(dataOf(res.data)['environment'])) EnvironmentReading.fromJson(e),
+        ].where((e) => e.hasPosition).toList();
+      });
+
   Future<List<Place>> places() => _call(() async {
         final res = await _dio.get<Object?>('/places', queryParameters: {'limit': 500});
         return [for (final p in asList(dataOf(res.data)['places'])) Place.fromJson(p)];

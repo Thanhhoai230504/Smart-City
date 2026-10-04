@@ -68,6 +68,9 @@ const readMobileConfig = (env = process.env) => {
     },
     // null = máy chủ chưa cấu hình Google → app ẩn nút đăng nhập Google.
     googleSignIn: googleClientId ? { serverClientId: googleClientId } : null,
+    // Gốc của trang web (CLIENT_URL) để app tạo link chia sẻ /issues/:id mở
+    // được trên mọi máy. Chỉ nhận https — localhost khi dev thì không chia sẻ.
+    webUrl: httpsOrNull(String(env.CLIENT_URL || '').replace(/\/+$/, '')),
   };
 };
 

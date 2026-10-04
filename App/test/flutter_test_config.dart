@@ -4,16 +4,31 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// Nạp font thật (Roboto + Material Icons có sẵn trong Flutter SDK) cho mọi test.
+/// Nạp font thật cho mọi test: **Be Vietnam Pro** của app (từ `assets/fonts/`)
+/// và Material Icons + Roboto có sẵn trong Flutter SDK.
 ///
 /// Font mặc định của `flutter_test` vẽ mỗi ký tự thành ô vuông rộng đúng bằng cỡ
-/// chữ — rộng gấp ~2 lần font thật, nên test bố cục sẽ báo tràn ở những chỗ
-/// thực tế không tràn. Roboto là font hệ thống của Android (font body của app,
-/// design system 4.1) và có đủ dấu tiếng Việt, nên số đo sát với máy thật.
+/// chữ, nên test bố cục sẽ báo tràn ở chỗ thực tế không tràn — hoặc ngược lại,
+/// bỏ sót chỗ tràn thật. Be Vietnam Pro rộng hơn Roboto, nên đo bằng đúng font
+/// app dùng mới bắt được chữ tràn trên máy thật.
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   TestWidgetsFlutterBinding.ensureInitialized();
+  await _loadAppFonts();
   await _loadSdkFonts();
   await testMain();
+}
+
+Future<void> _loadAppFonts() async {
+  final dir = Directory('assets/fonts');
+  if (!dir.existsSync()) return;
+  final loader = FontLoader('BeVietnamPro');
+  for (final w in ['Regular', 'Medium', 'SemiBold', 'Bold', 'ExtraBold']) {
+    final file = File('${dir.path}/BeVietnamPro-$w.ttf');
+    if (file.existsSync()) {
+      loader.addFont(Future.value(ByteData.sublistView(file.readAsBytesSync())));
+    }
+  }
+  await loader.load();
 }
 
 Future<void> _loadSdkFonts() async {

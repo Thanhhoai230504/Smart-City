@@ -4,7 +4,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 
 /// Khung wizard nhiều bước (design system mục 8):
-/// - thanh tiến trình mỏng trên cùng;
+/// - dải bước có icon ở trên — biết mình đang ở đâu và còn mấy bước;
 /// - nút điều hướng **neo đáy** — vùng ngón cái với tới khi cầm một tay (6.4);
 /// - quay lại **không mất dữ liệu**: widget này không giữ state form; mỗi bước
 ///   đọc/ghi vào controller của màn cha.
@@ -15,6 +15,7 @@ class WizardStepper extends StatelessWidget {
     required this.currentStep,
     required this.body,
     required this.onNext,
+    this.stepIcons,
     this.onBack,
     this.nextLabel = 'Tiếp theo',
     this.nextIcon = Icons.arrow_forward,
@@ -24,6 +25,9 @@ class WizardStepper extends StatelessWidget {
   });
 
   final List<String> stepTitles;
+
+  /// Icon cho từng bước trên dải tiến trình; thiếu thì hiện số thứ tự.
+  final List<IconData>? stepIcons;
   final int currentStep;
   final Widget body;
   final VoidCallback? onNext;
@@ -42,21 +46,20 @@ class WizardStepper extends StatelessWidget {
     final palette = context.palette;
     final textTheme = Theme.of(context).textTheme;
     final total = stepTitles.length;
-    final progress = (currentStep + 1) / total;
+    final light = palette.brightness == Brightness.light;
 
     return Column(
       children: [
         Semantics(
           label: 'Bước ${currentStep + 1} trên $total: ${stepTitles[currentStep]}',
-          child: TweenAnimationBuilder<double>(
-            tween: Tween(end: progress),
-            duration: Motion.of(context),
-            curve: Motion.curve,
-            builder: (_, value, _) => LinearProgressIndicator(value: value, minHeight: 4),
+          excludeSemantics: true,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(Gap.xl, Gap.sm, Gap.xl, 0),
+            child: _StepTrack(total: total, current: currentStep, icons: stepIcons),
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, 0),
+          padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.xs),
           child: Row(
             children: [
               Text(
@@ -67,7 +70,7 @@ class WizardStepper extends StatelessWidget {
               Expanded(
                 child: Text(
                   stepTitles[currentStep],
-                  style: textTheme.titleMedium,
+                  style: textTheme.titleLarge,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -76,22 +79,24 @@ class WizardStepper extends StatelessWidget {
           ),
         ),
         Expanded(child: body),
-        Material(
-          color: palette.surface,
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: palette.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            border: light ? null : Border(top: BorderSide(color: palette.border)),
+            boxShadow: light
+                ? const [BoxShadow(color: Color(0x140B2540), blurRadius: 20, offset: Offset(0, -4))]
+                : null,
+          ),
           child: SafeArea(
             top: false,
-            child: Container(
-              decoration: BoxDecoration(border: Border(top: BorderSide(color: palette.border))),
-              padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.sm, Gap.lg, Gap.md),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.md),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (hint != null && !nextEnabled) ...[
-                    Text(
-                      hint!,
-                      style: textTheme.bodySmall,
-                      textAlign: TextAlign.center,
-                    ),
+                    Text(hint!, style: textTheme.bodySmall, textAlign: TextAlign.center),
                     Gap.h8,
                   ],
                   Row(
@@ -123,6 +128,67 @@ class WizardStepper extends StatelessWidget {
             ),
           ),
         ),
+      ],
+    );
+  }
+}
+
+/// Dải bước: vòng tròn nối bằng đường kẻ. Bước xong có dấu ✓, bước hiện tại có
+/// viền, bước sau còn mờ.
+class _StepTrack extends StatelessWidget {
+  const _StepTrack({required this.total, required this.current, this.icons});
+
+  final int total;
+  final int current;
+  final List<IconData>? icons;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    Widget node(int i) {
+      final done = i < current;
+      final active = i == current;
+      final fill = done || active ? palette.primary : palette.field;
+      final ink = done || active ? palette.onPrimary : palette.textSecondary;
+      return AnimatedContainer(
+        duration: Motion.of(context),
+        curve: Motion.curve,
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: fill,
+          shape: BoxShape.circle,
+          border: active ? Border.all(color: scheme.primaryContainer, width: 4) : null,
+        ),
+        alignment: Alignment.center,
+        child: done
+            ? Icon(Icons.check, size: 18, color: ink)
+            : icons != null && i < icons!.length
+                ? Icon(icons![i], size: 18, color: ink)
+                : Text('${i + 1}', style: textTheme.labelMedium?.copyWith(color: ink)),
+      );
+    }
+
+    return Row(
+      children: [
+        for (var i = 0; i < total; i++) ...[
+          node(i),
+          if (i < total - 1)
+            Expanded(
+              child: AnimatedContainer(
+                duration: Motion.of(context),
+                height: 3,
+                margin: const EdgeInsets.symmetric(horizontal: 6),
+                decoration: BoxDecoration(
+                  color: i < current ? palette.primary : palette.field,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+        ],
       ],
     );
   }

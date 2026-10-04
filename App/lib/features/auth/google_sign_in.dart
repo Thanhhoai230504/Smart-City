@@ -72,7 +72,10 @@ class _GoogleSignInSectionState extends ConsumerState<GoogleSignInSection> {
     // Lần kiểm tra cấu hình lúc mở app có thể đã hỏng vì mất mạng — thử lại để
     // nút Google hiện được khi người dùng tới màn này.
     if (ref.read(appUpdateProvider).config == null) {
-      unawaited(Future.microtask(() => ref.read(appUpdateProvider.notifier).check()));
+      // Chạy sau khung hình đầu; màn có thể đã đóng ngay trước đó.
+      unawaited(Future.microtask(() {
+        if (mounted) return ref.read(appUpdateProvider.notifier).check();
+      }));
     }
   }
 

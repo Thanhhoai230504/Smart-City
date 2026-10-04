@@ -16,6 +16,9 @@ const AUDIT_ACTIONS = [
   // Kiểm duyệt bình luận (G16)
   'comment.hidden',
   'comment.restored',
+  // Quyết định khen thưởng / phê bình đơn vị (ghi và huỷ — không có sửa, không có xoá)
+  'department.evaluated',
+  'department.evaluation_revoked',
 ];
 
 const auditLogSchema = new mongoose.Schema({

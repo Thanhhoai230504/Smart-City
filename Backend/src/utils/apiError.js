@@ -30,9 +30,19 @@ class ApiError extends Error {
    *   GOOGLE_TOKEN_INVALID      - ID token Google sai chữ ký/hết hạn/sai `aud` (services/googleAuthService.js)
    *   GOOGLE_EMAIL_NOT_VERIFIED - Google chưa xác minh email của tài khoản đó
    *   GOOGLE_SIGN_IN_DISABLED   - máy chủ chưa cấu hình GOOGLE_CLIENT_ID
+   *   DEVIATION_REASON_REQUIRED - quyết định đánh giá đơn vị khác gợi ý mà chưa nêu lý do
+   *   EVALUATION_REVOKED        - quyết định đánh giá đã huỷ rồi
+   *   EVALUATION_EXISTS (409)   - đơn vị đã có quyết định còn hiệu lực cho đúng kỳ đó
    */
   static badRequestWithCode(message, code) {
     const error = new ApiError(400, message);
+    error.code = code;
+    return error;
+  }
+
+  /** Xung đột với dữ liệu đã có (409), kèm mã máy đọc được như badRequestWithCode. */
+  static conflictWithCode(message, code) {
+    const error = new ApiError(409, message);
     error.code = code;
     return error;
   }

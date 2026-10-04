@@ -43,7 +43,8 @@ void main() {
   });
 
   test('khách xem được dữ liệu công khai', () {
-    for (final p in [Routes.home, Routes.map, Routes.issues, Routes.issue('x'), Routes.statistics, Routes.cameras]) {
+    // Bảng xếp hạng công khai như web (huy hiệu riêng thì màn tự mời đăng nhập).
+    for (final p in [Routes.home, Routes.map, Routes.issues, Routes.issue('x'), Routes.statistics, Routes.cameras, Routes.badges]) {
       expect(_go(guest, p), isNull, reason: p);
     }
   });

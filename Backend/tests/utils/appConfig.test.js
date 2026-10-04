@@ -44,6 +44,18 @@ describe('readMobileConfig', () => {
   });
 });
 
+describe('readMobileConfig — link chia sẻ', () => {
+  it('webUrl lấy từ CLIENT_URL, bỏ dấu / cuối', () => {
+    expect(readMobileConfig({ CLIENT_URL: 'https://smartcity.example.vn/' }).webUrl)
+      .toBe('https://smartcity.example.vn');
+  });
+
+  it('không phải https (localhost khi dev) → null, app không gắn link', () => {
+    expect(readMobileConfig({ CLIENT_URL: 'http://localhost:3000' }).webUrl).toBeNull();
+    expect(readMobileConfig({}).webUrl).toBeNull();
+  });
+});
+
 describe('readMobileConfig — đăng nhập Google', () => {
   it('đưa client ID web làm serverClientId cho app (cùng giá trị backend dùng kiểm tra aud)', () => {
     expect(readMobileConfig({ GOOGLE_CLIENT_ID: ' web-client.apps.googleusercontent.com ' }).googleSignIn)

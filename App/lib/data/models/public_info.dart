@@ -262,3 +262,76 @@ class LeaderboardEntry {
     );
   }
 }
+
+/// Một điểm đo thời tiết (`GET /environment` — OpenWeatherMap theo quận, cache
+/// 30 phút ở server). Backend không có số liệu không khí hay ngập.
+class EnvironmentReading {
+  const EnvironmentReading({
+    required this.location,
+    required this.latitude,
+    required this.longitude,
+    this.temperature,
+    this.humidity,
+    this.condition = '',
+    this.description = '',
+    this.source = '',
+  });
+
+  final String location;
+  final double latitude;
+  final double longitude;
+  final double? temperature;
+  final int? humidity;
+
+  /// Nhóm thời tiết của OpenWeather: Clear, Clouds, Rain, Drizzle, Thunderstorm…
+  final String condition;
+  final String description;
+  final String source;
+
+  bool get hasPosition => latitude != 0 || longitude != 0;
+
+  factory EnvironmentReading.fromJson(Object? value) {
+    final m = asMap(value);
+    return EnvironmentReading(
+      location: asStringOr(m['location'], 'Điểm đo'),
+      latitude: asDouble(m['latitude']) ?? 0,
+      longitude: asDouble(m['longitude']) ?? 0,
+      temperature: asDouble(m['temperature']),
+      humidity: asDouble(m['humidity'])?.round(),
+      condition: asStringOr(m['weatherCondition'], ''),
+      description: asStringOr(m['weatherDescription'], ''),
+      source: asStringOr(m['source'], ''),
+    );
+  }
+}
+
+/// Tuyến đường có tính giao thông thời gian thực (`GET /geo/route`, TomTom qua
+/// proxy B3).
+class RouteResult {
+  const RouteResult({
+    required this.points,
+    this.distanceMeters,
+    this.durationSeconds,
+    this.trafficDelaySeconds = 0,
+  });
+
+  final List<(double, double)> points;
+  final double? distanceMeters;
+  final int? durationSeconds;
+  final int trafficDelaySeconds;
+
+  factory RouteResult.fromJson(Object? value) {
+    final m = asMap(value);
+    return RouteResult(
+      distanceMeters: asDouble(m['distanceMeters']),
+      durationSeconds: asDouble(m['durationSeconds'])?.round(),
+      trafficDelaySeconds: asDouble(m['trafficDelaySeconds'])?.round() ?? 0,
+      points: [
+        for (final p in asList(m['points']))
+          if (p is List && p.length >= 2 && asDouble(p[0]) != null && asDouble(p[1]) != null)
+            (asDouble(p[0])!, asDouble(p[1])!),
+      ],
+    );
+  }
+}
+

@@ -10,6 +10,8 @@ import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/async_states.dart';
+import '../../core/widgets/surfaces.dart';
+import '../../data/models/issue.dart';
 import '../../data/models/notification.dart';
 import '../../data/models/user.dart';
 import '../../data/repositories/meta_repository.dart';
@@ -31,6 +33,25 @@ String routeForNotification(AppNotification n, UserRole? role) {
   if (id == null) return Routes.notifications;
   if (role == UserRole.staff && _staffTypes.contains(n.type)) return Routes.staffIssue(id);
   return Routes.issue(id);
+}
+
+/// Màu icon theo ý nghĩa của loại thông báo — kèm icon riêng, không chỉ màu.
+ChipColors notificationTone(String type, AppPalette p, ColorScheme scheme) => switch (type) {
+      'issue_resolved' || 'issue_rated' => p.success,
+      'issue_rejected' || 'sla_escalated' || 'issue_reopened' => p.statusColors(IssueStatus.reported),
+      'sla_reminder' || 'intake_overdue' || 'area_alert' => p.slaColors(SlaStatus.dueSoon),
+      'comment' => ChipColors(p.accentInk, p.accentSoft),
+      _ => ChipColors(scheme.onPrimaryContainer, scheme.primaryContainer),
+    };
+
+/// Nhóm theo ngày để quét nhanh: "Hôm nay", "Hôm qua", "Trước đó".
+String notificationBucket(DateTime? at, {DateTime? now}) {
+  if (at == null) return 'Trước đó';
+  final today = DateUtils.dateOnly(now ?? DateTime.now());
+  final day = DateUtils.dateOnly(at.toLocal());
+  if (day == today) return 'Hôm nay';
+  if (day == today.subtract(const Duration(days: 1))) return 'Hôm qua';
+  return 'Trước đó';
 }
 
 class NotificationsScreen extends ConsumerWidget {
@@ -80,6 +101,7 @@ class NotificationsScreen extends ConsumerWidget {
         ]),
       );
     } else {
+      final scheme = Theme.of(context).colorScheme;
       body = NotificationListener<ScrollNotification>(
         onNotification: (n) {
           if (n.metrics.extentAfter < 400) controller.loadMore();
@@ -87,9 +109,9 @@ class NotificationsScreen extends ConsumerWidget {
         },
         child: RefreshIndicator(
           onRefresh: controller.refresh,
-          child: ListView.separated(
+          child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(Gap.screen, Gap.sm, Gap.screen, 120),
             itemCount: state.items.length + 1,
-            separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, i) {
               if (i == state.items.length) {
                 return state.loadingMore
@@ -97,41 +119,73 @@ class NotificationsScreen extends ConsumerWidget {
                     : const SizedBox(height: Gap.xxl);
               }
               final n = state.items[i];
-              return Material(
-                color: n.isRead ? palette.surface : Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.45),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: palette.surfaceAlt,
-                    child: Icon(AppIcons.notification(n.type), color: palette.primary),
-                  ),
-                  title: Text(n.title, style: textTheme.titleSmall?.copyWith(
-                    fontWeight: n.isRead ? FontWeight.w500 : FontWeight.w700,
-                  )),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(n.message, style: textTheme.bodySmall, maxLines: 3, overflow: TextOverflow.ellipsis),
-                      Gap.h4,
-                      Text('${meta.notificationTypeLabel(n.type)} · ${Fmt.relative(n.createdAt)}',
-                          style: textTheme.labelSmall?.copyWith(color: palette.textSecondary)),
-                    ],
-                  ),
-                  trailing: n.isRead
-                      ? null
-                      : Semantics(
-                          label: 'Chưa đọc',
-                          child: Container(
-                            width: 10,
-                            height: 10,
-                            decoration: BoxDecoration(color: palette.primary, shape: BoxShape.circle),
+              final bucket = notificationBucket(n.createdAt);
+              final showHeader = i == 0 || notificationBucket(state.items[i - 1].createdAt) != bucket;
+              final tone = notificationTone(n.type, palette, scheme);
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (showHeader)
+                    Padding(
+                      padding: EdgeInsets.only(top: i == 0 ? Gap.sm : Gap.xl, bottom: Gap.sm),
+                      child: Text(bucket, style: textTheme.titleSmall?.copyWith(color: palette.textSecondary)),
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: Gap.sm),
+                    child: AppCard(
+                      elevated: !n.isRead,
+                      color: n.isRead ? palette.surface : Color.alphaBlend(scheme.primaryContainer.withValues(alpha: 0.35), palette.surface),
+                      padding: const EdgeInsets.all(Gap.md),
+                      onTap: () {
+                        controller.markRead(n);
+                        if (n.issueId != null) context.push(routeForNotification(n, user.role));
+                      },
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          IconBubble(
+                            icon: AppIcons.notification(n.type),
+                            ink: tone.text,
+                            container: tone.container,
+                            size: 42,
                           ),
-                        ),
-                  onTap: () {
-                    controller.markRead(n);
-                    if (n.issueId != null) context.push(routeForNotification(n, user.role));
-                  },
-                ),
+                          Gap.w12,
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  n.title,
+                                  style: textTheme.titleSmall?.copyWith(
+                                    fontWeight: n.isRead ? FontWeight.w500 : FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(n.message, style: textTheme.bodySmall, maxLines: 3, overflow: TextOverflow.ellipsis),
+                                Gap.h4,
+                                Text(
+                                  '${meta.notificationTypeLabel(n.type)} · ${Fmt.relative(n.createdAt)}',
+                                  style: textTheme.labelSmall?.copyWith(color: palette.textSecondary),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (!n.isRead)
+                            Semantics(
+                              label: 'Chưa đọc',
+                              child: Container(
+                                width: 10,
+                                height: 10,
+                                margin: const EdgeInsets.only(left: Gap.sm, top: 6),
+                                decoration: BoxDecoration(color: palette.accent, shape: BoxShape.circle),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               );
             },
           ),

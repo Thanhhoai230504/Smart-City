@@ -5,14 +5,17 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/network/app_exception.dart';
 import '../../core/router/route_guard.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/utils/paged_controller.dart';
 import '../../core/widgets/async_states.dart';
 import '../../core/widgets/paged_list_view.dart';
+import '../../core/widgets/surfaces.dart';
 import '../../data/models/common.dart';
 import '../../data/models/issue.dart';
 import '../../data/repositories/issue_repository.dart';
 import '../../data/repositories/meta_repository.dart';
+import '../issues/widgets/filter_bar.dart';
 import '../issues/widgets/issue_card.dart';
 import '../report/offline_queue.dart';
 
@@ -114,49 +117,56 @@ class MyIssuesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(myIssuesProvider);
     final filter = ref.watch(myStatusFilterProvider);
-    final meta = ref.watch(metaProvider);
+    final palette = context.palette;
     final queue = ref.watch(offlineQueueProvider);
     final controller = ref.read(myIssuesProvider.notifier);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Sự cố của tôi')),
+      appBar: AppBar(
+        title: const Text('Sự cố của tôi'),
+        actions: [
+          IconButton(
+            tooltip: 'Báo cáo sự cố mới',
+            onPressed: () => context.push(Routes.report),
+            icon: const Icon(Icons.add_a_photo_outlined),
+          ),
+        ],
+      ),
       body: PagedListView<Issue>(
         state: state,
         onRefresh: controller.refresh,
         onLoadMore: controller.loadMore,
         header: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (queue.count > 0)
-              Card(
-                child: ListTile(
-                  leading: const Icon(Icons.schedule_send_outlined),
-                  title: Text('${queue.count} báo cáo chưa gửi lên máy chủ'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => context.push(Routes.pendingReports),
+            if (queue.count > 0) ...[
+              AppCard(
+                color: palette.offline.container,
+                borderColor: Colors.transparent,
+                elevated: false,
+                onTap: () => context.push(Routes.pendingReports),
+                child: Row(
+                  children: [
+                    Icon(Icons.schedule_send_outlined, color: palette.offline.text),
+                    Gap.w12,
+                    Expanded(
+                      child: Text(
+                        '${queue.count} báo cáo chưa gửi lên máy chủ',
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(color: palette.offline.text),
+                      ),
+                    ),
+                    Icon(Icons.chevron_right, color: palette.offline.text),
+                  ],
                 ),
               ),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.only(bottom: Gap.sm),
-              child: Row(
-                children: [
-                  ChoiceChip(
-                    label: const Text('Tất cả'),
-                    selected: filter == null,
-                    onSelected: (_) => ref.read(myStatusFilterProvider.notifier).state = null,
-                  ),
-                  for (final s in meta.statuses) ...[
-                    Gap.w8,
-                    ChoiceChip(
-                      label: Text(s.label),
-                      selected: filter == s.value,
-                      onSelected: (_) => ref.read(myStatusFilterProvider.notifier).state = s.value,
-                    ),
-                  ],
-                ],
-              ),
+              Gap.h8,
+            ],
+            StatusFilterChips(
+              selected: filter,
+              onSelected: (v) => ref.read(myStatusFilterProvider.notifier).state = v,
             ),
+            Gap.h8,
           ],
         ),
         itemBuilder: (context, issue) => IssueCard(

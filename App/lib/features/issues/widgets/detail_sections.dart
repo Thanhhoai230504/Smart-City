@@ -14,6 +14,7 @@ import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/app_map.dart';
 import '../../../core/widgets/async_states.dart';
 import '../../../core/widgets/status_chips.dart';
+import '../../../core/widgets/surfaces.dart';
 import '../../../data/models/comment.dart';
 import '../../../data/models/issue.dart';
 import '../../../data/models/public_info.dart';
@@ -33,19 +34,27 @@ class SectionTitle extends StatelessWidget {
   final Widget? trailing;
 
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: Gap.sm),
-        child: Row(
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 20, color: context.palette.textSecondary),
-              Gap.w8,
-            ],
-            Expanded(child: Text(text, style: Theme.of(context).textTheme.titleMedium)),
-            ?trailing,
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Gap.md),
+      child: Row(
+        children: [
+          if (icon != null) ...[
+            IconBubble(
+              icon: icon!,
+              ink: scheme.onPrimaryContainer,
+              container: scheme.primaryContainer,
+              size: 34,
+            ),
+            Gap.w12,
           ],
-        ),
-      );
+          Expanded(child: Text(text, style: Theme.of(context).textTheme.titleMedium)),
+          ?trailing,
+        ],
+      ),
+    );
+  }
 }
 
 /// Bản đồ nhỏ không tương tác + nút chỉ đường bằng app bản đồ của máy.
@@ -60,9 +69,9 @@ class MiniMap extends StatelessWidget {
   Widget build(BuildContext context) {
     final point = LatLng(lat, lng);
     return ClipRRect(
-      borderRadius: BorderRadius.circular(Radii.card),
+      borderRadius: BorderRadius.circular(Radii.tile),
       child: SizedBox(
-        height: 160,
+        height: 180,
         child: Stack(
           children: [
             FlutterMap(
@@ -114,7 +123,8 @@ class DepartmentCard extends StatelessWidget {
     final d = issue.department;
     final textTheme = Theme.of(context).textTheme;
     final palette = context.palette;
-    return Card(
+    return AppCard(
+      padding: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(Gap.card),
         child: Column(
@@ -179,54 +189,73 @@ class TimelineSection extends ConsumerWidget {
     final history = issue.statusHistory.reversed.toList();
     if (history.isEmpty) return const SizedBox.shrink();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SectionTitle('Tiến trình xử lý', icon: Icons.timeline),
-        for (var i = 0; i < history.length; i++)
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SizedBox(
-                  width: 28,
-                  child: Column(
-                    children: [
-                      Icon(AppIcons.status(history[i].status),
-                          size: 20, color: palette.statusColors(history[i].status).text),
-                      if (i < history.length - 1)
-                        Expanded(child: Container(width: 2, color: palette.border)),
-                    ],
-                  ),
-                ),
-                Gap.w8,
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: Gap.lg),
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SectionTitle('Tiến trình xử lý', icon: Icons.timeline),
+          for (var i = 0; i < history.length; i++)
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(
+                    width: 34,
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(meta.statusLabel(history[i].status.name), style: textTheme.titleSmall),
-                        Text(
-                          [
-                            Fmt.dateTime(history[i].changedAt),
-                            if (history[i].changedBy?.name != null) 'bởi ${history[i].changedBy!.name}',
-                          ].join(' · '),
-                          style: textTheme.bodySmall,
+                        Container(
+                          width: 30,
+                          height: 30,
+                          decoration: BoxDecoration(
+                            color: palette.statusColors(history[i].status).container,
+                            shape: BoxShape.circle,
+                            border: i == 0
+                                ? Border.all(color: palette.statusColors(history[i].status).text, width: 1.5)
+                                : null,
+                          ),
+                          child: Icon(AppIcons.status(history[i].status),
+                              size: 16, color: palette.statusColors(history[i].status).text),
                         ),
-                        if (history[i].note.isNotEmpty) ...[
-                          Gap.h4,
-                          Text(history[i].note, style: textTheme.bodyMedium),
-                        ],
+                        if (i < history.length - 1)
+                          Expanded(
+                            child: Container(
+                              width: 2,
+                              margin: const EdgeInsets.symmetric(vertical: 2),
+                              color: palette.border,
+                            ),
+                          ),
                       ],
                     ),
                   ),
-                ),
-              ],
+                  Gap.w8,
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: Gap.lg),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(meta.statusLabel(history[i].status.name), style: textTheme.titleSmall),
+                          Text(
+                            [
+                              Fmt.dateTime(history[i].changedAt),
+                              if (history[i].changedBy?.name != null) 'bởi ${history[i].changedBy!.name}',
+                            ].join(' · '),
+                            style: textTheme.bodySmall,
+                          ),
+                          if (history[i].note.isNotEmpty) ...[
+                            Gap.h4,
+                            Text(history[i].note, style: textTheme.bodyMedium),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -285,7 +314,8 @@ class _RatingCardState extends ConsumerState<RatingCard> {
     final palette = context.palette;
 
     if (issue.rating.isRated) {
-      return Card(
+      return AppCard(
+        padding: EdgeInsets.zero,
         child: Padding(
           padding: const EdgeInsets.all(Gap.card),
           child: Column(
@@ -306,7 +336,8 @@ class _RatingCardState extends ConsumerState<RatingCard> {
     if (!canRateIssue(issue, userId)) return const SizedBox.shrink();
 
     final rejected = issue.status == IssueStatus.rejected;
-    return Card(
+    return AppCard(
+      padding: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(Gap.card),
         child: Column(
@@ -421,7 +452,8 @@ class _ReopenCardState extends ConsumerState<ReopenCard> {
     if (eligibility.block == ReopenBlock.mergedIssue) return const SizedBox.shrink();
 
     final rejected = widget.issue.status == IssueStatus.rejected;
-    return Card(
+    return AppCard(
+      padding: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(Gap.card),
         child: Column(
@@ -678,7 +710,22 @@ class _CommentsSectionState extends ConsumerState<CommentsSection> {
                         ],
                       ),
                       Gap.h4,
-                      Text(c.content, style: textTheme.bodyMedium),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm + 2),
+                        decoration: BoxDecoration(
+                          color: c.isFromHandler
+                              ? Theme.of(context).colorScheme.primaryContainer
+                              : palette.field,
+                          borderRadius: const BorderRadius.only(
+                            topRight: Radius.circular(16),
+                            bottomLeft: Radius.circular(16),
+                            bottomRight: Radius.circular(16),
+                            topLeft: Radius.circular(4),
+                          ),
+                        ),
+                        child: Text(c.content, style: textTheme.bodyMedium),
+                      ),
                     ],
                   ),
                 ),
@@ -725,21 +772,23 @@ class NearbySection extends ConsumerWidget {
         .toList();
     if (items.isEmpty) return const SizedBox.shrink();
     final textTheme = Theme.of(context).textTheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SectionTitle('Sự cố khác đang mở gần đây', icon: Icons.near_me_outlined),
-        for (final n in items)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: CategoryEmoji(n.issue.category),
-            title: Text(n.issue.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-            subtitle: Text('Cách ${Fmt.distance(n.distanceMeters)} · ${Fmt.relative(n.issue.createdAt)}',
-                style: textTheme.bodySmall),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(Routes.issue(n.issue.id)),
-          ),
-      ],
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SectionTitle('Sự cố khác đang mở gần đây', icon: Icons.near_me_outlined),
+          for (final n in items)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: CategoryEmoji(n.issue.category),
+              title: Text(n.issue.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+              subtitle: Text('Cách ${Fmt.distance(n.distanceMeters)} · ${Fmt.relative(n.issue.createdAt)}',
+                  style: textTheme.bodySmall),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push(Routes.issue(n.issue.id)),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -752,11 +801,7 @@ class CategoryEmoji extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final c = ref.watch(metaProvider).category(category);
-    return CircleAvatar(
-      backgroundColor: context.palette.surfaceAlt,
-      child: Text(c.icon, style: TextStyle(fontSize: size * 0.8)),
-    );
+    return CategoryBadge(category, size: size * 1.8);
   }
 }
 
@@ -778,20 +823,28 @@ class NearbyCamerasSection extends ConsumerWidget {
     final cams = ref.watch(_nearbyCamerasProvider('${issue.latitude},${issue.longitude}')).valueOrNull ??
         const <PublicCamera>[];
     if (cams.isEmpty) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SectionTitle('Camera công cộng gần đây', icon: Icons.videocam_outlined),
-        for (final c in cams.take(3))
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.videocam_outlined),
-            title: Text(c.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-            subtitle: c.distanceMeters == null ? null : Text('Cách ${Fmt.distance(c.distanceMeters!)}'),
-            trailing: const Icon(Icons.play_circle_outline),
-            onTap: () => onOpen(c),
-          ),
-      ],
+    final palette = context.palette;
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SectionTitle('Camera công cộng gần đây', icon: Icons.videocam_outlined),
+          for (final c in cams.take(3))
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: IconBubble(
+                icon: Icons.videocam_outlined,
+                ink: palette.accentInk,
+                container: palette.accentSoft,
+                size: 40,
+              ),
+              title: Text(c.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+              subtitle: c.distanceMeters == null ? null : Text('Cách ${Fmt.distance(c.distanceMeters!)}'),
+              trailing: Icon(Icons.play_circle_outline, color: palette.primary),
+              onTap: () => onOpen(c),
+            ),
+        ],
+      ),
     );
   }
 }

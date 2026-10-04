@@ -120,6 +120,9 @@ const assignIssue = async (issueId, { departmentId, assigneeId = null, note = ''
   }
 
   const now = new Date();
+  // Đơn vị cũ (nếu là phân công lại) — controller ghi vào nhật ký để đánh giá đơn vị
+  // đếm được số lần bị lấy việc. $locals không lưu xuống database.
+  const previousDepartmentId = issue.departmentId ? String(issue.departmentId) : null;
   issue.departmentId = department._id;
   issue.assigneeId = assignee?._id || null;
   issue.assignedBy = actor.id;
@@ -145,6 +148,7 @@ const assignIssue = async (issueId, { departmentId, assigneeId = null, note = ''
   await issue.populate('userId', 'name email');
 
   await notifyAssignment({ issue, department, assignee });
+  issue.$locals = { ...(issue.$locals || {}), previousDepartmentId };
 
   return issue;
 };
@@ -216,6 +220,7 @@ const unassignIssue = async (issueId, { note = '' }, actor) => {
   await issue.save();
   enqueuePriorityRecalculation(issue._id);
   await notifyUnassignment({ issue, previousDepartmentId, previousAssigneeId, note });
+  issue.$locals = { ...(issue.$locals || {}), previousDepartmentId: previousDepartmentId ? String(previousDepartmentId) : null };
   return issue;
 };
 

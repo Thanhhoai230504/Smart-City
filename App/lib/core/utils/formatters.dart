@@ -62,8 +62,44 @@ abstract final class Fmt {
 
   /// Tên gọi trong lời chào — từ cuối của họ tên Việt ("Nguyễn Văn An" → "An");
   /// '' nếu tên không có chữ.
+  ///
+  /// Tên lấy từ tài khoản Google thường theo thứ tự phương Tây ("Hoai Nguyễn",
+  /// "Hoai Nguyen"): từ cuối là họ phổ biến mà từ đầu thì không → lấy từ đầu.
   static String givenName(String? name) {
-    final words = (name ?? '').trim().split(RegExp(r'\s+')).where(_letter.hasMatch);
-    return words.isEmpty ? '' : words.last;
+    final words = (name ?? '').trim().split(RegExp(r'\s+')).where(_letter.hasMatch).toList();
+    if (words.isEmpty) return '';
+    if (words.length > 1 && _isSurname(words.last) && !_isSurname(words.first)) {
+      return words.first;
+    }
+    return words.last;
+  }
+
+  /// Chỉ những họ hầu như không dùng làm tên gọi — "Mai", "Hà", "Lâm" vừa là họ
+  /// vừa là tên nên không có trong danh sách.
+  static const _surnames = {
+    'nguyen', 'tran', 'le', 'pham', 'hoang', 'huynh', 'phan', 'vu', 'vo', 'dang', 'bui', //
+    'do', 'ho', 'ngo', 'duong', 'ly', 'dinh', 'doan', 'trinh', 'truong', 'luong',
+  };
+
+  static bool _isSurname(String word) => _surnames.contains(_fold(word));
+
+  static const _accents = {
+    'a': 'àáạảãâầấậẩẫăằắặẳẵ',
+    'e': 'èéẹẻẽêềếệểễ',
+    'i': 'ìíịỉĩ',
+    'o': 'òóọỏõôồốộổỗơờớợởỡ',
+    'u': 'ùúụủũưừứựửữ',
+    'y': 'ỳýỵỷỹ',
+    'd': 'đ',
+  };
+
+  /// Bỏ dấu tiếng Việt, chữ thường — "Nguyễn" và "Nguyen" so khớp như nhau.
+  static String _fold(String word) {
+    final buffer = StringBuffer();
+    for (final ch in word.toLowerCase().split('')) {
+      final base = _accents.entries.where((e) => e.value.contains(ch)).map((e) => e.key);
+      buffer.write(base.isEmpty ? ch : base.first);
+    }
+    return buffer.toString();
   }
 }

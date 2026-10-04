@@ -1,5 +1,6 @@
-const { body } = require('express-validator');
+const { body, query, param } = require('express-validator');
 const { ISSUE_CATEGORIES } = require('../utils/slaConfig');
+const { DECISIONS, LIMITS } = require('../utils/departmentEvaluationConfig');
 
 const createDepartmentValidator = [
   body('name')
@@ -102,7 +103,59 @@ const unassignIssueValidator = [
     .isLength({ max: 500 }).withMessage('Ghi chú không quá 500 ký tự'),
 ];
 
+// Kỳ đánh giá: hai mốc ISO 8601, cả hai tuỳ chọn (mặc định 30 ngày gần nhất). Độ dài
+// tối đa và thứ tự trước/sau kiểm ở service để thông báo lỗi rõ hơn.
+const performanceQueryValidator = [
+  query('from').optional().isISO8601().withMessage('Ngày bắt đầu không hợp lệ'),
+  query('to').optional().isISO8601().withMessage('Ngày kết thúc không hợp lệ'),
+  param('id').optional().isMongoId().withMessage('Mã đơn vị không hợp lệ'),
+];
+
+// Quyết định khen thưởng / phê bình. Kỳ bắt buộc ghi rõ (không mặc định 30 ngày như khi
+// xem), vì quyết định phải gắn với một kỳ cụ thể. Lý do khác gợi ý kiểm ở service — chỉ
+// service biết gợi ý của hệ thống là gì.
+const createEvaluationValidator = [
+  param('id').isMongoId().withMessage('Mã đơn vị không hợp lệ'),
+  body('from').exists({ values: 'falsy' }).withMessage('Thiếu ngày bắt đầu kỳ đánh giá')
+    .bail().isISO8601().withMessage('Ngày bắt đầu không hợp lệ'),
+  body('to').exists({ values: 'falsy' }).withMessage('Thiếu ngày kết thúc kỳ đánh giá')
+    .bail().isISO8601().withMessage('Ngày kết thúc không hợp lệ'),
+  body('decision').isIn(DECISIONS).withMessage('Loại quyết định không hợp lệ'),
+  body('content')
+    .isString().withMessage('Nội dung quyết định là bắt buộc')
+    .bail().trim()
+    .isLength({ min: LIMITS.contentMin, max: LIMITS.contentMax })
+    .withMessage(`Nội dung quyết định từ ${LIMITS.contentMin} đến ${LIMITS.contentMax} ký tự`),
+  body('documentNumber')
+    .optional({ values: 'falsy' })
+    .isString().bail().trim()
+    .isLength({ max: LIMITS.documentMax }).withMessage(`Số văn bản không quá ${LIMITS.documentMax} ký tự`),
+  body('deviationReason')
+    .optional({ values: 'falsy' })
+    .isString().bail().trim()
+    .isLength({ min: LIMITS.reasonMin, max: LIMITS.reasonMax })
+    .withMessage(`Lý do từ ${LIMITS.reasonMin} đến ${LIMITS.reasonMax} ký tự`),
+];
+
+const revokeEvaluationValidator = [
+  param('id').isMongoId().withMessage('Mã đơn vị không hợp lệ'),
+  param('evaluationId').isMongoId().withMessage('Mã quyết định không hợp lệ'),
+  body('reason')
+    .isString().withMessage('Cần nêu lý do huỷ quyết định')
+    .bail().trim()
+    .isLength({ min: LIMITS.revokeMin, max: LIMITS.revokeMax })
+    .withMessage(`Lý do huỷ từ ${LIMITS.revokeMin} đến ${LIMITS.revokeMax} ký tự`),
+];
+
+const evaluationListValidator = [
+  param('id').isMongoId().withMessage('Mã đơn vị không hợp lệ'),
+];
+
 module.exports = {
+  createEvaluationValidator,
+  revokeEvaluationValidator,
+  evaluationListValidator,
+  performanceQueryValidator,
   createDepartmentValidator,
   updateDepartmentValidator,
   assignStaffValidator,

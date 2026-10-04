@@ -10,10 +10,16 @@ import 'package:smart_city_app/features/home/home_screen.dart';
 import 'package:smart_city_app/features/issues/issue_detail_screen.dart';
 import 'package:smart_city_app/features/issues/issue_list_screen.dart';
 import 'package:smart_city_app/features/issues/widgets/issue_card.dart';
+import 'package:smart_city_app/features/map/map_screen.dart';
+import 'package:smart_city_app/features/my_issues/my_issues_screen.dart';
 import 'package:smart_city_app/features/notifications/notifications_screen.dart';
+import 'package:smart_city_app/features/profile/badges_screen.dart';
 import 'package:smart_city_app/features/profile/profile_screen.dart';
+import 'package:smart_city_app/features/public_info/cameras_screen.dart';
+import 'package:smart_city_app/features/public_info/chatbot_screen.dart';
 import 'package:smart_city_app/features/public_info/statistics_screen.dart';
 import 'package:smart_city_app/features/report/report_screen.dart';
+import 'package:smart_city_app/features/settings/settings_screen.dart';
 import 'package:smart_city_app/features/staff/staff_issue_screen.dart';
 import 'package:smart_city_app/features/staff/work_list_screen.dart';
 
@@ -40,6 +46,13 @@ void main() {
     'Cá nhân': (() => const ProfileScreen(), UserRole.user),
     'Thống kê': (() => const StatisticsScreen(), null),
     'Báo cáo — bước 1': (() => const ReportScreen(), UserRole.user),
+    'Bản đồ': (() => const MapScreen(), null),
+    'Sự cố của tôi': (() => const MyIssuesScreen(), UserRole.user),
+    'Cá nhân (khách)': (() => const ProfileScreen(), null),
+    'Huy hiệu & xếp hạng': (() => const BadgesScreen(), UserRole.user),
+    'Camera công cộng': (() => const CamerasScreen(), null),
+    'Trợ lý AI': (() => const ChatbotScreen(), null),
+    'Cài đặt': (() => const SettingsScreen(), UserRole.user),
   };
 
   for (final MapEntry(key: name, value: (build, role)) in screens.entries) {

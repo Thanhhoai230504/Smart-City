@@ -8,10 +8,12 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/async_states.dart';
+import '../../core/widgets/surfaces.dart';
 import '../../data/models/issue.dart';
 import '../../data/models/public_info.dart';
 import '../../data/repositories/meta_repository.dart';
 import '../../data/repositories/support_repositories.dart';
+import '../issues/widgets/detail_sections.dart' show SectionTitle;
 
 final statisticsProvider =
     FutureProvider.autoDispose<PublicStatistics>((ref) => ref.read(publicRepositoryProvider).statistics());
@@ -52,14 +54,11 @@ class _StatsBody extends ConsumerWidget {
     final textTheme = Theme.of(context).textTheme;
     final statusTotal = stats.byStatus.values.fold<int>(0, (a, b) => a + b);
 
-    Widget card(String title, Widget child) => Card(
-          child: Padding(
-            padding: const EdgeInsets.all(Gap.card),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [Text(title, style: textTheme.titleMedium), Gap.h12, child],
-            ),
+    Widget card(String title, IconData icon, Widget child) => AppCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [SectionTitle(title, icon: icon), child],
           ),
         );
 
@@ -69,17 +68,38 @@ class _StatsBody extends ConsumerWidget {
         // Không dùng GridView tỉ lệ cố định: chiều cao ô phải theo nội dung để
         // chữ phóng to 1.6× không bị cắt (design system 4.3).
         _OverviewRow(children: [
-          _Overview(label: 'Tổng sự cố', value: Fmt.number(stats.totalIssues), icon: Icons.report_outlined),
-          _Overview(label: 'Đã xử lý', value: Fmt.number(stats.resolvedCount), icon: Icons.task_alt),
+          _Overview(
+            label: 'Tổng sự cố',
+            value: Fmt.number(stats.totalIssues),
+            icon: Icons.campaign_outlined,
+            color: const Color(0xFF0EA5E9),
+          ),
+          _Overview(
+            label: 'Đã xử lý',
+            value: Fmt.number(stats.resolvedCount),
+            icon: Icons.task_alt,
+            color: const Color(0xFF10B981),
+          ),
         ]),
         Gap.h12,
         _OverviewRow(children: [
-          _Overview(label: 'Tỷ lệ xử lý', value: '${stats.resolutionRate}%', icon: Icons.percent),
-          _Overview(label: 'Thời gian TB', value: Fmt.hours(stats.avgResolutionHours), icon: Icons.timer_outlined),
+          _Overview(
+            label: 'Tỷ lệ xử lý',
+            value: '${stats.resolutionRate}%',
+            icon: Icons.percent,
+            color: const Color(0xFF8B5CF6),
+          ),
+          _Overview(
+            label: 'Thời gian TB',
+            value: Fmt.hours(stats.avgResolutionHours),
+            icon: Icons.timer_outlined,
+            color: const Color(0xFFF59E0B),
+          ),
         ]),
         Gap.h12,
         card(
           'Sự cố 30 ngày qua',
+          Icons.show_chart,
           stats.trend.isEmpty
               ? Text('Chưa có sự cố nào trong 30 ngày qua.', style: textTheme.bodySmall)
               : SizedBox(height: 180, child: _TrendChart(trend: stats.trend, color: palette.primary)),
@@ -87,6 +107,7 @@ class _StatsBody extends ConsumerWidget {
         Gap.h12,
         card(
           'Theo trạng thái',
+          Icons.donut_large_outlined,
           statusTotal == 0
               ? Text('Chưa có dữ liệu.', style: textTheme.bodySmall)
               : Column(
@@ -127,16 +148,17 @@ class _StatsBody extends ConsumerWidget {
         Gap.h12,
         card(
           'Theo loại sự cố',
+          Icons.category_outlined,
           stats.byCategory.isEmpty
               ? Text('Chưa có dữ liệu.', style: textTheme.bodySmall)
               : Column(
                   children: [
                     for (final c in stats.byCategory)
                       _BarRow(
-                        label: '${meta.category(c.key).icon} ${meta.categoryLabel(c.key)}',
+                        label: meta.categoryLabel(c.key),
                         value: c.count,
                         share: safeShare(c.count, stats.byCategory.map((e) => e.count).reduce(math.max)),
-                        color: hexColor(meta.category(c.key).color),
+                        color: CategoryTone.of(hexColor(meta.category(c.key).color), palette).ink,
                       ),
                   ],
                 ),
@@ -144,6 +166,7 @@ class _StatsBody extends ConsumerWidget {
         Gap.h12,
         card(
           'Theo khu vực',
+          Icons.location_city_outlined,
           Column(
             children: [
               for (final d in stats.byDistrict)
@@ -173,6 +196,7 @@ class _StatsBody extends ConsumerWidget {
         Gap.h12,
         card(
           'Đánh giá của người dân',
+          Icons.star_outline,
           stats.ratingTotal == 0
               ? Text('Chưa có lượt đánh giá nào.', style: textTheme.bodySmall)
               : Column(
@@ -215,28 +239,28 @@ class _OverviewRow extends StatelessWidget {
 }
 
 class _Overview extends StatelessWidget {
-  const _Overview({required this.label, required this.value, required this.icon});
+  const _Overview({required this.label, required this.value, required this.icon, required this.color});
 
   final String label;
   final String value;
   final IconData icon;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(Gap.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: context.palette.primary),
-            Gap.h4,
-            FittedBox(fit: BoxFit.scaleDown, child: Text(value, style: textTheme.headlineSmall)),
-            Text(label, style: textTheme.bodySmall),
-          ],
-        ),
+    final tone = CategoryTone.of(color, context.palette);
+    return AppCard(
+      padding: const EdgeInsets.all(Gap.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconBubble(icon: icon, ink: tone.ink, container: tone.container, size: 40),
+          Gap.h8,
+          FittedBox(fit: BoxFit.scaleDown, child: Text(value, style: textTheme.headlineSmall)),
+          Text(label, style: textTheme.bodySmall),
+        ],
       ),
     );
   }
@@ -282,7 +306,7 @@ class _BarRow extends StatelessWidget {
                 value: share.isNaN ? 0 : share,
                 minHeight: 10,
                 color: color,
-                backgroundColor: context.palette.surfaceAlt,
+                backgroundColor: context.palette.field,
               ),
             ),
           ),

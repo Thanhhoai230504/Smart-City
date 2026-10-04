@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/platform/connectivity.dart';
+import '../../../core/router/route_guard.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/async_states.dart';
 import '../../../core/widgets/photo_evidence_strip.dart';
 import '../../../core/widgets/status_chips.dart';
+import '../../../core/widgets/surfaces.dart';
 import '../../../data/models/issue.dart';
 import '../../../data/models/report_support.dart';
 import '../../../data/repositories/meta_repository.dart';
@@ -15,10 +18,22 @@ import '../report_controller.dart';
 
 /// Bước 4 — xác nhận, dò trùng, gửi (task 3.4, 3.5).
 class ReviewStep extends ConsumerStatefulWidget {
-  const ReviewStep({super.key, required this.onConfirmDuplicate});
+  const ReviewStep({
+    super.key,
+    required this.onConfirmDuplicate,
+    this.confirmedDuplicateId,
+    this.onUndoConfirm,
+  });
 
   /// Người dân xác nhận một báo cáo gần đó chính là sự cố họ định gửi.
   final Future<void> Function(DuplicateCandidate candidate) onConfirmDuplicate;
+
+  /// Phiếu đã được xác nhận là trùng (giống web: ở lại bước này, nút gửi khoá).
+  final String? confirmedDuplicateId;
+
+  /// "Tôi vẫn muốn tạo báo cáo riêng" — mở khoá nút gửi; lượt xác nhận đã ghi
+  /// ở server vẫn giữ.
+  final VoidCallback? onUndoConfirm;
 
   @override
   ConsumerState<ReviewStep> createState() => _ReviewStepState();
@@ -73,7 +88,8 @@ class _ReviewStepState extends ConsumerState<ReviewStep> {
               colors: palette.offline,
             ),
           ),
-        Card(
+        AppCard(
+          padding: EdgeInsets.zero,
           child: Padding(
             padding: const EdgeInsets.all(Gap.card),
             child: Column(
@@ -87,8 +103,7 @@ class _ReviewStepState extends ConsumerState<ReviewStep> {
                   height: 72,
                 ),
                 const Divider(height: Gap.xxl),
-                editRow('Loại', '${meta.category(state.category ?? 'other').icon} '
-                    '${meta.categoryLabel(state.category ?? 'other')}', 1),
+                editRow('Loại', meta.categoryLabel(state.category ?? 'other'), 1),
                 editRow('Tiêu đề', state.title.trim(), 1),
                 editRow('Mô tả', state.description.trim(), 1),
                 editRow('Địa chỉ', state.address.trim(), 2),
@@ -109,7 +124,12 @@ class _ReviewStepState extends ConsumerState<ReviewStep> {
           ),
         ),
         Gap.h24,
-        _DuplicateSection(state: state, onConfirm: widget.onConfirmDuplicate),
+        _DuplicateSection(
+          state: state,
+          onConfirm: widget.onConfirmDuplicate,
+          confirmedId: widget.confirmedDuplicateId,
+          onUndo: widget.onUndoConfirm,
+        ),
         if (state.error != null) ...[
           Gap.h16,
           _Notice(
@@ -153,7 +173,7 @@ class _Notice extends StatelessWidget {
         padding: const EdgeInsets.all(Gap.md),
         decoration: BoxDecoration(
           color: colors.container,
-          borderRadius: BorderRadius.circular(Radii.card),
+          borderRadius: BorderRadius.circular(Radii.tile),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -172,10 +192,17 @@ class _Notice extends StatelessWidget {
 }
 
 class _DuplicateSection extends StatelessWidget {
-  const _DuplicateSection({required this.state, required this.onConfirm});
+  const _DuplicateSection({
+    required this.state,
+    required this.onConfirm,
+    this.confirmedId,
+    this.onUndo,
+  });
 
   final ReportState state;
   final Future<void> Function(DuplicateCandidate) onConfirm;
+  final String? confirmedId;
+  final VoidCallback? onUndo;
 
   @override
   Widget build(BuildContext context) {
@@ -223,11 +250,50 @@ class _DuplicateSection extends StatelessWidget {
                 dense: true,
               ),
             ],
+            if (confirmedId != null) ...[
+              Gap.h12,
+              Container(
+                padding: const EdgeInsets.all(Gap.md),
+                decoration: BoxDecoration(
+                  color: palette.success.container,
+                  borderRadius: BorderRadius.circular(Radii.tile),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.how_to_vote, color: palette.success.text),
+                    Gap.w12,
+                    Expanded(
+                      child: Text(
+                        'Đã xác nhận cùng một sự cố. Bạn không cần gửi báo cáo mới.',
+                        style: textTheme.bodySmall?.copyWith(color: palette.success.text),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => context.pushReplacement(Routes.issue(confirmedId!)),
+                      child: const Text('Theo dõi'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             Gap.h12,
             for (final c in result.candidates) ...[
-              _CandidateCard(candidate: c, onConfirm: () => onConfirm(c)),
+              _CandidateCard(
+                candidate: c,
+                confirmed: confirmedId == c.issue.id,
+                locked: confirmedId != null,
+                onConfirm: () => onConfirm(c),
+              ),
               Gap.h8,
             ],
+            if (confirmedId != null && onUndo != null)
+              Center(
+                child: TextButton.icon(
+                  onPressed: onUndo,
+                  icon: const Icon(Icons.edit_note),
+                  label: const Text('Tôi vẫn muốn tạo báo cáo riêng'),
+                ),
+              ),
           ],
         ),
     };
@@ -240,10 +306,19 @@ class _DuplicateSection extends StatelessWidget {
 }
 
 class _CandidateCard extends StatelessWidget {
-  const _CandidateCard({required this.candidate, required this.onConfirm});
+  const _CandidateCard({
+    required this.candidate,
+    required this.onConfirm,
+    this.confirmed = false,
+    this.locked = false,
+  });
 
   final DuplicateCandidate candidate;
   final VoidCallback onConfirm;
+  final bool confirmed;
+
+  /// Đã xác nhận một phiếu thì khoá nút xác nhận ở các phiếu còn lại.
+  final bool locked;
 
   @override
   Widget build(BuildContext context) {
@@ -256,7 +331,9 @@ class _CandidateCard extends StatelessWidget {
       DuplicateConfidence.low => palette.priorityColors(PriorityLevel.low),
     };
 
-    return Card(
+    return AppCard(
+      elevated: false,
+      padding: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(Gap.md),
         child: Column(
@@ -312,13 +389,27 @@ class _CandidateCard extends StatelessWidget {
                 Text('• $r', style: textTheme.bodySmall),
             ],
             Gap.h8,
-            Align(
-              alignment: Alignment.centerRight,
-              child: OutlinedButton.icon(
-                onPressed: onConfirm,
-                icon: const Icon(Icons.how_to_vote_outlined),
-                label: const Text('Đây là cùng một sự cố'),
-              ),
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: Gap.sm,
+              runSpacing: Gap.xs,
+              children: [
+                TextButton(
+                  onPressed: () => context.push(Routes.issue(issue.id)),
+                  child: const Text('Xem chi tiết'),
+                ),
+                confirmed
+                    ? FilledButton.tonalIcon(
+                        onPressed: null,
+                        icon: const Icon(Icons.check),
+                        label: const Text('Đã xác nhận'),
+                      )
+                    : OutlinedButton.icon(
+                        onPressed: locked ? null : onConfirm,
+                        icon: const Icon(Icons.how_to_vote_outlined),
+                        label: const Text('Đây là cùng một sự cố'),
+                      ),
+              ],
             ),
           ],
         ),

@@ -81,6 +81,8 @@ class IssueQuery {
     this.assigneeId,
     this.reopened = false,
     this.sort = '-createdAt',
+    this.dateFrom,
+    this.dateTo,
   });
 
   final String? status;
@@ -93,6 +95,12 @@ class IssueQuery {
   final bool reopened;
   final String sort;
 
+  /// Khoảng ngày báo cáo (lọc theo `createdAt`, tính cả ngày cuối).
+  final DateTime? dateFrom;
+  final DateTime? dateTo;
+
+  bool get hasDateRange => dateFrom != null || dateTo != null;
+
   bool get hasFilters =>
       status != null ||
       category != null ||
@@ -101,7 +109,8 @@ class IssueQuery {
       priorityLevel != null ||
       slaStatus != null ||
       assigneeId != null ||
-      reopened;
+      reopened ||
+      hasDateRange;
 
   int get activeFilterCount => [
         status,
@@ -111,7 +120,11 @@ class IssueQuery {
         slaStatus,
         assigneeId,
         if (reopened) 'r',
+        if (hasDateRange) 'd',
       ].where((v) => v != null).length;
+
+  static String _day(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   Map<String, Object> toParams() => {
         'status': ?status,
@@ -122,6 +135,8 @@ class IssueQuery {
         'slaStatus': ?slaStatus,
         'assigneeId': ?assigneeId,
         if (reopened) 'reopened': 'true',
+        if (dateFrom != null) 'dateFrom': _day(dateFrom!),
+        if (dateTo != null) 'dateTo': _day(dateTo!),
         'sort': sort,
       };
 
@@ -135,6 +150,8 @@ class IssueQuery {
     Object? assigneeId = _keep,
     bool? reopened,
     String? sort,
+    Object? dateFrom = _keep,
+    Object? dateTo = _keep,
   }) =>
       IssueQuery(
         status: status == _keep ? this.status : status as String?,
@@ -146,6 +163,8 @@ class IssueQuery {
         assigneeId: assigneeId == _keep ? this.assigneeId : assigneeId as String?,
         reopened: reopened ?? this.reopened,
         sort: sort ?? this.sort,
+        dateFrom: dateFrom == _keep ? this.dateFrom : dateFrom as DateTime?,
+        dateTo: dateTo == _keep ? this.dateTo : dateTo as DateTime?,
       );
 
   static const _keep = Object();
@@ -161,11 +180,13 @@ class IssueQuery {
       other.slaStatus == slaStatus &&
       other.assigneeId == assigneeId &&
       other.reopened == reopened &&
-      other.sort == sort;
+      other.sort == sort &&
+      other.dateFrom == dateFrom &&
+      other.dateTo == dateTo;
 
   @override
   int get hashCode => Object.hash(
-      status, category, search, district, priorityLevel, slaStatus, assigneeId, reopened, sort);
+      status, category, search, district, priorityLevel, slaStatus, assigneeId, reopened, sort, dateFrom, dateTo);
 }
 
 class VoteResult {

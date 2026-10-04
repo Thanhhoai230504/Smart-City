@@ -1,5 +1,5 @@
 // Chỉ import KIỂU (bị xoá khi build) — không tạo vòng phụ thuộc lúc chạy.
-import type { NOTIFICATION_TYPES } from '../utils/constants';
+import type { AUDIT_ACTIONS, NOTIFICATION_TYPES } from '../utils/constants';
 
 // ============ User ============
 export type UserRole = 'user' | 'staff' | 'admin';
@@ -87,6 +87,145 @@ export interface DepartmentStat {
   onTimeRate: number | null;
   avgResolutionHours: number | null;
   avgRating: number | null;
+}
+
+// ============ Đánh giá đơn vị theo kỳ (GET /departments/performance) ============
+
+/** Chỉ số của một đơn vị / loại / cán bộ trong kỳ. Tồn đọng (open/overdue/escalated) là ảnh chụp hiện tại. */
+export interface PerformanceMetrics {
+  assigned: number;
+  closed: number;
+  resolved: number;
+  rejected: number;
+  onTimeRate: number | null;
+  onTime: number;
+  resolvedWithDue: number;
+  avgResolutionHours: number | null;
+  avgRating: number | null;
+  ratingCount: number;
+  lowRatings: number;
+  reopened: number;
+  complaintRate: number | null;
+  openNow: number;
+  overdueNow: number;
+  escalatedOpen: number;
+  revoked: number;
+}
+
+export type DepartmentScoreLabel = 'commend' | 'meet' | 'improve' | 'insufficient';
+
+export interface DepartmentScore {
+  score: number | null;
+  label: DepartmentScoreLabel;
+  labelText: string;
+  components: Array<{ key: string; label: string; weight: number; value: number | null; points: number }>;
+  attention: string[];
+  reasons: string[];
+  version: string;
+}
+
+export interface DepartmentScoreConfig {
+  version: string;
+  weights: Record<string, number>;
+  componentLabels: Record<string, string>;
+  minClosedForScore: number;
+  minRatingsForSatisfaction: number;
+  thresholds: { commend: number; meet: number };
+  attention: { overdueShare: number; minOpenForOverdueShare: number };
+  labels: Record<DepartmentScoreLabel, string>;
+}
+
+export interface DepartmentPerformanceRow {
+  departmentId: string;
+  name: string;
+  code: string;
+  isActive: boolean;
+  staffCount: number;
+  rank: number | null;
+  metrics: PerformanceMetrics;
+  score: DepartmentScore;
+  /** Quyết định còn hiệu lực cho ĐÚNG kỳ đang xem (null nếu chưa có). */
+  evaluation?: EvaluationSummary | null;
+}
+
+// ============ Quyết định khen thưởng / phê bình (lãnh đạo ghi, hệ thống chỉ gợi ý) ============
+export type EvaluationDecision = 'commend' | 'acknowledge' | 'remind' | 'criticize';
+
+export interface EvaluationSummary {
+  _id: string;
+  decision: EvaluationDecision;
+  decidedAt: string;
+  decidedBy: string | null;
+}
+
+export interface DepartmentEvaluation {
+  _id: string;
+  departmentId: string;
+  period: { from: string; to: string };
+  decision: EvaluationDecision;
+  content: string;
+  documentNumber: string | null;
+  /** Gợi ý của hệ thống ĐÚNG LÚC QUYẾT. */
+  suggestion: { label: DepartmentScoreLabel; labelText: string | null; score: number | null };
+  deviatesFromSuggestion: boolean;
+  deviationReason: string | null;
+  /** Số liệu chụp lại lúc quyết (server tự tính) — số liệu sống có thể đổi về sau. */
+  snapshot: {
+    capturedAt?: string;
+    department?: { name: string; code: string };
+    score?: DepartmentScore;
+    metrics?: PerformanceMetrics;
+    evidence?: Record<string, Array<{ _id: string; title: string; status: IssueStatus }>>;
+  };
+  decidedBy: { _id: string; name: string } | string;
+  status: 'active' | 'revoked';
+  revokedAt: string | null;
+  revokedBy: { _id: string; name: string } | string | null;
+  revokeReason: string | null;
+  createdAt: string;
+}
+
+export interface CreateEvaluationPayload {
+  from: string;
+  to: string;
+  decision: EvaluationDecision;
+  content: string;
+  documentNumber?: string;
+  deviationReason?: string;
+}
+
+export interface DepartmentPerformanceResponse {
+  period: { from: string; to: string };
+  config: DepartmentScoreConfig;
+  rows: DepartmentPerformanceRow[];
+}
+
+/** Phiếu dùng làm bằng chứng trong chi tiết đơn vị (đã rút gọn). */
+export interface PerformanceEvidenceIssue {
+  _id: string;
+  title: string;
+  category: IssueCategory;
+  status: IssueStatus;
+  assignedAt: string | null;
+  dueAt: string | null;
+  resolvedAt: string | null;
+  lastReopenedAt: string | null;
+  reopenCount: number;
+  escalationLevel: number;
+  rating: { score: number; comment: string | null; ratedAt: string } | null;
+  assignee: { _id: string; name: string } | null;
+}
+
+export interface DepartmentPerformanceDetail {
+  period: { from: string; to: string };
+  config: DepartmentScoreConfig;
+  department: { _id: string; name: string; code: string; isActive: boolean; email: string | null; phone: string | null };
+  metrics: PerformanceMetrics;
+  score: DepartmentScore;
+  trend: { unit: 'week' | 'month'; buckets: Array<{ start: string; assigned: number; closed: number; onTime: number; resolvedWithDue: number }> };
+  byCategory: Array<{ category: IssueCategory; metrics: PerformanceMetrics }>;
+  staff: Array<{ userId: string; name: string; email: string; isActive: boolean; movedOut?: boolean; metrics: PerformanceMetrics }>;
+  evidence: Record<'overdue' | 'escalated' | 'reopened' | 'lowRated' | 'praised', PerformanceEvidenceIssue[]>;
 }
 
 // ============ Issue ============
@@ -346,19 +485,10 @@ export interface IssueSummary {
 }
 
 // ============ Audit log ============
-export type AuditAction =
-  | 'user.role_changed'
-  | 'user.active_changed'
-  | 'department.staff_changed'
-  | 'issue.deleted'
-  | 'issue.status_changed'
-  | 'issue.assigned'
-  | 'issue.unassigned'
-  | 'issue.claimed'
-  | 'issue.merged'
-  | 'issue.priority_recalculated';
+/** Khớp enum của model AuditLog phía backend — có test đối chiếu (constants.test.ts). */
+export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
-export type AuditEntityType = 'User' | 'Issue' | 'Department';
+export type AuditEntityType = 'User' | 'Issue' | 'Department' | 'Comment';
 
 export interface AuditLog {
   _id: string;

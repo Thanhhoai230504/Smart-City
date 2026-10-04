@@ -1,8 +1,12 @@
 import axiosClient from './axiosClient';
 import {
   ApiResponse,
+  CreateEvaluationPayload,
   Department,
+  DepartmentEvaluation,
   DepartmentStaff,
+  DepartmentPerformanceDetail,
+  DepartmentPerformanceResponse,
   DepartmentStat,
   DepartmentSuggestion,
   IssueCategory,
@@ -39,6 +43,29 @@ export const departmentApi = {
 
   getStats: () =>
     axiosClient.get<ApiResponse<{ stats: DepartmentStat[] }>>('/departments/stats'),
+
+  /** Đánh giá mọi đơn vị trong kỳ (chỉ admin). `from`/`to` là ISO 8601. */
+  getPerformance: (params: { from: string; to: string }) =>
+    axiosClient.get<ApiResponse<DepartmentPerformanceResponse>>('/departments/performance', { params }),
+
+  /** Chi tiết đánh giá một đơn vị trong kỳ: xu hướng, theo loại, theo cán bộ, bằng chứng. */
+  getPerformanceDetail: (id: string, params: { from: string; to: string }) =>
+    axiosClient.get<ApiResponse<DepartmentPerformanceDetail>>(`/departments/${id}/performance`, { params }),
+
+  /** Quyết định khen thưởng / phê bình — admin xem mọi đơn vị, cán bộ xem đơn vị mình. */
+  getEvaluations: (id: string) =>
+    axiosClient.get<ApiResponse<{ evaluations: DepartmentEvaluation[] }>>(`/departments/${id}/evaluations`),
+
+  /** Admin ghi quyết định. Số liệu chụp lại do server tự tính, không gửi từ đây. */
+  createEvaluation: (id: string, payload: CreateEvaluationPayload) =>
+    axiosClient.post<ApiResponse<{ evaluation: DepartmentEvaluation }>>(`/departments/${id}/evaluations`, payload),
+
+  /** Không sửa, không xoá — chỉ huỷ kèm lý do. */
+  revokeEvaluation: (id: string, evaluationId: string, reason: string) =>
+    axiosClient.post<ApiResponse<{ evaluation: DepartmentEvaluation }>>(
+      `/departments/${id}/evaluations/${evaluationId}/revoke`,
+      { reason },
+    ),
 
   /** Gợi ý đơn vị phụ trách loại sự cố, kèm SLA hiệu lực. */
   suggestForCategory: (category: IssueCategory) =>

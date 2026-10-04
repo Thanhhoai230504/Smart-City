@@ -13,6 +13,7 @@
     "enumsUrl": "/api/meta/enums",
     "googleSignIn": {
       "serverClientId": "test-web-client.apps.googleusercontent.com"
-    }
+    },
+    "webUrl": "https://smartcity.example.vn"
   }
 }

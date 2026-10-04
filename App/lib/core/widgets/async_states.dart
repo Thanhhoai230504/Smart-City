@@ -72,6 +72,8 @@ class SkeletonList extends StatelessWidget {
       child: ListView.separated(
         padding: const EdgeInsets.all(Gap.screen),
         physics: const NeverScrollableScrollPhysics(),
+        // Co theo nội dung để đặt được cả trong một danh sách khác.
+        shrinkWrap: true,
         itemCount: count,
         separatorBuilder: (_, _) => Gap.h12,
         itemBuilder: (_, _) => Card(

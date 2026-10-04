@@ -51,11 +51,11 @@ dependencies:
   # Hiển thị
   intl: any # bản do flutter_localizations ghim
   fl_chart: ^1.2.0
-  google_fonts: ^8.2.1
   collection: ^1.19.1
   cupertino_icons: ^1.0.8
   google_sign_in: ^7.2.0
   flutter_svg: ^2.3.0
+  share_plus: ^13.3.1
 
 dev_dependencies:
   flutter_test:
@@ -67,8 +67,22 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-  # Inter (font tiêu đề, giống web). google_fonts ưu tiên file trong thư mục này;
-  # thiếu file thì tải một lần qua mạng rồi cache trên máy. Xem
-  # assets/google_fonts/README.md để đóng gói sẵn cho bản release.
+  # Be Vietnam Pro — thiết kế riêng cho tiếng Việt (dấu xếp chồng không bị cắt).
+  # Nhúng sẵn, không tải qua mạng: app phải mở được và soạn phiếu khi offline.
+  # Giấy phép SIL OFL 1.1 — assets/fonts/OFL.txt.
   assets:
-    - assets/google_fonts/
+    - assets/fonts/OFL.txt
+
+  fonts:
+    - family: BeVietnamPro
+      fonts:
+        - asset: assets/fonts/BeVietnamPro-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/BeVietnamPro-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/BeVietnamPro-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/BeVietnamPro-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/BeVietnamPro-ExtraBold.ttf
+          weight: 800

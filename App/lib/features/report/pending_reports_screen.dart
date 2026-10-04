@@ -10,6 +10,7 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/async_states.dart';
 import '../../core/widgets/photo_evidence_strip.dart';
+import '../../core/widgets/status_chips.dart';
 import '../../data/local/draft_store.dart';
 import '../../data/repositories/issue_repository.dart';
 import '../../data/repositories/meta_repository.dart';
@@ -227,10 +228,10 @@ class _EditDraftSheetState extends ConsumerState<_EditDraftSheet> {
               runSpacing: Gap.sm,
               children: [
                 for (final c in meta.categories)
-                  ChoiceChip(
-                    label: Text('${c.icon} ${c.label}'),
+                  CategoryChoiceChip(
+                    category: c.value,
                     selected: _category == c.value,
-                    onSelected: (_) => setState(() => _category = c.value),
+                    onSelected: () => setState(() => _category = c.value),
                   ),
               ],
             ),

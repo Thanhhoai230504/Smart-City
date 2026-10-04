@@ -79,6 +79,7 @@ const NOTIFICATION_TYPE_LABELS = {
   issue_reopened: 'Sự cố được mở lại',
   issue_rated: 'Người dân đã đánh giá',
   issue_unassigned: 'Sự cố được thu hồi',
+  department_evaluated: 'Đánh giá đơn vị',
 };
 
 /**

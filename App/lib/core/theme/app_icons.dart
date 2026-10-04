@@ -50,6 +50,18 @@ abstract final class AppIcons {
         _ => Icons.notifications_none,
       };
 
+  /// Icon danh mục — thay emoji của meta bằng nét icon đồng bộ với phần còn lại
+  /// của app. Danh mục backend thêm sau rơi vào nhánh mặc định.
+  static IconData category(String key) => switch (key) {
+        'pothole' => Icons.construction,
+        'garbage' => Icons.delete_outline,
+        'streetlight' => Icons.lightbulb_outline,
+        'flooding' => Icons.flood_outlined,
+        'tree' => Icons.park_outlined,
+        'other' => Icons.push_pin_outlined,
+        _ => Icons.report_outlined,
+      };
+
   static IconData placeType(String type) => switch (type) {
         'hospital' => Icons.local_hospital,
         'school' => Icons.school,

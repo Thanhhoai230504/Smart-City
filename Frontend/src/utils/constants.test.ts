@@ -7,6 +7,9 @@ import {
   PRIORITY_MAP,
   SLA_STATUS_MAP,
   REOPENED_BADGE,
+  DEPARTMENT_SCORE_LABEL_STYLE,
+  EVALUATION_DECISION_STYLE,
+  AUDIT_ACTIONS,
 } from './constants';
 import { DEFAULT_REOPEN_RULES } from './reopen';
 import { NOTIFICATION_TYPES } from './constants';
@@ -134,6 +137,14 @@ describe('chip colours meet WCAG AA (4.5:1) for text', () => {
     expect(contrast(REOPENED_BADGE.text, REOPENED_BADGE.bg)).toBeGreaterThanOrEqual(4.5);
   });
 
+  it.each(Object.entries(DEPARTMENT_SCORE_LABEL_STYLE))('department score label %s', (_, s) => {
+    expect(contrast(s.text, s.bg)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each(Object.entries(EVALUATION_DECISION_STYLE))('evaluation decision %s', (_, s) => {
+    expect(contrast(s.text, s.bg)).toBeGreaterThanOrEqual(4.5);
+  });
+
   // Màu đồ hoạ (`color`) giữ tươi cho biểu đồ, nhưng không được bị dùng làm chữ:
   // nếu `text` vô tình trùng `color` thì quy ước hai vai trò đã bị phá.
   it('keeps the graphic colour separate from the text colour', () => {
@@ -160,5 +171,23 @@ describe('notification types stay in sync with the backend', () => {
 
     expect(backend.length).toBeGreaterThan(5); // regex hỏng thì không được pass ăn may
     expect([...NOTIFICATION_TYPES].sort()).toEqual([...backend].sort());
+  });
+});
+
+/**
+ * Hành động nhật ký cũng vậy: web từng thiếu 'issue.reopened', 'comment.hidden',
+ * 'comment.restored' nên các dòng đó hiện nhãn rỗng ở tab Nhật ký hoạt động.
+ */
+const BACKEND_AUDIT_MODEL = resolve(__dirname, '../../../Backend/src/models/AuditLog.js');
+
+describe('audit actions stay in sync with the backend', () => {
+  it.skipIf(!existsSync(BACKEND_AUDIT_MODEL))('matches AUDIT_ACTIONS in Backend/src/models/AuditLog.js', () => {
+    const source = readFileSync(BACKEND_AUDIT_MODEL, 'utf8');
+    const block = source.match(/const AUDIT_ACTIONS = \[([\s\S]*?)\];/);
+    expect(block, 'không tìm thấy AUDIT_ACTIONS trong model AuditLog').not.toBeNull();
+    const backend = [...block![1].matchAll(/'([a-z_.]+)'/g)].map((m) => m[1]);
+
+    expect(backend.length).toBeGreaterThan(5);
+    expect([...AUDIT_ACTIONS].sort()).toEqual([...backend].sort());
   });
 });

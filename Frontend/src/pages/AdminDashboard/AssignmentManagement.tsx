@@ -41,10 +41,7 @@ import {
   ThumbUp,
 } from '@mui/icons-material';
 import { issueApi } from '../../api/issueApi';
-import { departmentApi } from '../../api/departmentApi';
 import {
-  DepartmentStaff,
-  DepartmentSuggestion,
   Issue,
   Pagination as PaginationData,
   PriorityLevel,
@@ -52,6 +49,7 @@ import {
 import { CATEGORY_MAP, PRIORITY_MAP } from '../../utils/constants';
 import SlaBadge from '../../components/SlaBadge';
 import PriorityBadge from '../../components/PriorityBadge';
+import AssignIssueDialog from '../../components/AssignIssueDialog';
 import { cellSx, GlassCard, headCellSx } from './types';
 
 interface ApiErrorResponse {
@@ -106,15 +104,6 @@ const AssignmentManagement: React.FC = () => {
   const [recalculating, setRecalculating] = useState(false);
 
   const [assignTarget, setAssignTarget] = useState<Issue | null>(null);
-  const [suggestions, setSuggestions] = useState<DepartmentSuggestion[]>([]);
-  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
-  const [suggestionError, setSuggestionError] = useState('');
-  const [selectedDepartmentId, setSelectedDepartmentId] = useState('');
-  const [staff, setStaff] = useState<DepartmentStaff[]>([]);
-  const [staffLoading, setStaffLoading] = useState(false);
-  const [selectedAssigneeId, setSelectedAssigneeId] = useState('');
-  const [assignmentNote, setAssignmentNote] = useState('');
-  const [assigning, setAssigning] = useState(false);
 
   const [unassignTarget, setUnassignTarget] = useState<Issue | null>(null);
   const [unassignNote, setUnassignNote] = useState('');
@@ -196,102 +185,24 @@ const AssignmentManagement: React.FC = () => {
     }
   };
 
-  const loadDepartmentStaff = async (departmentId: string) => {
-    setSelectedAssigneeId('');
-    setStaff([]);
-    if (!departmentId) return;
+  const openAssignmentDialog = (issue: Issue) => setAssignTarget(issue);
 
-    setStaffLoading(true);
-    try {
-      const { data } = await departmentApi.getStaff(departmentId);
-      setStaff(data.data.staff);
-    } catch (error) {
-      setSnack({
-        open: true,
-        message: getErrorMessage(error, 'Không thể tải cán bộ của đơn vị.'),
-        severity: 'error',
-      });
-    } finally {
-      setStaffLoading(false);
-    }
-  };
-
-  const openAssignmentDialog = async (issue: Issue) => {
-    setAssignTarget(issue);
-    setSuggestions([]);
-    setSuggestionError('');
-    setSelectedDepartmentId('');
-    setStaff([]);
-    setSelectedAssigneeId('');
-    setAssignmentNote('');
-    setSuggestionsLoading(true);
-
-    try {
-      const { data } = await departmentApi.suggestForCategory(issue.category);
-      const departments = data.data.departments;
-      setSuggestions(departments);
-
-      if (departments.length === 1) {
-        setSelectedDepartmentId(departments[0]._id);
-        await loadDepartmentStaff(departments[0]._id);
-      }
-    } catch (error) {
-      setSuggestionError(getErrorMessage(error, 'Không thể lấy gợi ý đơn vị.'));
-    } finally {
-      setSuggestionsLoading(false);
-    }
-  };
-
-  const closeAssignmentDialog = () => {
-    if (assigning) return;
+  // Hộp thoại dùng chung (components/AssignIssueDialog) tự lo gợi ý đơn vị, cán bộ và
+  // lỗi; ở đây chỉ tải lại hai bảng sau khi phân công xong.
+  const handleAssigned = async () => {
+    const nextQueuePage = queue.length === 1 && queuePagination.current > 1
+      ? queuePagination.current - 1
+      : queuePagination.current;
     setAssignTarget(null);
-    setSuggestions([]);
-    setSelectedDepartmentId('');
-    setStaff([]);
-    setSelectedAssigneeId('');
-    setAssignmentNote('');
-    setSuggestionError('');
-  };
-
-  const handleDepartmentChange = async (event: SelectChangeEvent) => {
-    const departmentId = event.target.value;
-    setSelectedDepartmentId(departmentId);
-    await loadDepartmentStaff(departmentId);
-  };
-
-  const handleAssign = async () => {
-    if (!assignTarget || !selectedDepartmentId) return;
-
-    setAssigning(true);
-    try {
-      await issueApi.assignIssue(assignTarget._id, {
-        departmentId: selectedDepartmentId,
-        assigneeId: selectedAssigneeId || undefined,
-        note: assignmentNote.trim() || undefined,
-      });
-
-      const nextQueuePage = queue.length === 1 && queuePagination.current > 1
-        ? queuePagination.current - 1
-        : queuePagination.current;
-      setAssignTarget(null);
-      setSnack({
-        open: true,
-        message: 'Đã phân công sự cố và bắt đầu tính SLA.',
-        severity: 'success',
-      });
-      await Promise.all([
-        loadQueue(nextQueuePage),
-        loadAssignedIssues(1),
-      ]);
-    } catch (error) {
-      setSnack({
-        open: true,
-        message: getErrorMessage(error, 'Không thể phân công sự cố.'),
-        severity: 'error',
-      });
-    } finally {
-      setAssigning(false);
-    }
+    setSnack({
+      open: true,
+      message: 'Đã phân công sự cố và bắt đầu tính SLA.',
+      severity: 'success',
+    });
+    await Promise.all([
+      loadQueue(nextQueuePage),
+      loadAssignedIssues(1),
+    ]);
   };
 
   const handleUnassign = async () => {
@@ -325,10 +236,6 @@ const AssignmentManagement: React.FC = () => {
       setUnassigning(false);
     }
   };
-
-  const selectedSuggestion = suggestions.find(
-    (department) => department._id === selectedDepartmentId,
-  );
 
   return (
     <>
@@ -665,138 +572,11 @@ const AssignmentManagement: React.FC = () => {
         )}
       </GlassCard>
 
-      <Dialog
-        open={!!assignTarget}
-        onClose={closeAssignmentDialog}
-        fullWidth
-        maxWidth="sm"
-        PaperProps={{
-          sx: {
-            bgcolor: '#FFFFFF',
-            border: '1px solid #DCE7EB',
-            borderRadius: '16px',
-          },
-        }}
-      >
-        <DialogTitle>Phân công sự cố</DialogTitle>
-        <DialogContent>
-          {assignTarget && (
-            <Stack spacing={2.25} mt={0.5}>
-              <Box
-                sx={{
-                  p: 1.5,
-                  borderRadius: '10px',
-                  bgcolor: '#F7FAFA',
-                  border: '1px solid #DCE7EB',
-                }}
-              >
-                <Typography fontWeight={600}>{assignTarget.title}</Typography>
-                <Stack direction="row" spacing={1} mt={0.75} flexWrap="wrap">
-                  <Chip
-                    size="small"
-                    label={`${CATEGORY_MAP[assignTarget.category].icon} ${CATEGORY_MAP[assignTarget.category].label}`}
-                  />
-                  <PriorityBadge issue={assignTarget} />
-                  <Chip
-                    size="small"
-                    icon={<ThumbUp />}
-                    label={`${assignTarget.voteCount || 0} lượt đồng thuận`}
-                  />
-                </Stack>
-              </Box>
-
-              {suggestionError && <Alert severity="error">{suggestionError}</Alert>}
-
-              {suggestionsLoading ? (
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <CircularProgress size={20} />
-                  <Typography color="text.secondary">Đang tìm đơn vị phù hợp...</Typography>
-                </Stack>
-              ) : suggestions.length === 0 && !suggestionError ? (
-                <Alert severity="warning">
-                  Chưa có đơn vị đang hoạt động phụ trách loại sự cố này.
-                  Hãy cấu hình loại phụ trách trong tab “Đơn vị xử lý”.
-                </Alert>
-              ) : (
-                <FormControl fullWidth>
-                  <InputLabel id="assignment-department-label">Đơn vị xử lý</InputLabel>
-                  <Select
-                    labelId="assignment-department-label"
-                    value={selectedDepartmentId}
-                    label="Đơn vị xử lý"
-                    onChange={handleDepartmentChange}
-                  >
-                    {suggestions.map((department) => (
-                      <MenuItem key={department._id} value={department._id}>
-                        ⭐ {department.code} — {department.name} · SLA {department.slaHoursEffective} giờ
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              )}
-
-              {selectedSuggestion && (
-                <Alert severity="info">
-                  SLA hiệu lực: <strong>{selectedSuggestion.slaHoursEffective} giờ</strong> kể từ lúc phân công
-                  {selectedSuggestion.slaHours
-                    ? ` (đơn vị ghi đè ${selectedSuggestion.slaHours} giờ).`
-                    : ' (theo loại sự cố).'}
-                </Alert>
-              )}
-
-              <FormControl fullWidth disabled={!selectedDepartmentId || staffLoading}>
-                <InputLabel id="assignment-staff-label">Cán bộ phụ trách (tuỳ chọn)</InputLabel>
-                <Select
-                  labelId="assignment-staff-label"
-                  value={selectedAssigneeId}
-                  label="Cán bộ phụ trách (tuỳ chọn)"
-                  onChange={(event: SelectChangeEvent) => setSelectedAssigneeId(event.target.value)}
-                >
-                  <MenuItem value="">Không chỉ định — đơn vị tự nhận việc</MenuItem>
-                  {staff.map((member) => (
-                    <MenuItem key={member._id} value={member._id}>
-                      {member.name} — {member.email}
-                    </MenuItem>
-                  ))}
-                </Select>
-                {staffLoading && (
-                  <Typography variant="caption" color="text.secondary" mt={0.75}>
-                    Đang tải cán bộ...
-                  </Typography>
-                )}
-                {!staffLoading && selectedDepartmentId && staff.length === 0 && (
-                  <Typography variant="caption" color="warning.main" mt={0.75}>
-                    Đơn vị chưa có cán bộ hoạt động; thông báo vẫn được gửi tới email chung của đơn vị.
-                  </Typography>
-                )}
-              </FormControl>
-
-              <TextField
-                label="Ghi chú phân công"
-                multiline
-                minRows={3}
-                value={assignmentNote}
-                inputProps={{ maxLength: 500 }}
-                helperText={`${assignmentNote.length}/500`}
-                onChange={(event) => setAssignmentNote(event.target.value)}
-              />
-            </Stack>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button onClick={closeAssignmentDialog} disabled={assigning} sx={{ color: 'text.secondary' }}>
-            Huỷ
-          </Button>
-          <Button
-            variant="contained"
-            onClick={handleAssign}
-            disabled={!selectedDepartmentId || assigning || suggestionsLoading}
-            startIcon={assigning ? <CircularProgress size={16} color="inherit" /> : undefined}
-          >
-            {assigning ? 'Đang phân công...' : 'Xác nhận phân công'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <AssignIssueDialog
+        issue={assignTarget}
+        onClose={() => setAssignTarget(null)}
+        onAssigned={handleAssigned}
+      />
 
       <Dialog
         open={!!unassignTarget}

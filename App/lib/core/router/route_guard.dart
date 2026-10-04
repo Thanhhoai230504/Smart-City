@@ -47,6 +47,7 @@ const _publicPrefixes = <String>[
   Routes.cameras,
   Routes.chatbot,
   Routes.settings,
+  Routes.badges, // bảng xếp hạng công khai như web; huy hiệu riêng tự mời đăng nhập
 ];
 
 const _authScreens = <String>[

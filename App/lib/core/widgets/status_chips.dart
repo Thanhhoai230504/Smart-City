@@ -35,8 +35,8 @@ class InfoChip extends StatelessWidget {
       excludeSemantics: true,
       child: Container(
         padding: EdgeInsets.symmetric(
-          horizontal: dense ? 6 : Gap.sm,
-          vertical: dense ? 2 : Gap.xs,
+          horizontal: dense ? 8 : 10,
+          vertical: dense ? 3 : 5,
         ),
         decoration: BoxDecoration(
           color: colors.container,
@@ -45,8 +45,8 @@ class InfoChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: dense ? 14 : 16, color: colors.text),
-            const SizedBox(width: 4),
+            Icon(icon, size: dense ? 13 : 15, color: colors.text),
+            const SizedBox(width: 5),
             Flexible(
               child: Text(label, style: style, maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
@@ -138,7 +138,7 @@ class ReopenedChip extends StatelessWidget {
       );
 }
 
-/// Danh mục: emoji + nhãn từ meta, nền trung tính (màu category chỉ cho đồ hoạ).
+/// Danh mục: icon màu của danh mục + nhãn từ meta.
 class CategoryLabel extends ConsumerWidget {
   const CategoryLabel(this.category, {super.key, this.style});
 
@@ -148,11 +148,39 @@ class CategoryLabel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = ref.watch(metaProvider).category(category);
-    return Text(
-      '${c.icon} ${c.label}',
-      style: style ?? Theme.of(context).textTheme.labelMedium,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
+    final tone = CategoryTone.of(hexColor(c.color), context.palette);
+    final textStyle = style ?? Theme.of(context).textTheme.labelMedium;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(AppIcons.category(category), size: (textStyle?.fontSize ?? 13) + 3, color: tone.ink),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Text(c.label, style: textStyle, maxLines: 1, overflow: TextOverflow.ellipsis),
+        ),
+      ],
+    );
+  }
+}
+
+/// Chip chọn danh mục (form báo cáo, sửa phiếu chờ gửi): icon màu + nhãn.
+class CategoryChoiceChip extends ConsumerWidget {
+  const CategoryChoiceChip({super.key, required this.category, required this.selected, required this.onSelected});
+
+  final String category;
+  final bool selected;
+  final VoidCallback onSelected;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = ref.watch(metaProvider).category(category);
+    final tone = CategoryTone.of(hexColor(c.color), context.palette);
+    return ChoiceChip(
+      showCheckmark: false,
+      avatar: Icon(AppIcons.category(category), size: 18, color: tone.ink),
+      label: Text(c.label),
+      selected: selected,
+      onSelected: (_) => onSelected(),
     );
   }
 }

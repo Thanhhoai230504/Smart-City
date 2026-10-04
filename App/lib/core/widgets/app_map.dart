@@ -18,6 +18,18 @@ Widget baseTileLayer() => !mapTilesEnabled
         tileProvider: NetworkTileProvider(),
       );
 
+/// Lớp lưu lượng giao thông (TomTom) — tải **qua proxy backend**
+/// `/geo/tiles/traffic`, API key không nằm trong app. Tile trong suốt, chỉ có
+/// các vạch màu xanh/vàng/cam/đỏ trên đường.
+Widget trafficTileLayer() => !mapTilesEnabled
+    ? const SizedBox.shrink()
+    : TileLayer(
+        urlTemplate: '${AppConfig.apiUrl}/geo/tiles/traffic/{z}/{x}/{y}.png',
+        userAgentPackageName: 'vn.danang.smartcity.smart_city_app',
+        maxNativeZoom: 18,
+        tileProvider: NetworkTileProvider(),
+      );
+
 /// Ghi nguồn bản đồ. Tự viết thay `SimpleAttributionWidget` của flutter_map —
 /// widget đó tràn ngang khi chữ hệ thống phóng to 1.6×.
 Widget mapAttribution() => const _Attribution();

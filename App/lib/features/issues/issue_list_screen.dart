@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/router/route_guard.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/utils/debouncer.dart';
 import '../../core/utils/paged_controller.dart';
@@ -13,6 +15,7 @@ import '../../data/models/common.dart';
 import '../../data/models/issue.dart';
 import '../../data/repositories/issue_repository.dart';
 import '../../data/repositories/meta_repository.dart';
+import 'widgets/filter_bar.dart';
 import 'widgets/issue_card.dart';
 
 final issueQueryProvider = StateProvider.autoDispose<IssueQuery>((ref) => const IssueQuery());
@@ -78,10 +81,15 @@ class _IssueListScreenState extends ConsumerState<IssueListScreen> {
                     onChanged: (v) => _debounce(() {
                       ref.read(issueQueryProvider.notifier).update((q) => q.copyWith(search: v));
                     }),
-                    decoration: const InputDecoration(
-                      prefixIcon: Icon(Icons.search),
+                    decoration: InputDecoration(
+                      prefixIcon: const Icon(Icons.search),
                       hintText: 'Tìm theo tiêu đề, mô tả…',
                       isDense: true,
+                      fillColor: context.palette.surface,
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(Radii.input),
+                        borderSide: BorderSide(color: context.palette.border),
+                      ),
                     ),
                   ),
                 ),
@@ -89,7 +97,7 @@ class _IssueListScreenState extends ConsumerState<IssueListScreen> {
                 Badge(
                   isLabelVisible: query.activeFilterCount > 0,
                   label: Text('${query.activeFilterCount}'),
-                  child: IconButton.outlined(
+                  child: IconButton.filledTonal(
                     tooltip: 'Bộ lọc và sắp xếp',
                     onPressed: () => showIssueFilterSheet(context, ref, issueQueryProvider),
                     icon: const Icon(Icons.tune),
@@ -104,6 +112,13 @@ class _IssueListScreenState extends ConsumerState<IssueListScreen> {
         state: state,
         onRefresh: controller.refresh,
         onLoadMore: controller.loadMore,
+        header: IssueFilterBar(
+          provider: issueQueryProvider,
+          total: state.pagination.total,
+          loading: state.isLoading,
+          onClearAll: _search.clear,
+        ),
+        padding: const EdgeInsets.fromLTRB(Gap.screen, Gap.xs, Gap.screen, 120),
         itemBuilder: (context, issue) => IssueCard(
           issue: issue,
           onTap: () => context.push(Routes.issue(issue.id)),
@@ -172,28 +187,53 @@ class _FilterSheetState extends ConsumerState<_FilterSheet> {
     final meta = ref.watch(metaProvider);
     final textTheme = Theme.of(context).textTheme;
 
-    Widget section(String title, List<Widget> chips) => Padding(
-          padding: const EdgeInsets.only(bottom: Gap.lg),
+    final palette = context.palette;
+
+    Widget section(String title, IconData icon, List<Widget> chips) => Padding(
+          padding: const EdgeInsets.only(bottom: Gap.xl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: textTheme.titleSmall),
-              Gap.h8,
+              Row(
+                children: [
+                  Icon(icon, size: 18, color: palette.primary),
+                  Gap.w8,
+                  Text(title, style: textTheme.titleSmall),
+                ],
+              ),
+              Gap.h12,
               Wrap(spacing: Gap.sm, runSpacing: Gap.sm, children: chips),
             ],
           ),
         );
 
-    ChoiceChip choice(String label, bool selected, VoidCallback onTap) =>
-        ChoiceChip(label: Text(label), selected: selected, onSelected: (_) => onTap());
+    ChoiceChip choice(String label, bool selected, VoidCallback onTap, {Widget? avatar}) => ChoiceChip(
+          label: Text(label),
+          avatar: avatar,
+          showCheckmark: avatar == null,
+          selected: selected,
+          onSelected: (_) => onTap(),
+        );
 
-    final sorts = <(String, String)>[
-      ('-createdAt', 'Mới nhất'),
-      ('createdAt', 'Cũ nhất'),
-      ('-voteCount', 'Nhiều ủng hộ'),
-      if (widget.staffMode) ('-priorityScore', 'Ưu tiên cao'),
-      if (widget.staffMode) ('dueAt', 'Hạn gần nhất'),
-    ];
+    final sorts = issueSortOptions(staffMode: widget.staffMode);
+    final today = DateUtils.dateOnly(DateTime.now());
+    bool isLastDays(int days) =>
+        _q.dateTo == null && _q.dateFrom == today.subtract(Duration(days: days - 1));
+    final customRange = _q.hasDateRange && !isLastDays(7) && !isLastDays(30);
+
+    Future<void> pickRange() async {
+      final picked = await showDateRangePicker(
+        context: context,
+        firstDate: DateTime(2024),
+        lastDate: today,
+        initialDateRange: _q.dateFrom != null
+            ? DateTimeRange(start: _q.dateFrom!, end: _q.dateTo ?? today)
+            : null,
+        helpText: 'Chọn khoảng ngày báo cáo',
+        saveText: 'Chọn',
+      );
+      if (picked != null) setState(() => _q = _q.copyWith(dateFrom: picked.start, dateTo: picked.end));
+    }
 
     return DraggableScrollableSheet(
       expand: false,
@@ -209,7 +249,7 @@ class _FilterSheetState extends ConsumerState<_FilterSheet> {
                 Text('Bộ lọc', style: textTheme.titleLarge),
                 Gap.h16,
                 if (widget.staffMode)
-                  section('Phân công', [
+                  section('Phân công', Icons.assignment_ind_outlined, [
                     choice('Tất cả việc của đơn vị', _q.assigneeId == null,
                         () => setState(() => _q = _q.copyWith(assigneeId: null))),
                     if (widget.currentUserId != null)
@@ -217,7 +257,7 @@ class _FilterSheetState extends ConsumerState<_FilterSheet> {
                           () => setState(() => _q = _q.copyWith(assigneeId: widget.currentUserId))),
                   ]),
                 if (widget.staffMode)
-                  section('Hạn xử lý', [
+                  section('Hạn xử lý', Icons.timer_outlined, [
                     choice('Tất cả', _q.slaStatus == null,
                         () => setState(() => _q = _q.copyWith(slaStatus: null))),
                     choice(meta.slaLabel('overdue'), _q.slaStatus == 'overdue',
@@ -227,36 +267,60 @@ class _FilterSheetState extends ConsumerState<_FilterSheet> {
                     choice('Bị người dân mở lại', _q.reopened,
                         () => setState(() => _q = _q.copyWith(reopened: !_q.reopened))),
                   ]),
-                section('Trạng thái', [
+                section('Trạng thái', Icons.flag_outlined, [
                   choice('Tất cả', _q.status == null, () => setState(() => _q = _q.copyWith(status: null))),
                   for (final s in meta.statuses)
                     choice(s.label, _q.status == s.value,
                         () => setState(() => _q = _q.copyWith(status: s.value))),
                 ]),
                 if (widget.staffMode)
-                  section('Mức ưu tiên', [
+                  section('Mức ưu tiên', Icons.priority_high, [
                     choice('Tất cả', _q.priorityLevel == null,
                         () => setState(() => _q = _q.copyWith(priorityLevel: null))),
                     for (final p in meta.priorities.reversed)
                       choice(p.label, _q.priorityLevel == p.value,
                           () => setState(() => _q = _q.copyWith(priorityLevel: p.value))),
                   ]),
-                section('Loại sự cố', [
+                section('Loại sự cố', Icons.category_outlined, [
                   choice('Tất cả', _q.category == null,
                       () => setState(() => _q = _q.copyWith(category: null))),
                   for (final c in meta.categories)
-                    choice('${c.icon} ${c.label}', _q.category == c.value,
-                        () => setState(() => _q = _q.copyWith(category: c.value))),
+                    choice(
+                      c.label,
+                      _q.category == c.value,
+                      () => setState(() => _q = _q.copyWith(category: c.value)),
+                      avatar: Icon(
+                        AppIcons.category(c.value),
+                        size: 18,
+                        color: CategoryTone.of(hexColor(c.color), palette).ink,
+                      ),
+                    ),
+                ]),
+                section('Thời gian báo cáo', Icons.event_outlined, [
+                  choice('Mọi lúc', !_q.hasDateRange,
+                      () => setState(() => _q = _q.copyWith(dateFrom: null, dateTo: null))),
+                  choice('7 ngày qua', isLastDays(7), () => setState(() {
+                        _q = _q.copyWith(dateFrom: today.subtract(const Duration(days: 6)), dateTo: null);
+                      })),
+                  choice('30 ngày qua', isLastDays(30), () => setState(() {
+                        _q = _q.copyWith(dateFrom: today.subtract(const Duration(days: 29)), dateTo: null);
+                      })),
+                  choice(
+                    customRange ? dateRangeLabel(_q.dateFrom, _q.dateTo) : 'Chọn ngày…',
+                    customRange,
+                    pickRange,
+                    avatar: const Icon(Icons.date_range, size: 18),
+                  ),
                 ]),
                 if (!widget.staffMode)
-                  section('Khu vực', [
+                  section('Khu vực', Icons.location_on_outlined, [
                     choice('Tất cả', _q.district == null,
                         () => setState(() => _q = _q.copyWith(district: null))),
                     for (final a in meta.areas)
                       choice(a.label, _q.district == a.value,
                           () => setState(() => _q = _q.copyWith(district: a.value))),
                   ]),
-                section('Sắp xếp', [
+                section('Sắp xếp', Icons.sort, [
                   for (final (value, label) in sorts)
                     choice(label, _q.sort == value, () => setState(() => _q = _q.copyWith(sort: value))),
                 ]),

@@ -64,6 +64,11 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   'issue.claimed': 'Nhận việc',
   'issue.merged': 'Gộp sự cố',
   'issue.priority_recalculated': 'Tính lại điểm ưu tiên',
+  'issue.reopened': 'Người dân mở lại',
+  'comment.hidden': 'Ẩn bình luận',
+  'comment.restored': 'Hiện lại bình luận',
+  'department.evaluated': 'Ghi quyết định đánh giá',
+  'department.evaluation_revoked': 'Huỷ quyết định đánh giá',
 };
 
 const ACTION_COLORS: Record<AuditAction, string> = {
@@ -77,6 +82,11 @@ const ACTION_COLORS: Record<AuditAction, string> = {
   'issue.claimed': '#14B8A6',
   'issue.merged': '#A855F7',
   'issue.priority_recalculated': '#EAB308',
+  'issue.reopened': '#C2410C',
+  'comment.hidden': '#5B6670',
+  'comment.restored': '#0F766E',
+  'department.evaluated': '#17543E',
+  'department.evaluation_revoked': '#8C1D16',
 };
 
 const getErrorMessage = (error: unknown) => {

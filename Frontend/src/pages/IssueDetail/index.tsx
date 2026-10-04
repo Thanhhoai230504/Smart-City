@@ -21,7 +21,7 @@ import {
   FiberManualRecord, CheckCircle, Pending, Cancel,
   Phone, Email, Description, ThumbUp, ThumbUpOffAlt,
   Share, Facebook, ContentCopy, Link as LinkIcon,
-  Star,
+  Star, AssignmentInd,
 } from '@mui/icons-material';
 import { CATEGORY_MAP, STATUS_MAP, getAllowedStatusTargets } from '../../utils/constants';
 import { getReopenEligibility, getReopenRules, REOPEN_BLOCK_MESSAGES, ReopenBlockReason } from '../../utils/reopen';
@@ -34,6 +34,8 @@ import PriorityBadge from '../../components/PriorityBadge';
 import IssuePhotoComparison from './IssuePhotoComparison';
 import NearbyCameras from './NearbyCameras';
 import NearbyIssues from './NearbyIssues';
+import AssignIssueDialog from '../../components/AssignIssueDialog';
+import { canAssignIssue } from '../../utils/assignment';
 import { toast } from 'react-toastify';
 
 const CATEGORY_LABELS_VN: Record<string, string> = {
@@ -93,6 +95,7 @@ const IssueDetailPage: React.FC = () => {
   const [reopenOpen, setReopenOpen] = useState(false);
   const [reopenReason, setReopenReason] = useState('');
   const [submittingReopen, setSubmittingReopen] = useState(false);
+  const [assignOpen, setAssignOpen] = useState(false);
   const [submittingRating, setSubmittingRating] = useState(false);
 
   useEffect(() => {
@@ -212,6 +215,9 @@ const IssueDetailPage: React.FC = () => {
   // suy ra từ category bằng danh sách hardcode.
   const dept = typeof issue.departmentId === 'object' ? (issue.departmentId as Department) : null;
   const assignee = typeof issue.assigneeId === 'object' ? issue.assigneeId : null;
+  // Admin bấm vào thông báo "có sự cố mới" là phân công được ngay tại đây, không phải
+  // quay lại tab Phân công tìm sự cố. Cùng điều kiện với backend (utils/assignment.ts).
+  const canAssign = canAssignIssue(issue, user?.role);
 
   const handleReopen = async () => {
     if (!id || reopenReason.trim().length < reopenRules.minReasonLength || submittingReopen) return;
@@ -537,9 +543,16 @@ const IssueDetailPage: React.FC = () => {
                   📞 Đơn vị phụ trách
                 </Typography>
                 {!dept ? (
-                  <Typography variant="body2" color="text.secondary">
-                    Chưa phân công. Hãy phân công sự cố cho một đơn vị để bắt đầu tính hạn xử lý.
-                  </Typography>
+                  <>
+                    <Typography variant="body2" color="text.secondary" mb={canAssign ? 1.5 : 0}>
+                      Chưa phân công. Hãy phân công sự cố cho một đơn vị để bắt đầu tính hạn xử lý.
+                    </Typography>
+                    {canAssign && (
+                      <Button fullWidth variant="contained" startIcon={<AssignmentInd />} onClick={() => setAssignOpen(true)}>
+                        Phân công ngay
+                      </Button>
+                    )}
+                  </>
                 ) : (
                   <>
                     <Stack direction="row" alignItems="center" spacing={1} mb={1}>
@@ -573,11 +586,27 @@ const IssueDetailPage: React.FC = () => {
                         </Typography>
                       )}
                     </Stack>
+                    {canAssign && (
+                      <Button size="small" variant="outlined" startIcon={<AssignmentInd />}
+                        onClick={() => setAssignOpen(true)} sx={{ mt: 1.5 }}>
+                        Phân công lại
+                      </Button>
+                    )}
                   </>
                 )}
               </CardContent>
             </Card>
           )}
+
+          <AssignIssueDialog
+            issue={assignOpen ? issue : null}
+            onClose={() => setAssignOpen(false)}
+            onAssigned={() => {
+              setAssignOpen(false);
+              toast.success('Đã phân công sự cố và bắt đầu tính SLA.');
+              if (id) dispatch(fetchIssueById(id));
+            }}
+          />
 
           {/* XUẤT CÔNG VĂN */}
           {isAdmin && (

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/network/app_exception.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/widgets/surfaces.dart';
 import '../../data/repositories/support_repositories.dart';
 
 class ChatMessage {
@@ -13,6 +14,14 @@ class ChatMessage {
   final String role;
   final String content;
 }
+
+/// Câu hỏi gợi ý — cùng bộ "quick actions" của widget chatbot trên web.
+const chatbotQuickActions = <(IconData, String, String)>[
+  (Icons.edit_note, 'Cách báo cáo sự cố', 'Hướng dẫn tôi cách báo cáo sự cố'),
+  (Icons.insights_outlined, 'Thống kê sự cố', 'Cho tôi xem thống kê sự cố hiện tại'),
+  (Icons.map_outlined, 'Hướng dẫn dùng bản đồ', 'Hướng dẫn sử dụng bản đồ'),
+  (Icons.support_agent, 'Liên hệ hỗ trợ', 'Tôi muốn liên hệ hỗ trợ'),
+];
 
 /// Trợ lý hỏi đáp (task 2.10). `chatbotLimiter` 25 tin/15 phút — chạm trần thì
 /// **báo lịch sự**, không crash và không mất cuộc trò chuyện.
@@ -34,12 +43,6 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
   final _scroll = ScrollController();
   bool _sending = false;
   String? _notice;
-
-  static const _suggestions = [
-    'Làm sao để báo cáo ổ gà?',
-    'Bao lâu thì sự cố được xử lý?',
-    'Tôi có thể mở lại sự cố không?',
-  ];
 
   @override
   void dispose() {
@@ -94,57 +97,61 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
   Widget build(BuildContext context) {
     final palette = context.palette;
     final textTheme = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Trợ lý Smart City')),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              controller: _scroll,
-              padding: const EdgeInsets.all(Gap.screen),
-              itemCount: _messages.length + (_sending ? 1 : 0),
-              itemBuilder: (context, i) {
-                if (i == _messages.length) {
-                  return Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text('Trợ lý đang trả lời…', style: textTheme.bodySmall),
-                  );
-                }
-                final m = _messages[i];
-                final mine = m.role == 'user';
-                return Align(
-                  alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-                  child: Container(
-                    margin: const EdgeInsets.only(bottom: Gap.sm),
-                    padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm),
-                    constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.8),
-                    decoration: BoxDecoration(
-                      color: mine ? palette.primary : palette.surface,
-                      border: mine ? null : Border.all(color: palette.border),
-                      borderRadius: BorderRadius.circular(Radii.card),
-                    ),
-                    child: SelectableText(
-                      m.content,
-                      style: textTheme.bodyMedium?.copyWith(color: mine ? palette.onPrimary : palette.textPrimary),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          if (_messages.length == 1)
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: Gap.screenPadding,
-              child: Row(
+      appBar: AppBar(
+        titleSpacing: 0,
+        title: Row(
+          children: [
+            IconBubble(icon: Icons.support_agent, ink: palette.onPrimary, container: palette.primary, size: 38),
+            Gap.w12,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  for (final s in _suggestions) ...[
-                    ActionChip(label: Text(s), onPressed: () => _send(s)),
-                    Gap.w8,
-                  ],
+                  const Text('Trợ lý Smart City'),
+                  Text('Trả lời tự động bằng AI', style: textTheme.bodySmall),
                 ],
               ),
             ),
+          ],
+        ),
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView(
+              controller: _scroll,
+              padding: const EdgeInsets.fromLTRB(Gap.screen, Gap.sm, Gap.screen, Gap.md),
+              children: [
+                for (final m in _messages) _Bubble(message: m),
+                if (_sending) const _TypingBubble(),
+                if (_messages.length == 1) ...[
+                  Gap.h12,
+                  Text('Gợi ý câu hỏi', style: textTheme.titleSmall?.copyWith(color: palette.textSecondary)),
+                  Gap.h8,
+                  for (final (icon, label, message) in chatbotQuickActions)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: Gap.sm),
+                      child: AppCard(
+                        elevated: false,
+                        padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm + 2),
+                        onTap: () => _send(message),
+                        child: Row(
+                          children: [
+                            IconBubble(icon: icon, ink: scheme.onPrimaryContainer, container: scheme.primaryContainer, size: 34),
+                            Gap.w12,
+                            Expanded(child: Text(label, style: textTheme.titleSmall)),
+                            Icon(Icons.north_east, size: 18, color: palette.textSecondary),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ],
+            ),
+          ),
           if (_notice != null)
             Container(
               width: double.infinity,
@@ -152,34 +159,169 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
               padding: const EdgeInsets.all(Gap.md),
               child: Text(_notice!, style: textTheme.bodySmall?.copyWith(color: palette.offline.text)),
             ),
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(Gap.screen, Gap.sm, Gap.sm, Gap.sm),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _input,
-                      minLines: 1,
-                      maxLines: 4,
-                      maxLength: 500,
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => _send(),
-                      decoration: const InputDecoration(hintText: 'Nhập câu hỏi…', counterText: ''),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: palette.surface,
+              border: Border(top: BorderSide(color: palette.border)),
+            ),
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(Gap.screen, Gap.sm, Gap.sm, Gap.sm),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _input,
+                        minLines: 1,
+                        maxLines: 4,
+                        maxLength: 500,
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: (_) => _send(),
+                        decoration: InputDecoration(
+                          hintText: 'Nhập câu hỏi…',
+                          counterText: '',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide.none,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                  Gap.w8,
-                  IconButton.filled(
-                    tooltip: 'Gửi câu hỏi',
-                    onPressed: _sending ? null : _send,
-                    icon: const Icon(Icons.send),
-                  ),
-                ],
+                    Gap.w8,
+                    IconButton.filled(
+                      tooltip: 'Gửi câu hỏi',
+                      style: IconButton.styleFrom(minimumSize: const Size(52, 52)),
+                      onPressed: _sending ? null : _send,
+                      icon: const Icon(Icons.send_rounded),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _Bubble extends StatelessWidget {
+  const _Bubble({required this.message});
+
+  final ChatMessage message;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final textTheme = Theme.of(context).textTheme;
+    final mine = message.role == 'user';
+    const r = Radius.circular(18);
+    const tail = Radius.circular(4);
+
+    final bubble = Container(
+      padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm + 2),
+      constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.78),
+      decoration: BoxDecoration(
+        gradient: mine ? palette.brandGradient : null,
+        color: mine ? null : palette.surface,
+        border: mine ? null : Border.all(color: palette.border),
+        borderRadius: BorderRadius.only(
+          topLeft: mine ? r : tail,
+          topRight: mine ? tail : r,
+          bottomLeft: r,
+          bottomRight: r,
+        ),
+      ),
+      child: SelectableText(
+        message.content,
+        style: textTheme.bodyMedium?.copyWith(color: mine ? palette.onBrand : palette.textPrimary),
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Gap.sm),
+      child: Row(
+        mainAxisAlignment: mine ? MainAxisAlignment.end : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (!mine) ...[
+            IconBubble(
+              icon: Icons.support_agent,
+              ink: Theme.of(context).colorScheme.onPrimaryContainer,
+              container: Theme.of(context).colorScheme.primaryContainer,
+              size: 30,
+            ),
+            Gap.w8,
+          ],
+          Flexible(child: bubble),
+        ],
+      ),
+    );
+  }
+}
+
+/// "Đang trả lời" — ba chấm nhấp nháy thay cho dòng chữ tĩnh.
+class _TypingBubble extends StatefulWidget {
+  const _TypingBubble();
+
+  @override
+  State<_TypingBubble> createState() => _TypingBubbleState();
+}
+
+class _TypingBubbleState extends State<_TypingBubble> with SingleTickerProviderStateMixin {
+  late final _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 900))..repeat();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final reduceMotion = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    return Semantics(
+      label: 'Trợ lý đang trả lời',
+      child: Padding(
+        padding: const EdgeInsets.only(left: 38, bottom: Gap.sm),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.md),
+            decoration: BoxDecoration(
+              color: palette.surface,
+              border: Border.all(color: palette.border),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: AnimatedBuilder(
+              animation: _controller,
+              builder: (context, _) => Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (var i = 0; i < 3; i++)
+                    Container(
+                      width: 8,
+                      height: 8,
+                      margin: const EdgeInsets.symmetric(horizontal: 2),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: palette.textSecondary.withValues(
+                          alpha: reduceMotion ? 0.6 : 0.3 + 0.7 * (((_controller.value * 3 - i) % 3) < 1 ? 1 : 0),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

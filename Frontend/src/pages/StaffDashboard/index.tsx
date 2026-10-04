@@ -56,6 +56,7 @@ import ReopenedBadge from '../../components/ReopenedBadge';
 import PriorityBadge from '../../components/PriorityBadge';
 import SlaBadge from '../../components/SlaBadge';
 import UpdateStatusDialog from './UpdateStatusDialog';
+import DepartmentEvaluationsPanel from './DepartmentEvaluationsPanel';
 
 interface ApiErrorResponse {
   message?: string;
@@ -476,6 +477,10 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
               </Stack>
             </Stack>
           </Box>
+        )}
+
+        {!embedded && isStaff && departmentId && (
+          <DepartmentEvaluationsPanel departmentId={departmentId} />
         )}
 
         {missingDepartment && (

@@ -12,6 +12,7 @@ import '../../core/widgets/async_states.dart';
 import '../../core/widgets/photo_evidence_strip.dart';
 import '../../core/widgets/sla_countdown.dart';
 import '../../core/widgets/status_chips.dart';
+import '../../core/widgets/surfaces.dart';
 import '../../data/models/issue.dart';
 import '../../data/repositories/meta_repository.dart';
 import '../auth/auth_controller.dart';
@@ -136,10 +137,15 @@ class _StaffBodyState extends ConsumerState<_StaffBody> {
     ].where((t) => t != IssueStatus.unknown).toList();
 
     return ListView(
-      padding: const EdgeInsets.all(Gap.screen),
+      padding: const EdgeInsets.fromLTRB(Gap.screen, Gap.sm, Gap.screen, Gap.xxxl),
       children: [
-        Text(meta.categoryLabel(issue.category), style: textTheme.labelMedium?.copyWith(color: palette.textSecondary)),
-        Gap.h4,
+        Row(
+          children: [
+            Expanded(child: CategoryLabel(issue.category)),
+            Text(Fmt.relative(issue.createdAt), style: textTheme.bodySmall),
+          ],
+        ),
+        Gap.h8,
         Text(issue.title, style: textTheme.headlineSmall),
         Gap.h8,
         Wrap(
@@ -167,9 +173,21 @@ class _StaffBodyState extends ConsumerState<_StaffBody> {
         _ReporterCard(issue: issue),
         Gap.h12,
         if (canHandle) _AssignmentCard(issue: issue, mine: mine, busy: _busy, onClaim: _claim),
-        if (canHandle && targets.isNotEmpty) ...[
+        // Như web: chỉ cán bộ đang phụ trách mới đổi trạng thái — tránh hai người
+        // cùng xử lý một phiếu mà không biết nhau.
+        if (canHandle && !mine && targets.isNotEmpty) ...[
           Gap.h12,
-          Card(
+          Text(
+            issue.assignee == null
+                ? 'Nhận việc để cập nhật trạng thái phiếu này.'
+                : 'Chỉ cán bộ đang phụ trách mới cập nhật được trạng thái.',
+            style: textTheme.bodySmall,
+          ),
+        ],
+        if (canHandle && mine && targets.isNotEmpty) ...[
+          Gap.h12,
+          AppCard(
+            padding: EdgeInsets.zero,
             child: Padding(
               padding: const EdgeInsets.all(Gap.card),
               child: Column(
@@ -200,28 +218,50 @@ class _StaffBodyState extends ConsumerState<_StaffBody> {
           Gap.h12,
           _PriorityExplain(issue: issue),
         ],
-        Gap.h16,
-        PhotoEvidenceStrip(
-          label: 'Người dân chụp',
-          photos: [for (final u in issue.photoUrls) PhotoSource.url(u)],
-          emptyText: 'Không có ảnh.',
+        Gap.h12,
+        AppCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SectionTitle('Ảnh trước / sau', icon: Icons.photo_library_outlined),
+              PhotoEvidenceStrip(
+                label: 'Người dân chụp',
+                photos: [for (final u in issue.photoUrls) PhotoSource.url(u)],
+                emptyText: 'Không có ảnh.',
+              ),
+              Gap.h16,
+              PhotoEvidenceStrip(
+                label: 'Đơn vị chụp sau xử lý',
+                icon: Icons.verified_outlined,
+                photos: [for (final i in issue.resolutionImages) PhotoSource.url(i.url)],
+                emptyText: 'Chưa có ảnh minh chứng.',
+              ),
+            ],
+          ),
         ),
-        Gap.h16,
-        PhotoEvidenceStrip(
-          label: 'Đơn vị chụp sau xử lý',
-          icon: Icons.verified_outlined,
-          photos: [for (final i in issue.resolutionImages) PhotoSource.url(i.url)],
-          emptyText: 'Chưa có ảnh minh chứng.',
+        Gap.h12,
+        AppCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SectionTitle('Mô tả', icon: Icons.notes),
+              Text(issue.description, style: textTheme.bodyLarge),
+            ],
+          ),
         ),
-        Gap.h16,
-        const SectionTitle('Mô tả', icon: Icons.notes),
-        Text(issue.description, style: textTheme.bodyLarge),
-        Gap.h16,
-        const SectionTitle('Vị trí', icon: Icons.place_outlined),
-        Text(issue.location, style: textTheme.bodyMedium),
-        Gap.h8,
-        MiniMap(lat: issue.latitude, lng: issue.longitude),
-        Gap.h24,
+        Gap.h12,
+        AppCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SectionTitle('Vị trí', icon: Icons.place_outlined),
+              Text(issue.location, style: textTheme.bodyMedium),
+              Gap.h12,
+              MiniMap(lat: issue.latitude, lng: issue.longitude),
+            ],
+          ),
+        ),
+        Gap.h12,
         TimelineSection(issue: issue),
         Gap.h16,
         CommentsSection(issueId: issue.id),
@@ -261,8 +301,10 @@ class _ReporterCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
     final phone = issue.phone;
-    return Card(
+    return AppCard(
+      padding: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(Gap.card),
         child: Column(
@@ -270,9 +312,29 @@ class _ReporterCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             const SectionTitle('Người báo cáo', icon: Icons.person_outline),
-            Text(issue.reporter?.name ?? 'Người dân', style: textTheme.titleSmall),
-            if (issue.reporter?.email != null) Text(issue.reporter!.email!, style: textTheme.bodySmall),
-            Text('Báo cáo lúc ${Fmt.dateTime(issue.createdAt)}', style: textTheme.bodySmall),
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 22,
+                  backgroundColor: scheme.primaryContainer,
+                  child: Text(
+                    Fmt.initial(issue.reporter?.name),
+                    style: textTheme.titleMedium?.copyWith(color: scheme.onPrimaryContainer),
+                  ),
+                ),
+                Gap.w12,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(issue.reporter?.name ?? 'Người dân', style: textTheme.titleSmall),
+                      if (issue.reporter?.email != null) Text(issue.reporter!.email!, style: textTheme.bodySmall),
+                      Text('Báo cáo lúc ${Fmt.dateTime(issue.createdAt)}', style: textTheme.bodySmall),
+                    ],
+                  ),
+                ),
+              ],
+            ),
             Gap.h12,
             if (phone != null && phone.isNotEmpty)
               SizedBox(
@@ -305,7 +367,10 @@ class _AssignmentCard extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final palette = context.palette;
     final claimable = issue.assignee == null && issue.status.isOpen;
-    return Card(
+    return AppCard(
+      padding: EdgeInsets.zero,
+      color: mine ? palette.success.container : null,
+      borderColor: mine ? Colors.transparent : null,
       child: Padding(
         padding: const EdgeInsets.all(Gap.card),
         child: Row(
@@ -343,7 +408,8 @@ class _PriorityExplain extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    return Card(
+    return AppCard(
+      padding: EdgeInsets.zero,
       child: ExpansionTile(
         shape: const Border(),
         leading: const Icon(Icons.insights_outlined),

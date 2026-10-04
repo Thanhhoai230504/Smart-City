@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -15,6 +17,12 @@ import 'features/report/offline_queue.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Giấy phép SIL OFL của phông Be Vietnam Pro phải đi kèm bản phân phối —
+  // hiện trong Cài đặt → Giấy phép mã nguồn mở.
+  LicenseRegistry.addLicense(() async* {
+    yield LicenseEntryWithLineBreaks(['Be Vietnam Pro'], await rootBundle.loadString('assets/fonts/OFL.txt'));
+  });
 
   // Chạy song song các bước khởi tạo độc lập để màn splash ngắn nhất có thể.
   final prefsFuture = SharedPreferences.getInstance();

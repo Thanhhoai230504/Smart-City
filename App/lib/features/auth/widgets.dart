@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/widgets/surfaces.dart';
 
 /// Ô mật khẩu có nút hiện/ẩn. Nhãn của nút **đổi theo trạng thái** để trình
 /// đọc màn hình đọc đúng hành động (G26 của web).
@@ -58,7 +59,8 @@ class _PasswordFieldState extends State<PasswordField> {
       );
 }
 
-/// Khung màn xác thực: logo + tiêu đề trên, nội dung cuộn, nút chính neo đáy.
+/// Khung màn xác thực: header thương hiệu (cuộn cùng nội dung để bàn phím có
+/// chỗ), form ở giữa, nút chính neo đáy.
 class AuthScaffold extends StatelessWidget {
   const AuthScaffold({
     super.key,
@@ -80,43 +82,79 @@ class AuthScaffold extends StatelessWidget {
     final palette = context.palette;
     final textTheme = Theme.of(context).textTheme;
     return Scaffold(
-      appBar: showBack ? AppBar(shape: const Border()) : null,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(Gap.xxl, Gap.lg, Gap.xxl, Gap.lg),
-                children: [
-                  Row(
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                HeroHeader(
+                  padding: const EdgeInsets.fromLTRB(Gap.xl, Gap.sm, Gap.xl, Gap.xxl + Gap.sm),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: palette.primary,
-                          borderRadius: BorderRadius.circular(Radii.button),
-                        ),
-                        child: Icon(Icons.location_city, color: palette.onPrimary),
+                      SizedBox(
+                        height: kMinTouchTarget,
+                        child: showBack
+                            ? Align(
+                                alignment: Alignment.centerLeft,
+                                child: IconButton(
+                                  tooltip: 'Quay lại',
+                                  style: IconButton.styleFrom(
+                                    backgroundColor: palette.onBrand.withValues(alpha: 0.14),
+                                  ),
+                                  icon: Icon(Icons.arrow_back, color: palette.onBrand),
+                                  onPressed: () => Navigator.of(context).maybePop(),
+                                ),
+                              )
+                            : null,
                       ),
-                      Gap.w12,
-                      Flexible(child: Text('Smart City Đà Nẵng', style: textTheme.titleMedium)),
+                      Gap.h16,
+                      Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: palette.onBrand.withValues(alpha: 0.16),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Icon(Icons.location_city_rounded, color: palette.onBrand, size: 26),
+                          ),
+                          Gap.w12,
+                          Flexible(
+                            child: Text(
+                              'Smart City Đà Nẵng',
+                              style: textTheme.titleMedium?.copyWith(color: palette.onBrand),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Gap.h24,
+                      Text(title, style: textTheme.headlineLarge?.copyWith(color: palette.onBrand)),
+                      Gap.h8,
+                      Text(subtitle, style: textTheme.bodyMedium?.copyWith(color: palette.onBrandMuted)),
                     ],
                   ),
-                  Gap.h24,
-                  Text(title, style: textTheme.headlineMedium),
-                  Gap.h8,
-                  Text(subtitle, style: textTheme.bodyMedium?.copyWith(color: palette.textSecondary)),
-                  Gap.h24,
-                  ...children,
-                ],
-              ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(Gap.xl, Gap.xxl, Gap.xl, Gap.lg),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: children,
+                  ),
+                ),
+              ],
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(Gap.xxl, 0, Gap.xxl, Gap.lg),
+          ),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(Gap.xl, Gap.sm, Gap.xl, Gap.lg),
               child: bottom,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -138,7 +176,7 @@ class FormNotice extends StatelessWidget {
           padding: const EdgeInsets.all(Gap.md),
           decoration: BoxDecoration(
             color: colors.container,
-            borderRadius: BorderRadius.circular(Radii.card),
+            borderRadius: BorderRadius.circular(Radii.tile),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,

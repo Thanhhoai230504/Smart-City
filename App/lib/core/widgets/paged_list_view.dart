@@ -51,20 +51,28 @@ class _PagedListViewState<T> extends State<PagedListView<T>> {
   @override
   Widget build(BuildContext context) {
     final s = widget.state;
+    // Header có thể cao (header thương hiệu của màn cán bộ) — đặt trong danh
+    // sách cuộn được thay vì Column cố định, kẻo tràn khi chữ phóng to.
     if (s.isLoading && s.items.isEmpty) {
-      return Column(
-        children: [
-          ?widget.header,
-          const Expanded(child: SkeletonList()),
-        ],
+      return ListView(
+        padding: EdgeInsets.zero,
+        children: [?widget.header, const SkeletonList()],
       );
     }
     if (s.error != null && s.items.isEmpty) {
-      return Column(
-        children: [
-          ?widget.header,
-          Expanded(child: ErrorState(error: s.error!, onRetry: widget.onRefresh)),
-        ],
+      return RefreshIndicator(
+        onRefresh: widget.onRefresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
+          children: [
+            ?widget.header,
+            SizedBox(
+              height: MediaQuery.sizeOf(context).height * 0.5,
+              child: ErrorState(error: s.error!, onRetry: widget.onRefresh),
+            ),
+          ],
+        ),
       );
     }
 

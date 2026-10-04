@@ -5,44 +5,34 @@ import {
   Avatar,
   Box,
   Button,
-  Chip,
-  FormControl,
-  InputLabel,
-  LinearProgress,
-  MenuItem,
-  Select,
-  SelectChangeEvent,
-  Skeleton,
+  CircularProgress,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Tooltip,
   Typography,
 } from '@mui/material';
 import {
-  AccessTime,
   Business,
   CheckCircle,
+  FileDownload,
   Groups,
   Refresh,
-  Star,
   TaskAlt,
   WarningAmber,
 } from '@mui/icons-material';
+import { toast } from 'react-toastify';
 import { departmentApi } from '../../api/departmentApi';
-import { DepartmentStat } from '../../types';
-import { cellSx, GlassCard, headCellSx } from './types';
+import { DepartmentPerformanceResponse, DepartmentPerformanceRow } from '../../types';
+import { formatPeriod, getPeriodRange, PeriodRange, PeriodValue } from '../../utils/period';
+import { GlassCard } from './types';
+import DepartmentRankingTable from './performance/DepartmentRankingTable';
+import DepartmentDetailDialog from './performance/DepartmentDetailDialog';
+import PeriodPicker from './performance/PeriodPicker';
+import ScoreCriteria from './performance/ScoreCriteria';
+import { exportRankingWorkbook } from './performance/exportDepartmentPerformance';
 
 interface ApiErrorResponse {
   message?: string;
 }
-
-type UnitFilter = 'all' | 'active' | 'inactive';
-type RateColor = 'success' | 'warning' | 'error';
 
 const numberFormatter = new Intl.NumberFormat('vi-VN');
 
@@ -51,17 +41,6 @@ const getErrorMessage = (error: unknown) => {
     return 'Không thể tải bảng hiệu suất đơn vị.';
   }
   return error.response?.data?.message || 'Không thể tải bảng hiệu suất đơn vị.';
-};
-
-const getRateColor = (rate: number): RateColor => {
-  if (rate >= 80) return 'success';
-  if (rate >= 60) return 'warning';
-  return 'error';
-};
-
-const formatHours = (hours: number | null) => {
-  if (hours === null) return 'Chưa có dữ liệu';
-  return `${hours.toLocaleString('vi-VN', { maximumFractionDigits: 1 })} giờ`;
 };
 
 const SummaryCard: React.FC<{
@@ -91,101 +70,136 @@ const SummaryCard: React.FC<{
   </GlassCard>
 );
 
+// "30 ngày qua" thay vì "Tháng này": những ngày đầu tháng, kỳ "Tháng này" gần như
+// chưa có việc nào đóng nên mọi đơn vị đều "Chưa đủ dữ liệu".
+const DEFAULT_PERIOD: PeriodValue = { preset: 'last30' };
+
+/**
+ * Đánh giá hiệu quả đơn vị THEO KỲ: xếp hạng, gợi ý khen thưởng / nhắc nhở và căn cứ
+ * từng phiếu. Điểm chỉ là gợi ý — tiêu chí hiển thị ngay trên trang (ScoreCriteria),
+ * quyết định do lãnh đạo.
+ */
 const DepartmentPerformance: React.FC = () => {
-  const [stats, setStats] = useState<DepartmentStat[]>([]);
+  const [period, setPeriod] = useState<PeriodValue>(DEFAULT_PERIOD);
+  // Kỳ chốt thành mốc thời gian cụ thể mỗi lần đổi kỳ hoặc bấm làm mới ("tháng này"
+  // kết thúc ở "bây giờ" — tính lại mỗi lần vẽ thì sẽ gọi API liên tục).
+  const [range, setRange] = useState<PeriodRange>(() => getPeriodRange(DEFAULT_PERIOD));
+  const [data, setData] = useState<DepartmentPerformanceResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [unitFilter, setUnitFilter] = useState<UnitFilter>('all');
+  const [selected, setSelected] = useState<DepartmentPerformanceRow | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const loadStats = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const { data } = await departmentApi.getStats();
-      setStats(data.data.stats);
+      const { data: response } = await departmentApi.getPerformance({
+        from: range.from.toISOString(),
+        to: range.to.toISOString(),
+      });
+      setData(response.data);
     } catch (requestError) {
       setError(getErrorMessage(requestError));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [range]);
 
   useEffect(() => {
     loadStats();
   }, [loadStats]);
 
+  const changePeriod = (next: PeriodValue) => {
+    setPeriod(next);
+    setRange(getPeriodRange(next));
+  };
+
+  const handleExport = async () => {
+    if (!data) return;
+    setExporting(true);
+    try {
+      await exportRankingWorkbook(data);
+    } catch {
+      toast.error('Không xuất được file Excel');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const stats = useMemo(() => data?.rows ?? [], [data]);
+  const ranked = stats.filter((item) => item.rank !== null).length;
+
+  // Được giao và hoàn tất tính TRONG KỲ; đang xử lý và quá hạn là số HIỆN TẠI.
   const totals = useMemo(() => stats.reduce(
     (result, item) => ({
       activeUnits: result.activeUnits + (item.isActive ? 1 : 0),
-      total: result.total + item.total,
-      processing: result.processing + item.processing,
-      resolved: result.resolved + item.resolved,
-      overdue: result.overdue + item.overdue,
+      total: result.total + item.metrics.assigned,
+      processing: result.processing + item.metrics.openNow,
+      resolved: result.resolved + item.metrics.resolved,
+      overdue: result.overdue + item.metrics.overdueNow,
     }),
     { activeUnits: 0, total: 0, processing: 0, resolved: 0, overdue: 0 },
   ), [stats]);
 
-  const visibleStats = useMemo(() => stats.filter((item) => {
-    if (unitFilter === 'active') return item.isActive;
-    if (unitFilter === 'inactive') return !item.isActive;
-    return true;
-  }), [stats, unitFilter]);
+  const periodText = formatPeriod(data ? { from: new Date(data.period.from), to: new Date(data.period.to) } : range);
 
   return (
     <Stack spacing={2.5}>
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        spacing={1.5}
-        alignItems={{ xs: 'stretch', sm: 'center' }}
-        justifyContent="space-between"
-      >
+      {/* Tiêu đề trang do khung quản trị hiển thị (TAB_HEADINGS) — ở đây chỉ còn thanh công cụ. */}
+      <Stack spacing={1}>
+        <Stack
+          direction="row"
+          spacing={1.5}
+          useFlexGap
+          flexWrap="wrap"
+          alignItems="flex-start"
+          justifyContent="space-between"
+        >
+          <Box sx={{ flexGrow: { xs: 1, sm: 0 } }}>
+            <PeriodPicker value={period} onChange={changePeriod} disabled={loading} />
+          </Box>
+          <Stack direction="row" spacing={1}>
+            <Tooltip title="Tải lại số liệu">
+              <span>
+                <Button
+                  variant="outlined"
+                  startIcon={<Refresh />}
+                  onClick={() => setRange(getPeriodRange(period))}
+                  disabled={loading}
+                  sx={{ height: 40, whiteSpace: 'nowrap' }}
+                >
+                  Làm mới
+                </Button>
+              </span>
+            </Tooltip>
+            <Button
+              variant="contained"
+              startIcon={exporting ? <CircularProgress size={16} color="inherit" /> : <FileDownload />}
+              onClick={handleExport}
+              disabled={!data || exporting}
+              sx={{ height: 40, whiteSpace: 'nowrap' }}
+            >
+              Xuất Excel
+            </Button>
+          </Stack>
+        </Stack>
         <Box>
-          <Typography variant="h5" fontWeight={700}>
-            Hiệu suất đơn vị
-          </Typography>
           <Typography variant="body2" color="text.secondary">
-            Theo dõi khối lượng, tiến độ, SLA và chất lượng xử lý của từng đơn vị.
+            Xếp hạng kỳ {periodText}, kèm danh sách phiếu làm căn cứ để xem xét khen thưởng hoặc nhắc nhở.
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            “Tổng việc” và “Đã hoàn tất” tính trong kỳ; “Đang xử lý” và “Đang quá hạn” là số hiện tại.
           </Typography>
         </Box>
-
-        <Stack direction="row" spacing={1}>
-          <FormControl size="small" sx={{ minWidth: 165 }}>
-            <InputLabel id="department-performance-filter-label">Trạng thái đơn vị</InputLabel>
-            <Select
-              labelId="department-performance-filter-label"
-              value={unitFilter}
-              label="Trạng thái đơn vị"
-              onChange={(event: SelectChangeEvent<UnitFilter>) => {
-                setUnitFilter(event.target.value as UnitFilter);
-              }}
-            >
-              <MenuItem value="all">Tất cả</MenuItem>
-              <MenuItem value="active">Đang hoạt động</MenuItem>
-              <MenuItem value="inactive">Đã vô hiệu hóa</MenuItem>
-            </Select>
-          </FormControl>
-          <Tooltip title="Tải lại số liệu">
-            <span>
-              <Button
-                variant="outlined"
-                startIcon={<Refresh />}
-                onClick={loadStats}
-                disabled={loading}
-                sx={{ height: '100%' }}
-              >
-                Làm mới
-              </Button>
-            </span>
-          </Tooltip>
-        </Stack>
       </Stack>
 
       <Box
         sx={{
           display: 'grid',
           gridTemplateColumns: {
-            xs: '1fr',
-            sm: 'repeat(2, minmax(0, 1fr))',
+            xs: 'repeat(2, minmax(0, 1fr))',
+            md: 'repeat(3, minmax(0, 1fr))',
             lg: 'repeat(5, minmax(0, 1fr))',
           },
           gap: 2,
@@ -228,6 +242,8 @@ const DepartmentPerformance: React.FC = () => {
         />
       </Box>
 
+      <ScoreCriteria config={data?.config ?? null} />
+
       {error && (
         <Alert
           severity="error"
@@ -249,175 +265,32 @@ const DepartmentPerformance: React.FC = () => {
             justifyContent="space-between"
           >
             <Typography variant="h6" fontWeight={700}>
-              Bảng hiệu suất
+              Bảng xếp hạng
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Hiển thị {visibleStats.length}/{stats.length} đơn vị
+              {ranked}/{stats.length} đơn vị đủ dữ liệu để xếp hạng
             </Typography>
           </Stack>
         </Box>
 
-        <TableContainer>
-          <Table sx={{ minWidth: 1120 }} aria-label="Bảng hiệu suất đơn vị">
-            <TableHead>
-              <TableRow>
-                <TableCell sx={headCellSx}>Đơn vị</TableCell>
-                <TableCell align="right" sx={headCellSx}>Cán bộ</TableCell>
-                <TableCell align="right" sx={headCellSx}>Tổng việc</TableCell>
-                <TableCell align="right" sx={headCellSx}>Đang xử lý</TableCell>
-                <TableCell align="right" sx={headCellSx}>Đã xong</TableCell>
-                <TableCell align="right" sx={headCellSx}>Quá hạn</TableCell>
-                <TableCell sx={{ ...headCellSx, minWidth: 180 }}>Tỷ lệ đúng hạn</TableCell>
-                <TableCell sx={{ ...headCellSx, minWidth: 145 }}>Xử lý TB</TableCell>
-                <TableCell sx={{ ...headCellSx, minWidth: 145 }}>Đánh giá TB</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {loading ? (
-                Array.from({ length: 5 }).map((_, index) => (
-                  <TableRow key={index}>
-                    {Array.from({ length: 9 }).map((__, cellIndex) => (
-                      <TableCell key={cellIndex} sx={cellSx}>
-                        <Skeleton height={28} />
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : visibleStats.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ ...cellSx, py: 7 }}>
-                    <Business sx={{ fontSize: 42, color: 'text.disabled', mb: 1 }} />
-                    <Typography color="text.secondary">
-                      {stats.length === 0
-                        ? 'Chưa có đơn vị nào để thống kê.'
-                        : 'Không có đơn vị phù hợp với bộ lọc.'}
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                visibleStats.map((item) => (
-                  <TableRow
-                    key={item.departmentId}
-                    hover
-                    sx={{ opacity: item.isActive ? 1 : 0.62 }}
-                  >
-                    <TableCell sx={cellSx}>
-                      <Stack spacing={0.5}>
-                        <Typography variant="body2" fontWeight={650}>
-                          {item.name}
-                        </Typography>
-                        <Stack direction="row" spacing={0.75} alignItems="center">
-                          <Typography variant="caption" color="text.secondary">
-                            {item.code}
-                          </Typography>
-                          <Chip
-                            label={item.isActive ? 'Hoạt động' : 'Vô hiệu hóa'}
-                            color={item.isActive ? 'success' : 'default'}
-                            variant="outlined"
-                            size="small"
-                            sx={{ height: 20, fontSize: '0.68rem' }}
-                          />
-                        </Stack>
-                      </Stack>
-                    </TableCell>
-                    <TableCell align="right" sx={cellSx}>
-                      {numberFormatter.format(item.staffCount)}
-                    </TableCell>
-                    <TableCell align="right" sx={cellSx}>
-                      <Typography variant="body2" fontWeight={700}>
-                        {numberFormatter.format(item.total)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="right" sx={cellSx}>
-                      <Chip
-                        label={numberFormatter.format(item.processing)}
-                        color={item.processing > 0 ? 'info' : 'default'}
-                        size="small"
-                        variant="outlined"
-                      />
-                    </TableCell>
-                    <TableCell align="right" sx={cellSx}>
-                      <Chip
-                        label={numberFormatter.format(item.resolved)}
-                        color={item.resolved > 0 ? 'success' : 'default'}
-                        size="small"
-                        variant="outlined"
-                      />
-                    </TableCell>
-                    <TableCell align="right" sx={cellSx}>
-                      <Chip
-                        label={numberFormatter.format(item.overdue)}
-                        color={item.overdue > 0 ? 'error' : 'success'}
-                        size="small"
-                        variant="outlined"
-                      />
-                    </TableCell>
-                    <TableCell sx={cellSx}>
-                      {item.onTimeRate === null ? (
-                        <Typography variant="caption" color="text.secondary">
-                          Chưa có dữ liệu
-                        </Typography>
-                      ) : (
-                        <Stack spacing={0.6}>
-                          <Stack direction="row" justifyContent="space-between">
-                            <Typography variant="body2" fontWeight={650}>
-                              {item.onTimeRate}%
-                            </Typography>
-                            <Chip
-                              label={item.onTimeRate >= 80 ? 'Tốt' : item.onTimeRate >= 60 ? 'Cần theo dõi' : 'Cần cải thiện'}
-                              color={getRateColor(item.onTimeRate)}
-                              size="small"
-                              sx={{ height: 20, fontSize: '0.66rem' }}
-                            />
-                          </Stack>
-                          <LinearProgress
-                            variant="determinate"
-                            value={item.onTimeRate}
-                            color={getRateColor(item.onTimeRate)}
-                            sx={{ height: 5, borderRadius: 999 }}
-                          />
-                        </Stack>
-                      )}
-                    </TableCell>
-                    <TableCell sx={cellSx}>
-                      <Stack direction="row" spacing={0.75} alignItems="center">
-                        <AccessTime sx={{ fontSize: 17, color: 'text.secondary' }} />
-                        <Typography
-                          variant="body2"
-                          color={item.avgResolutionHours === null ? 'text.secondary' : 'text.primary'}
-                        >
-                          {formatHours(item.avgResolutionHours)}
-                        </Typography>
-                      </Stack>
-                    </TableCell>
-                    <TableCell sx={cellSx}>
-                      {item.avgRating === null ? (
-                        <Typography variant="caption" color="text.secondary">
-                          Chưa có đánh giá
-                        </Typography>
-                      ) : (
-                        <Stack direction="row" spacing={0.5} alignItems="center">
-                          <Star sx={{ color: '#F59E0B', fontSize: 19 }} />
-                          <Typography variant="body2" fontWeight={650}>
-                            {item.avgRating.toLocaleString('vi-VN', { maximumFractionDigits: 1 })}/5
-                          </Typography>
-                        </Stack>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <DepartmentRankingTable rows={stats} loading={loading} onOpen={setSelected} />
 
         <Box sx={{ px: 2.5, py: 1.5, bgcolor: '#F7FAFA' }}>
           <Typography variant="caption" color="text.secondary">
-            Tỷ lệ đúng hạn tính trên việc đã hoàn tất. Thời gian xử lý trung bình tính từ lúc
-            phân công đến khi hoàn tất; dấu “chưa có dữ liệu” không đồng nghĩa với giá trị 0.
+            Đúng hạn tính trên các việc đã xong có hạn xử lý. Thời gian xử lý tính từ lúc phân công đến khi
+            hoàn tất. Dấu “—” là chưa có dữ liệu, không phải 0. Bấm vào một đơn vị để xem chi tiết và danh sách
+            phiếu làm căn cứ.
           </Typography>
         </Box>
       </GlassCard>
+
+      <DepartmentDetailDialog
+        departmentId={selected ? String(selected.departmentId) : null}
+        fallbackName={selected?.name}
+        range={range}
+        onClose={() => setSelected(null)}
+        onEvaluationsChanged={loadStats}
+      />
     </Stack>
   );
 };

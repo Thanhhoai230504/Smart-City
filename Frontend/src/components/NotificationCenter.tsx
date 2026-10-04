@@ -12,7 +12,7 @@ import {
   Notifications, NotificationsNone, DoneAll, Circle,
   BugReport, CheckCircle, Comment, Update,
   LocationOn, AssignmentInd, AssignmentReturn, AccessTime, PriorityHigh,
-  HourglassBottom, Replay, StarRate, MergeType,
+  HourglassBottom, Replay, StarRate, MergeType, EmojiEvents,
 } from '@mui/icons-material';
 import { Notification, NotificationType } from '../types';
 
@@ -38,11 +38,12 @@ const typeIcons: Record<NotificationType, React.ReactNode> = {
   issue_reopened: <Replay sx={{ ...ICON, color: '#C2410C' }} />,
   issue_rated: <StarRate sx={{ ...ICON, color: '#D97706' }} />,
   issue_merged: <MergeType sx={{ ...ICON, color: '#6B7280' }} />,
+  department_evaluated: <EmojiEvents sx={{ ...ICON, color: '#17543E' }} />,
 };
 
 const NotificationCenter: React.FC = () => {
   const navigate = useNavigate();
-  const { isAuthenticated } = useSelector((s: RootState) => s.auth);
+  const { isAuthenticated, user } = useSelector((s: RootState) => s.auth);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -98,6 +99,10 @@ const NotificationCenter: React.FC = () => {
     if (notif.issueId) {
       setAnchorEl(null);
       navigate(`/issues/${notif.issueId}`);
+    } else if (notif.type === 'department_evaluated') {
+      // Quyết định khen thưởng / phê bình không gắn sự cố: cán bộ xem ở màn hình đơn vị.
+      setAnchorEl(null);
+      navigate(user?.role === 'admin' ? '/admin?tab=performance' : '/staff');
     }
   };
 

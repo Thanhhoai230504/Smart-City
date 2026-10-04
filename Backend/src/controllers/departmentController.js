@@ -1,5 +1,8 @@
 const departmentService = require('../services/departmentService');
+const departmentPerformanceService = require('../services/departmentPerformanceService');
+const departmentEvaluationService = require('../services/departmentEvaluationService');
 const auditService = require('../services/auditService');
+const { DECISION_LABELS, formatPeriodVN } = require('../utils/departmentEvaluationConfig');
 
 const getDepartments = async (req, res, next) => {
   try {
@@ -104,7 +107,89 @@ const suggestDepartment = async (req, res, next) => {
   }
 };
 
+// Đánh giá hiệu quả đơn vị theo kỳ — bảng xếp hạng và chi tiết một đơn vị.
+const getDepartmentPerformance = async (req, res, next) => {
+  try {
+    const data = await departmentPerformanceService.getDepartmentPerformance({ from: req.query.from, to: req.query.to });
+    res.json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getDepartmentPerformanceDetail = async (req, res, next) => {
+  try {
+    const data = await departmentPerformanceService.getDepartmentPerformanceDetail(
+      req.params.id, { from: req.query.from, to: req.query.to },
+    );
+    res.json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Quyết định khen thưởng / phê bình — lãnh đạo ghi, hệ thống chỉ gợi ý.
+const createDepartmentEvaluation = async (req, res, next) => {
+  try {
+    const { evaluation, department, period } = await departmentEvaluationService.createEvaluation(
+      req.params.id, req.body, req.user,
+    );
+    await auditService.recordAudit({
+      actor: req.user,
+      action: 'department.evaluated',
+      entityType: 'Department',
+      entityId: department._id,
+      description: `Ghi quyết định "${DECISION_LABELS[evaluation.decision]}" cho ${department.name} (kỳ ${formatPeriodVN(period)})`,
+      metadata: {
+        evaluationId: evaluation._id,
+        decision: evaluation.decision,
+        suggestion: evaluation.suggestion?.label,
+        score: evaluation.suggestion?.score ?? null,
+        deviatesFromSuggestion: evaluation.deviatesFromSuggestion,
+      },
+      request: req,
+    });
+    res.status(201).json({ success: true, message: 'Đã ghi quyết định.', data: { evaluation } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getDepartmentEvaluations = async (req, res, next) => {
+  try {
+    const evaluations = await departmentEvaluationService.listEvaluations(req.params.id, req.user);
+    res.json({ success: true, data: { evaluations } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const revokeDepartmentEvaluation = async (req, res, next) => {
+  try {
+    const { evaluation } = await departmentEvaluationService.revokeEvaluation(
+      req.params.id, req.params.evaluationId, req.body, req.user,
+    );
+    await auditService.recordAudit({
+      actor: req.user,
+      action: 'department.evaluation_revoked',
+      entityType: 'Department',
+      entityId: evaluation.departmentId,
+      description: `Huỷ quyết định "${DECISION_LABELS[evaluation.decision]}" (kỳ ${formatPeriodVN(evaluation.period)})`,
+      metadata: { evaluationId: evaluation._id, reason: evaluation.revokeReason },
+      request: req,
+    });
+    res.json({ success: true, message: 'Đã huỷ quyết định.', data: { evaluation } });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
+  createDepartmentEvaluation,
+  getDepartmentEvaluations,
+  revokeDepartmentEvaluation,
+  getDepartmentPerformance,
+  getDepartmentPerformanceDetail,
   getDepartments,
   getDepartmentById,
   createDepartment,

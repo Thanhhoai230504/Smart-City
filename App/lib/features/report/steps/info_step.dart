@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/async_states.dart';
+import '../../../core/widgets/status_chips.dart';
 import '../../../data/repositories/meta_repository.dart';
 import '../report_controller.dart';
 
@@ -70,10 +71,10 @@ class _InfoStepState extends ConsumerState<InfoStep> {
           runSpacing: Gap.sm,
           children: [
             for (final c in meta.categories)
-              ChoiceChip(
-                label: Text('${c.icon} ${c.label}'),
+              CategoryChoiceChip(
+                category: c.value,
                 selected: state.category == c.value,
-                onSelected: (_) => controller.setCategory(c.value),
+                onSelected: () => controller.setCategory(c.value),
               ),
           ],
         ),

@@ -196,6 +196,8 @@ const assignIssue = async (req, res, next) => {
       description: `Phân công sự cố "${issue.title}"`,
       metadata: {
         departmentId: req.body.departmentId,
+        // Đơn vị bị lấy việc khi phân công lại — dùng cho đánh giá đơn vị theo kỳ.
+        previousDepartmentId: issue.$locals?.previousDepartmentId || null,
         assigneeId: req.body.assigneeId || null,
         note: req.body.note || '',
       },
@@ -216,7 +218,7 @@ const unassignIssue = async (req, res, next) => {
       entityType: 'Issue',
       entityId: issue._id,
       description: `Thu hồi phân công sự cố "${issue.title}"`,
-      metadata: { note: req.body.note || '' },
+      metadata: { note: req.body.note || '', previousDepartmentId: issue.$locals?.previousDepartmentId || null },
       request: req,
     });
     res.json({ success: true, message: 'Đã thu hồi phân công.', data: { issue } });

@@ -27,6 +27,10 @@ class ReportScreen extends ConsumerStatefulWidget {
 class _ReportScreenState extends ConsumerState<ReportScreen> {
   _Result? _result;
 
+  /// Đã xác nhận trùng với phiếu này — như web: ở lại bước xác nhận, khoá gửi,
+  /// cho phép "vẫn muốn tạo báo cáo riêng".
+  String? _confirmedDuplicateId;
+
   static const _titles = ['Ảnh hiện trường', 'Thông tin sự cố', 'Vị trí', 'Xác nhận & gửi'];
 
   Future<void> _submit() async {
@@ -59,13 +63,13 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
     );
     if (ok != true || !mounted) return;
     final confirmed = await ref.read(reportControllerProvider.notifier).confirmDuplicate(c.issue.id);
-    if (confirmed && mounted) setState(() => _result = _Result.confirmed(c.issue.id));
+    if (confirmed && mounted) setState(() => _confirmedDuplicateId = c.issue.id);
   }
 
   Future<bool> _confirmLeave() async {
     final s = ref.read(reportControllerProvider);
     final dirty = s.photos.isNotEmpty || s.title.isNotEmpty || s.description.isNotEmpty;
-    if (!dirty || _result != null) return true;
+    if (!dirty || _result != null || _confirmedDuplicateId != null) return true;
     final leave = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -93,7 +97,11 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
       0 => const PhotoStep(),
       1 => const InfoStep(),
       2 => const LocationStep(),
-      _ => ReviewStep(onConfirmDuplicate: _confirmDuplicate),
+      _ => ReviewStep(
+          onConfirmDuplicate: _confirmDuplicate,
+          confirmedDuplicateId: _confirmedDuplicateId,
+          onUndoConfirm: () => setState(() => _confirmedDuplicateId = null),
+        ),
     };
 
     return PopScope(
@@ -121,15 +129,20 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
         ),
         body: WizardStepper(
           stepTitles: _titles,
+          stepIcons: const [Icons.photo_camera_outlined, Icons.edit_note, Icons.place_outlined, Icons.send_outlined],
           currentStep: state.step,
           body: KeyedSubtree(key: ValueKey(state.step), child: body),
           onBack: state.step > 0 ? controller.back : null,
           onNext: isLast ? _submit : controller.next,
-          nextEnabled: controller.canLeaveStep(state.step),
+          nextEnabled: controller.canLeaveStep(state.step) && !(isLast && _confirmedDuplicateId != null),
           hint: controller.blockedHint(state.step),
           busy: state.submitting,
           nextLabel: isLast
-              ? (online ? 'Gửi báo cáo' : 'Lưu và gửi khi có mạng')
+              ? (_confirmedDuplicateId != null
+                  ? 'Đã xác nhận báo cáo trùng'
+                  : online
+                      ? 'Gửi báo cáo'
+                      : 'Lưu và gửi khi có mạng')
               : state.step == 0 && state.photos.isEmpty
                   ? 'Tiếp tục không có ảnh'
                   : 'Tiếp theo',
@@ -145,14 +158,13 @@ class _Result {
 
   factory _Result.sent(String id) => _Result._(_Kind.sent, issueId: id);
   factory _Result.queued(String reason) => _Result._(_Kind.queued, reason: reason);
-  factory _Result.confirmed(String id) => _Result._(_Kind.confirmed, issueId: id);
 
   final _Kind kind;
   final String? issueId;
   final String? reason;
 }
 
-enum _Kind { sent, queued, confirmed }
+enum _Kind { sent, queued }
 
 class _ResultView extends StatelessWidget {
   const _ResultView({required this.result});
@@ -178,12 +190,6 @@ class _ResultView extends StatelessWidget {
           // khi người dân mở lại app (kế hoạch 1.4.5 — iOS không cho chạy nền tuỳ ý).
           '${result.reason ?? ''} Báo cáo sẽ tự gửi khi có mạng trở lại — lúc app đang mở '
               'hoặc khi bạn mở lại app.'.trim(),
-        ),
-      _Kind.confirmed => (
-          Icons.how_to_vote,
-          palette.statusColors(IssueStatus.resolved),
-          'Đã xác nhận cùng sự cố',
-          'Bạn sẽ nhận thông báo khi sự cố này được cập nhật.',
         ),
     };
 

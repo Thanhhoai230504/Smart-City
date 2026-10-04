@@ -24,6 +24,18 @@ void main() {
       expect(Fmt.givenName('  Trần   Thị  Bích  '), 'Bích');
     });
 
+    test('tên Google theo thứ tự phương Tây → lấy từ đầu', () {
+      expect(Fmt.givenName('Hoai Nguyễn'), 'Hoai');
+      expect(Fmt.givenName('Hoai Nguyen'), 'Hoai');
+      expect(Fmt.givenName('Minh Anh Tran'), 'Minh');
+    });
+
+    test('họ đứng đầu (thứ tự Việt) vẫn lấy từ cuối, kể cả khi tên trùng một họ', () {
+      expect(Fmt.givenName('Nguyễn Thị Mai'), 'Mai');
+      expect(Fmt.givenName('Trần Văn Lê'), 'Lê');
+      expect(Fmt.givenName('Thu Hà'), 'Hà');
+    });
+
     test('bỏ từ không có chữ; không có chữ → rỗng', () {
       expect(Fmt.givenName('Lê Minh -'), 'Minh');
       expect(Fmt.givenName('   '), '');

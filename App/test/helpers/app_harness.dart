@@ -12,7 +12,6 @@ import 'package:smart_city_app/core/network/token_store.dart';
 import 'package:smart_city_app/core/platform/connectivity.dart';
 import 'package:smart_city_app/core/storage/prefs.dart';
 import 'package:smart_city_app/core/theme/app_theme.dart';
-import 'package:smart_city_app/core/theme/app_typography.dart';
 import 'package:smart_city_app/core/widgets/app_map.dart';
 import 'package:smart_city_app/data/local/draft_store.dart';
 import 'package:smart_city_app/data/models/user.dart';
@@ -105,7 +104,6 @@ Future<ProviderContainer> pumpScreen(
   List<Override> overrides = const [],
   FakeAdapter? backend,
 }) async {
-  AppTypography.displayFontEnabled = false;
   mapTilesEnabled = false;
   await initializeDateFormatting('vi');
   SharedPreferences.setMockInitialValues({});

@@ -127,14 +127,22 @@ class _BottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
-    return Material(
-      color: palette.surface,
-      child: Container(
-        decoration: BoxDecoration(border: Border(top: BorderSide(color: palette.border))),
-        child: SafeArea(
-          top: false,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 68),
+    final light = palette.brightness == Brightness.light;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: palette.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        border: light ? null : Border(top: BorderSide(color: palette.border)),
+        boxShadow: light
+            ? const [BoxShadow(color: Color(0x1A0B2540), blurRadius: 24, offset: Offset(0, -4))]
+            : null,
+      ),
+      child: SafeArea(
+        top: false,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 72),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Gap.xs),
             child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: children),
           ),
         ),
@@ -162,6 +170,7 @@ class _NavButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.palette;
     final color = selected ? palette.primary : palette.textSecondary;
+    final textTheme = Theme.of(context).textTheme;
     return Semantics(
       button: true,
       selected: selected,
@@ -177,10 +186,11 @@ class _NavButton extends StatelessWidget {
             children: [
               AnimatedContainer(
                 duration: Motion.of(context, Motion.fast),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                curve: Motion.curve,
+                padding: EdgeInsets.symmetric(horizontal: selected ? 18 : 12, vertical: 5),
                 decoration: BoxDecoration(
                   color: selected ? Theme.of(context).colorScheme.primaryContainer : Colors.transparent,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(Radii.chip),
                 ),
                 child: IconTheme(data: IconThemeData(color: color, size: 24), child: icon),
               ),
@@ -189,7 +199,8 @@ class _NavButton extends StatelessWidget {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(color: color),
+                style: (selected ? textTheme.labelSmall : textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w500))
+                    ?.copyWith(color: color),
               ),
             ],
           ),
@@ -201,12 +212,16 @@ class _NavButton extends StatelessWidget {
 
 /// ⭐ `ReportFab` — nút giữa nổi. Đó là hành động app tồn tại để phục vụ, và vị
 /// trí giữa đáy là nơi ngón cái với tới dễ nhất khi cầm một tay (design system 5).
+/// Màu cam "lửa Cầu Rồng" — màu duy nhất trên thanh không thuộc tông xanh, để
+/// mắt tìm ra nó ngay.
 class _ReportSlot extends StatelessWidget {
   const _ReportSlot();
 
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
+    final light = palette.brightness == Brightness.light;
+    final deep = Color.lerp(palette.accent, Colors.black, 0.12)!;
     return Expanded(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -215,25 +230,37 @@ class _ReportSlot extends StatelessWidget {
             button: true,
             label: 'Báo cáo sự cố',
             excludeSemantics: true,
-            child: Material(
-              color: palette.primary,
-              shape: const CircleBorder(),
-              elevation: 4,
-              child: InkWell(
-                customBorder: const CircleBorder(),
-                onTap: () => context.push(Routes.report),
-                child: SizedBox.square(
-                  dimension: 56,
-                  child: Icon(Icons.add_a_photo, color: palette.onPrimary, size: 26),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [palette.accent, deep],
+                ),
+                boxShadow: light
+                    ? [BoxShadow(color: palette.accent.withValues(alpha: 0.38), blurRadius: 16, offset: const Offset(0, 6))]
+                    : null,
+              ),
+              child: Material(
+                type: MaterialType.transparency,
+                shape: const CircleBorder(),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: () => context.push(Routes.report),
+                  child: SizedBox.square(
+                    dimension: 58,
+                    child: Icon(Icons.add_a_photo_rounded, color: palette.onAccent, size: 27),
+                  ),
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 3),
           Text(
             'Báo cáo',
             maxLines: 1,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(color: palette.primary),
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(color: palette.accentInk),
           ),
         ],
       ),

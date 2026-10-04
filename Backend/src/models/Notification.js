@@ -23,7 +23,9 @@ const notificationSchema = new mongoose.Schema({
       // Sự cố bị thu hồi phân công khỏi đơn vị (G14)
       'issue_unassigned',
       // Gộp sự cố trùng lặp
-      'issue_merged'
+      'issue_merged',
+      // Lãnh đạo ghi / huỷ quyết định khen thưởng, phê bình đơn vị (không gắn sự cố)
+      'department_evaluated'
     ],
     required: true
   },
