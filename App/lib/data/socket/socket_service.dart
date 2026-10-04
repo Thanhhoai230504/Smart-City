@@ -83,7 +83,7 @@ class SocketService {
   void _onIssueEvent(dynamic data) {
     final issueId = refId(asMap(data)['issue']);
     if (issueId != null) _ref.invalidate(issueDetailProvider(issueId));
-    _ref.invalidate(workListProvider);
+    invalidateWork(_ref.invalidate);
   }
 
   final _incoming = StreamController<AppNotification>.broadcast();

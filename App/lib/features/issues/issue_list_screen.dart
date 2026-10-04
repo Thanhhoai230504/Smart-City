@@ -148,7 +148,7 @@ Future<void> showIssueFilterSheet(
   WidgetRef ref,
   AutoDisposeStateProvider<IssueQuery> provider, {
   bool staffMode = false,
-  String? currentUserId,
+  IssueQuery baseQuery = const IssueQuery(),
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -156,7 +156,7 @@ Future<void> showIssueFilterSheet(
     builder: (ctx) => _FilterSheet(
       initial: ref.read(provider),
       staffMode: staffMode,
-      currentUserId: currentUserId,
+      baseQuery: baseQuery,
       onApply: (q) => ref.read(provider.notifier).state = q,
     ),
   );
@@ -167,13 +167,16 @@ class _FilterSheet extends ConsumerStatefulWidget {
     required this.initial,
     required this.onApply,
     required this.staffMode,
-    this.currentUserId,
+    required this.baseQuery,
   });
 
   final IssueQuery initial;
   final ValueChanged<IssueQuery> onApply;
   final bool staffMode;
-  final String? currentUserId;
+
+  /// "Đặt lại" quay về đây — giữ kiểu sắp xếp mặc định và điều kiện bị khoá
+  /// của màn (tab "Việc của tôi" luôn lọc theo chính mình).
+  final IssueQuery baseQuery;
 
   @override
   ConsumerState<_FilterSheet> createState() => _FilterSheetState();
@@ -248,14 +251,6 @@ class _FilterSheetState extends ConsumerState<_FilterSheet> {
               children: [
                 Text('Bộ lọc', style: textTheme.titleLarge),
                 Gap.h16,
-                if (widget.staffMode)
-                  section('Phân công', Icons.assignment_ind_outlined, [
-                    choice('Tất cả việc của đơn vị', _q.assigneeId == null,
-                        () => setState(() => _q = _q.copyWith(assigneeId: null))),
-                    if (widget.currentUserId != null)
-                      choice('Việc tôi đang nhận', _q.assigneeId == widget.currentUserId,
-                          () => setState(() => _q = _q.copyWith(assigneeId: widget.currentUserId))),
-                  ]),
                 if (widget.staffMode)
                   section('Hạn xử lý', Icons.timer_outlined, [
                     choice('Tất cả', _q.slaStatus == null,
@@ -334,7 +329,7 @@ class _FilterSheetState extends ConsumerState<_FilterSheet> {
               child: Row(
                 children: [
                   OutlinedButton(
-                    onPressed: () => setState(() => _q = IssueQuery(search: _q.search)),
+                    onPressed: () => setState(() => _q = widget.baseQuery.copyWith(search: _q.search)),
                     child: const Text('Đặt lại'),
                   ),
                   Gap.w12,

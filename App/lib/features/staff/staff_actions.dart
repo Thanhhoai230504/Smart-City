@@ -15,9 +15,13 @@ class StaffActions {
 
   IssueRepository get _repo => _ref.read(issueRepositoryProvider);
 
+  /// Chỉ tải lại chi tiết khi màn chi tiết đang mở — thao tác ngay trên thẻ
+  /// của danh sách việc không cần (và không nên) dựng provider chi tiết.
   Future<void> _afterChange() async {
-    await _ref.read(issueDetailProvider(issueId).notifier).reload();
-    _ref.invalidate(workListProvider);
+    if (_ref.exists(issueDetailProvider(issueId))) {
+      await _ref.read(issueDetailProvider(issueId).notifier).reload();
+    }
+    invalidateWork(_ref.invalidate);
   }
 
   /// Atomic ở server: hai cán bộ cùng bấm thì người sau nhận 400. Dù thành công
@@ -37,7 +41,9 @@ class StaffActions {
 
   Future<List<IssueImage>> uploadResolutionImages(List<UploadImage> images) async {
     final result = await _repo.uploadResolutionImages(issueId, images);
-    await _ref.read(issueDetailProvider(issueId).notifier).reload();
+    if (_ref.exists(issueDetailProvider(issueId))) {
+      await _ref.read(issueDetailProvider(issueId).notifier).reload();
+    }
     return result;
   }
 

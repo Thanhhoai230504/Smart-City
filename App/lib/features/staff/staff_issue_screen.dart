@@ -19,8 +19,8 @@ import '../auth/auth_controller.dart';
 import '../issues/issue_detail_controller.dart';
 import '../issues/issue_rules.dart';
 import '../issues/widgets/detail_sections.dart';
-import 'resolve_screen.dart';
 import 'staff_actions.dart';
+import 'status_change.dart';
 
 /// Chi tiết việc ở hiện trường (task 4.4–4.9). Khác màn công khai: có **số điện
 /// thoại người báo cáo + nút GỌI** (web không làm được), nhận việc, đổi trạng
@@ -48,10 +48,7 @@ class StaffIssueScreen extends ConsumerWidget {
         skipLoadingOnRefresh: true,
         loading: () => const SkeletonList(count: 3, itemHeight: 140),
         error: (e, _) => ErrorState(error: e, onRetry: () => ref.invalidate(issueDetailProvider(issueId))),
-        data: (issue) => RefreshIndicator(
-          onRefresh: ref.read(issueDetailProvider(issueId).notifier).reload,
-          child: _StaffBody(issue: issue),
-        ),
+        data: (issue) => _StaffBody(issue: issue),
       ),
     );
   }
@@ -82,7 +79,7 @@ class _StaffBodyState extends ConsumerState<_StaffBody> {
         context.pushReplacement(Routes.staffIssue(issue.mergedInto!.id));
         return;
       }
-      showAppSnack(context, _explain(e), error: true);
+      showAppSnack(context, explainStaffError(e), error: true);
       if (e.code == 'INVALID_STATUS_TRANSITION') {
         await ref.read(staffActionsProvider(issue.id)).reload();
       }
@@ -91,36 +88,97 @@ class _StaffBodyState extends ConsumerState<_StaffBody> {
     }
   }
 
-  String _explain(AppException e) => switch (e.code) {
-        'INVALID_STATUS_TRANSITION' => 'Phiếu đã được cập nhật ở nơi khác. Đã tải lại trạng thái mới nhất.',
-        'NO_RESOLUTION_IMAGE' => 'Cần ảnh minh chứng trước khi báo đã xử lý.',
-        'REJECT_REASON_REQUIRED' => 'Vui lòng nêu rõ lý do từ chối.',
-        _ => e.message,
-      };
-
   Future<void> _claim() => _run(
         () => ref.read(staffActionsProvider(issue.id)).claim(),
         success: 'Bạn đã nhận xử lý sự cố này.',
       );
 
-  Future<void> _resolve() async {
-    final done = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => ResolveScreen(issue: issue), fullscreenDialog: true),
-    );
-    if (done == true && mounted) showAppSnack(context, 'Đã báo hoàn tất. Người dân sẽ được mời đánh giá.');
-  }
-
   Future<void> _changeStatus(IssueStatus target) async {
-    if (target == IssueStatus.resolved) return _resolve();
-    final note = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => _StatusSheet(target: target),
-    );
-    if (note == null) return;
+    if (target == IssueStatus.resolved) {
+      await openResolveFlow(context, issue);
+      return;
+    }
+    final note = await askStatusNote(context, target);
+    if (note == null || !mounted) return;
     await _run(
       () => ref.read(staffActionsProvider(issue.id)).updateStatus(target, note: note),
       success: 'Đã cập nhật trạng thái.',
+    );
+  }
+
+  Future<void> _pickStatus() async {
+    final target = await pickStatusTarget(context, issue, ref.read(metaProvider));
+    if (target != null && mounted) await _changeStatus(target);
+  }
+
+  /// Thanh thao tác cố định dưới màn — trước đây nút đổi trạng thái nằm giữa
+  /// trang nên phải cuộn mới thấy. `null` khi không có việc gì để làm.
+  Widget? _actionBar({required bool canHandle, required bool mine, required List<IssueStatus> targets}) {
+    if (!canHandle) return null;
+    // Padding ngang hẹp hơn mặc định + bỏ icon khi chữ lớn để hai nút không
+    // xuống dòng ở chữ 1.6×.
+    const pairPadding = EdgeInsets.symmetric(horizontal: Gap.md);
+    final icons = !pairButtonsWithoutIcons(context);
+    final List<Widget> buttons;
+    if (issue.assignee == null && issue.status.isOpen) {
+      buttons = [
+        Expanded(
+          child: FilledButton.icon(
+            onPressed: _busy ? null : _claim,
+            icon: const Icon(Icons.play_circle_outline),
+            label: const Text('Nhận việc để xử lý'),
+          ),
+        ),
+      ];
+    } else if (mine && issue.status.isOpen && targets.isNotEmpty) {
+      buttons = [
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: _busy ? null : _pickStatus,
+            style: OutlinedButton.styleFrom(padding: pairPadding),
+            icon: icons ? const Icon(Icons.sync_alt) : null,
+            label: const Text('Cập nhật'),
+          ),
+        ),
+        if (targets.contains(IssueStatus.resolved)) ...[
+          Gap.w12,
+          Expanded(
+            child: FilledButton.icon(
+              onPressed: _busy ? null : () => _changeStatus(IssueStatus.resolved),
+              style: FilledButton.styleFrom(padding: pairPadding),
+              icon: icons ? const Icon(Icons.task_alt) : null,
+              label: const Text('Hoàn tất'),
+            ),
+          ),
+        ],
+      ];
+    } else if (mine && targets.contains(IssueStatus.processing)) {
+      // Phiếu của mình đã đóng: cho mở lại nếu xử lý chưa xong.
+      buttons = [
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: _busy ? null : () => _changeStatus(IssueStatus.processing),
+            icon: Icon(statusTargetIcon(IssueStatus.processing)),
+            label: const Text('Mở lại để xử lý tiếp'),
+          ),
+        ),
+      ];
+    } else {
+      return null;
+    }
+    final palette = context.palette;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: palette.surface,
+        border: Border(top: BorderSide(color: palette.border)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(Gap.screen, Gap.md, Gap.screen, Gap.md),
+          child: Row(children: buttons),
+        ),
+      ),
     );
   }
 
@@ -132,11 +190,10 @@ class _StaffBodyState extends ConsumerState<_StaffBody> {
     final textTheme = Theme.of(context).textTheme;
     final canHandle = staffCanHandle(issue, departmentId: user?.department?.id);
     final mine = issue.assignee?.id == user?.id;
-    final targets = [
-      for (final t in meta.targetsFrom(issue.status.name)) IssueStatus.parse(t),
-    ].where((t) => t != IssueStatus.unknown).toList();
+    final targets = statusTargets(issue, meta);
+    final bar = _actionBar(canHandle: canHandle, mine: mine, targets: targets);
 
-    return ListView(
+    final list = ListView(
       padding: const EdgeInsets.fromLTRB(Gap.screen, Gap.sm, Gap.screen, Gap.xxxl),
       children: [
         Row(
@@ -172,7 +229,7 @@ class _StaffBodyState extends ConsumerState<_StaffBody> {
         Gap.h16,
         _ReporterCard(issue: issue),
         Gap.h12,
-        if (canHandle) _AssignmentCard(issue: issue, mine: mine, busy: _busy, onClaim: _claim),
+        if (canHandle) _AssignmentCard(issue: issue, mine: mine),
         // Như web: chỉ cán bộ đang phụ trách mới đổi trạng thái — tránh hai người
         // cùng xử lý một phiếu mà không biết nhau.
         if (canHandle && !mine && targets.isNotEmpty) ...[
@@ -184,34 +241,11 @@ class _StaffBodyState extends ConsumerState<_StaffBody> {
             style: textTheme.bodySmall,
           ),
         ],
-        if (canHandle && mine && targets.isNotEmpty) ...[
+        if (canHandle && mine && issue.status.isOpen && targets.isNotEmpty) ...[
           Gap.h12,
-          AppCard(
-            padding: EdgeInsets.zero,
-            child: Padding(
-              padding: const EdgeInsets.all(Gap.card),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SectionTitle('Cập nhật trạng thái', icon: Icons.sync_alt),
-                  for (final t in targets) ...[
-                    _TargetButton(
-                      target: t,
-                      label: switch (t) {
-                        IssueStatus.processing when issue.status.isClosed => 'Mở lại để xử lý tiếp',
-                        IssueStatus.processing => 'Bắt đầu xử lý',
-                        IssueStatus.resolved => 'Hoàn tất (chụp ảnh minh chứng)',
-                        IssueStatus.rejected => 'Từ chối (cần nêu lý do)',
-                        _ => meta.statusLabel(t.name),
-                      },
-                      onPressed: _busy ? null : () => _changeStatus(t),
-                    ),
-                    Gap.h8,
-                  ],
-                ],
-              ),
-            ),
+          Text(
+            'Bấm “Cập nhật” để chuyển trạng thái hoặc từ chối, “Hoàn tất” để chụp ảnh minh chứng và báo đã xử lý.',
+            style: textTheme.bodySmall,
           ),
         ],
         if (issue.priorityFactors.isNotEmpty) ...[
@@ -267,27 +301,18 @@ class _StaffBodyState extends ConsumerState<_StaffBody> {
         CommentsSection(issueId: issue.id),
       ],
     );
-  }
-}
 
-class _TargetButton extends StatelessWidget {
-  const _TargetButton({required this.target, required this.label, required this.onPressed});
-
-  final IssueStatus target;
-  final String label;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final icon = switch (target) {
-      IssueStatus.processing => Icons.engineering,
-      IssueStatus.resolved => Icons.task_alt,
-      IssueStatus.rejected => Icons.block,
-      _ => Icons.sync,
-    };
-    return target == IssueStatus.resolved
-        ? FilledButton.icon(onPressed: onPressed, icon: Icon(icon), label: Text(label))
-        : OutlinedButton.icon(onPressed: onPressed, icon: Icon(icon), label: Text(label));
+    return Column(
+      children: [
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: ref.read(issueDetailProvider(issue.id).notifier).reload,
+            child: list,
+          ),
+        ),
+        ?bar,
+      ],
+    );
   }
 }
 
@@ -355,18 +380,15 @@ class _ReporterCard extends StatelessWidget {
 }
 
 class _AssignmentCard extends StatelessWidget {
-  const _AssignmentCard({required this.issue, required this.mine, required this.busy, required this.onClaim});
+  const _AssignmentCard({required this.issue, required this.mine});
 
   final Issue issue;
   final bool mine;
-  final bool busy;
-  final VoidCallback onClaim;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final palette = context.palette;
-    final claimable = issue.assignee == null && issue.status.isOpen;
     return AppCard(
       padding: EdgeInsets.zero,
       color: mine ? palette.success.container : null,
@@ -390,8 +412,6 @@ class _AssignmentCard extends StatelessWidget {
                 style: textTheme.bodyMedium,
               ),
             ),
-            if (claimable)
-              FilledButton(onPressed: busy ? null : onClaim, child: const Text('Nhận việc')),
           ],
         ),
       ),
@@ -437,67 +457,6 @@ class _PriorityExplain extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: Text('Phiên bản thuật toán: ${issue.priorityVersion}', style: textTheme.labelSmall),
             ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Ghi chú khi đổi trạng thái. **Từ chối bắt buộc có lý do** — chặn ngay ở client
-/// thay vì để người dùng bấm rồi mới nhận `REJECT_REASON_REQUIRED` (task 4.6).
-class _StatusSheet extends ConsumerStatefulWidget {
-  const _StatusSheet({required this.target});
-
-  final IssueStatus target;
-
-  @override
-  ConsumerState<_StatusSheet> createState() => _StatusSheetState();
-}
-
-class _StatusSheetState extends ConsumerState<_StatusSheet> {
-  final _note = TextEditingController();
-
-  @override
-  void dispose() {
-    _note.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final meta = ref.watch(metaProvider);
-    final rejecting = widget.target == IssueStatus.rejected;
-    final canSubmit = !rejecting || _note.text.trim().isNotEmpty;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(Gap.screen, 0, Gap.screen, MediaQuery.viewInsetsOf(context).bottom + Gap.lg),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Chuyển sang “${meta.statusLabel(widget.target.name)}”',
-              style: Theme.of(context).textTheme.titleLarge),
-          Gap.h12,
-          TextField(
-            controller: _note,
-            autofocus: rejecting,
-            minLines: 3,
-            maxLines: 6,
-            maxLength: meta.limits.maxNoteLength,
-            onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(
-              labelText: rejecting ? 'Lý do từ chối *' : 'Ghi chú (không bắt buộc)',
-              helperText: rejecting ? 'Người dân sẽ đọc lý do này — hãy nêu rõ vì sao.' : null,
-              alignLabelWithHint: true,
-            ),
-          ),
-          Gap.h8,
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: canSubmit ? () => Navigator.pop(context, _note.text.trim()) : null,
-              child: const Text('Xác nhận'),
-            ),
-          ),
         ],
       ),
     );

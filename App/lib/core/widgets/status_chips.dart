@@ -138,7 +138,9 @@ class ReopenedChip extends StatelessWidget {
       );
 }
 
-/// Danh mục: icon màu của danh mục + nhãn từ meta.
+/// Danh mục: icon màu của danh mục + nhãn từ meta. Một đoạn chữ (icon là
+/// `WidgetSpan`) chứ không phải Row: khi bị ép hẹp — chữ 1.6× cạnh "x ngày
+/// trước" trên thẻ — nó cắt bằng "…" thay vì tràn layout.
 class CategoryLabel extends ConsumerWidget {
   const CategoryLabel(this.category, {super.key, this.style});
 
@@ -149,16 +151,27 @@ class CategoryLabel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = ref.watch(metaProvider).category(category);
     final tone = CategoryTone.of(hexColor(c.color), context.palette);
-    final textStyle = style ?? Theme.of(context).textTheme.labelMedium;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(AppIcons.category(category), size: (textStyle?.fontSize ?? 13) + 3, color: tone.ink),
-        const SizedBox(width: 4),
-        Flexible(
-          child: Text(c.label, style: textStyle, maxLines: 1, overflow: TextOverflow.ellipsis),
-        ),
-      ],
+    final textStyle = style ?? Theme.of(context).textTheme.labelMedium ?? const TextStyle(fontSize: 13);
+    final fontSize = textStyle.fontSize ?? 13;
+    return Text.rich(
+      TextSpan(
+        children: [
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: Icon(AppIcons.category(category), size: fontSize + 3, color: tone.ink),
+            ),
+          ),
+          TextSpan(text: c.label),
+        ],
+      ),
+      // WidgetSpan bị phóng theo textScaler của đoạn chữ → tắt scale ở đây và tự
+      // phóng cỡ chữ, để icon giữ cỡ cố định như trước còn nhãn vẫn theo cài đặt máy.
+      style: textStyle.copyWith(fontSize: MediaQuery.textScalerOf(context).scale(fontSize)),
+      textScaler: TextScaler.noScaling,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
     );
   }
 }

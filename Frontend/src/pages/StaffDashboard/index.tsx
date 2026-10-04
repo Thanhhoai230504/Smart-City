@@ -25,10 +25,13 @@ import {
   TableHead,
   TableRow,
   Tabs,
+  ToggleButton,
+  ToggleButtonGroup,
   Tooltip,
   Typography,
 } from '@mui/material';
 import {
+  ApartmentOutlined,
   AssignmentIndOutlined,
   EditNote,
   FilterAltOff,
@@ -66,6 +69,8 @@ interface ApiErrorResponse {
 type StatusFilter = IssueStatus | '';
 type SlaFilter = Extract<SlaStatus, 'overdue' | 'due_soon'> | '';
 type PriorityFilter = PriorityLevel | '';
+// Cán bộ có hai phạm vi: mọi việc của đơn vị, hoặc chỉ những phiếu mình đã nhận.
+type WorkScope = 'department' | 'mine';
 type SnackState = {
   open: boolean;
   message: string;
@@ -240,6 +245,9 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
   // G8: chỉ hiện phiếu người dân đã mở lại vì không đồng ý kết quả.
   const [reopenedOnly, setReopenedOnly] = useState(false);
   const [sort, setSort] = useState('-priorityScore');
+  const [scope, setScope] = useState<WorkScope>('department');
+  // Số phiếu mình đang giữ chưa đóng — hiện trên tab "Việc của tôi".
+  const [mineOpen, setMineOpen] = useState<number | null>(null);
   const [page, setPage] = useState(1);
   const [claimingId, setClaimingId] = useState('');
   const [statusTarget, setStatusTarget] = useState<Issue | null>(null);
@@ -253,6 +261,7 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
   const currentUserId = user?._id || user?.id || '';
   const departmentId = getReferenceId(user?.departmentId);
   const missingDepartment = isStaff && !departmentId;
+  const showMine = isStaff && scope === 'mine';
 
   useEffect(() => {
     let active = true;
@@ -308,6 +317,7 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
       if (slaFilter) params.slaStatus = slaFilter;
       if (priorityFilter) params.priorityLevel = priorityFilter;
       if (reopenedOnly) params.reopened = 'true';
+      if (showMine) params.assigneeId = currentUserId;
 
       const { data } = await issueApi.getStaffIssues(params);
       setIssues(data.data.issues);
@@ -320,11 +330,55 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
     } finally {
       setLoading(false);
     }
-  }, [missingDepartment, page, priorityFilter, reopenedOnly, slaFilter, sort, statusFilter, user]);
+  }, [
+    currentUserId,
+    missingDepartment,
+    page,
+    priorityFilter,
+    reopenedOnly,
+    showMine,
+    slaFilter,
+    sort,
+    statusFilter,
+    user,
+  ]);
 
   useEffect(() => {
     loadIssues();
   }, [loadIssues]);
+
+  // API chỉ lọc một trạng thái mỗi lần nên đếm "Mới báo" và "Đang xử lý" riêng
+  // rồi cộng lại (limit=1, chỉ đọc pagination.total).
+  const loadMineOpen = useCallback(async () => {
+    if (!isStaff || !currentUserId || missingDepartment) {
+      setMineOpen(null);
+      return;
+    }
+    try {
+      const totals = await Promise.all(
+        (['reported', 'processing'] as const).map(async (status) => {
+          const { data } = await issueApi.getStaffIssues({
+            assigneeId: currentUserId,
+            status,
+            limit: 1,
+          });
+          return data.data.pagination.total;
+        }),
+      );
+      setMineOpen(totals[0] + totals[1]);
+    } catch {
+      setMineOpen(null);
+    }
+  }, [currentUserId, isStaff, missingDepartment]);
+
+  useEffect(() => {
+    loadMineOpen();
+  }, [loadMineOpen]);
+
+  const refreshAll = useCallback(
+    () => Promise.all([loadIssues(), loadMineOpen()]),
+    [loadIssues, loadMineOpen],
+  );
 
   const filterDescription = useMemo(() => {
     const parts: string[] = [];
@@ -333,8 +387,14 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
     if (slaFilter === 'due_soon') parts.push('Sắp đến hạn');
     if (priorityFilter) parts.push(`Ưu tiên ${PRIORITY_MAP[priorityFilter].label}`);
     if (reopenedOnly) parts.push('Bị người dân mở lại');
-    return parts.length > 0 ? parts.join(' · ') : 'Tất cả công việc';
-  }, [priorityFilter, reopenedOnly, slaFilter, statusFilter]);
+    if (parts.length === 0) return showMine ? 'Tất cả phiếu bạn đã nhận' : 'Tất cả công việc';
+    return parts.join(' · ');
+  }, [priorityFilter, reopenedOnly, showMine, slaFilter, statusFilter]);
+
+  const hasFilters = Boolean(statusFilter || slaFilter || priorityFilter || reopenedOnly);
+  const emptyMessage = showMine && !hasFilters
+    ? 'Bạn chưa nhận việc nào. Chuyển sang “Việc của đơn vị” và bấm “Nhận việc” ở phiếu chưa có người phụ trách.'
+    : 'Không có công việc phù hợp với bộ lọc.';
 
   const pageSummary = useMemo(() => ({
     unassigned: issues.filter((issue) => isOpenIssue(issue) && !issue.assigneeId).length,
@@ -349,6 +409,13 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
         ? 'Đang tải thông tin đơn vị...'
         : 'Chưa được gán đơn vị'
     : 'Quản trị viên · Toàn hệ thống';
+
+  // Bộ lọc dùng chung cho hai phạm vi; đổi phạm vi chỉ quay về trang 1.
+  const handleScope = (nextScope: WorkScope | null) => {
+    if (!nextScope) return;
+    setScope(nextScope);
+    setPage(1);
+  };
 
   const handleStatusFilter = (nextStatus: StatusFilter) => {
     setStatusFilter(nextStatus);
@@ -380,17 +447,17 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
       await issueApi.claimIssue(issue._id);
       setSnack({
         open: true,
-        message: `Bạn đã nhận xử lý “${issue.title}”.`,
+        message: `Bạn đã nhận xử lý “${issue.title}”. Phiếu nằm trong tab “Việc của tôi”.`,
         severity: 'success',
       });
-      await loadIssues();
+      await refreshAll();
     } catch (requestError) {
       setSnack({
         open: true,
         message: getErrorMessage(requestError, 'Không thể nhận công việc này.'),
         severity: 'error',
       });
-      await loadIssues();
+      await refreshAll();
     } finally {
       setClaimingId('');
     }
@@ -399,7 +466,7 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
   const handleStatusCompleted = (message: string) => {
     setStatusTarget(null);
     setSnack({ open: true, message, severity: 'success' });
-    loadIssues();
+    refreshAll();
   };
 
   const getPermissions = (issue: Issue) => {
@@ -469,7 +536,7 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
                 <Button
                   variant="outlined"
                   startIcon={<Refresh />}
-                  onClick={loadIssues}
+                  onClick={refreshAll}
                   disabled={loading || missingDepartment}
                 >
                   Làm mới
@@ -495,6 +562,73 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
 
         {!missingDepartment && (
           <>
+            {isStaff && (
+              <Stack
+                direction={{ xs: 'column', md: 'row' }}
+                spacing={{ xs: 1, md: 2 }}
+                alignItems={{ xs: 'stretch', md: 'center' }}
+              >
+                <ToggleButtonGroup
+                  exclusive
+                  value={scope}
+                  onChange={(_, nextScope: WorkScope | null) => handleScope(nextScope)}
+                  aria-label="Phạm vi công việc"
+                  sx={{
+                    bgcolor: 'background.paper',
+                    flexShrink: 0,
+                    width: { xs: '100%', md: 'auto' },
+                    '& .MuiToggleButton-root': {
+                      flex: { xs: 1, md: 'none' },
+                      gap: 1,
+                      px: { xs: 1, sm: 2 },
+                      py: 1,
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      lineHeight: 1.3,
+                      whiteSpace: { xs: 'normal', md: 'nowrap' },
+                    },
+                    // Màn hẹp: bỏ icon để hai nút vừa một hàng, không tràn ngang.
+                    '& .MuiToggleButton-root > .MuiSvgIcon-root': {
+                      display: { xs: 'none', sm: 'inline-block' },
+                    },
+                  }}
+                >
+                  <ToggleButton value="department">
+                    <ApartmentOutlined fontSize="small" />
+                    Việc của đơn vị
+                  </ToggleButton>
+                  <ToggleButton value="mine">
+                    <AssignmentIndOutlined fontSize="small" />
+                    Việc của tôi
+                    {Boolean(mineOpen) && (
+                      <Box
+                        component="span"
+                        sx={{
+                          minWidth: 22,
+                          height: 22,
+                          px: 0.75,
+                          borderRadius: 11,
+                          bgcolor: 'primary.main',
+                          color: 'primary.contrastText',
+                          fontSize: 12,
+                          fontWeight: 800,
+                          lineHeight: '22px',
+                          textAlign: 'center',
+                        }}
+                      >
+                        {mineOpen}
+                      </Box>
+                    )}
+                  </ToggleButton>
+                </ToggleButtonGroup>
+                <Typography variant="body2" color="text.secondary">
+                  {showMine
+                    ? 'Các phiếu bạn đã nhận. Bấm “Cập nhật” để chuyển trạng thái hoặc báo đã xử lý kèm ảnh minh chứng.'
+                    : 'Mọi công việc được phân cho đơn vị. Bấm “Nhận việc” ở phiếu chưa có người phụ trách.'}
+                </Typography>
+              </Stack>
+            )}
+
             <Box
               component="section"
               aria-label="Tổng quan hàng đợi công việc"
@@ -514,12 +648,21 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
                   note: 'tổng số công việc',
                   color: '#172B3A',
                 },
-                {
-                  label: 'Chưa có người nhận',
-                  value: loading ? '—' : pageSummary.unassigned,
-                  note: 'trên trang hiện tại',
-                  color: pageSummary.unassigned > 0 ? '#B26A00' : '#172B3A',
-                },
+                // Ở "Việc của tôi" mọi phiếu đều đã có người nhận → thay bằng số
+                // phiếu mình còn phải xử lý (đếm trên toàn bộ, không chỉ trang này).
+                showMine
+                  ? {
+                    label: 'Đang mở',
+                    value: mineOpen ?? '—',
+                    note: 'chờ bạn cập nhật / hoàn tất',
+                    color: mineOpen ? '#B26A00' : '#172B3A',
+                  }
+                  : {
+                    label: 'Chưa có người nhận',
+                    value: loading ? '—' : pageSummary.unassigned,
+                    note: 'trên trang hiện tại',
+                    color: pageSummary.unassigned > 0 ? '#B26A00' : '#172B3A',
+                  },
                 {
                   label: 'Đã quá hạn',
                   value: loading ? '—' : pageSummary.overdue,
@@ -591,7 +734,7 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
                         size="small"
                         variant="outlined"
                         startIcon={<Refresh />}
-                        onClick={loadIssues}
+                        onClick={refreshAll}
                         disabled={loading || missingDepartment}
                         sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
                       >
@@ -725,9 +868,9 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
                         <TableCell colSpan={7} align="center" sx={{ ...cellSx, py: 8 }}>
                           <AssignmentIndOutlined sx={{ fontSize: 44, color: 'text.disabled', mb: 1 }} />
                           <Typography color="text.secondary">
-                            Không có công việc phù hợp với bộ lọc.
+                            {emptyMessage}
                           </Typography>
-                          {(statusFilter || slaFilter || priorityFilter || reopenedOnly) && (
+                          {hasFilters ? (
                             <Button
                               size="small"
                               startIcon={<FilterAltOff />}
@@ -735,6 +878,15 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
                               sx={{ mt: 1 }}
                             >
                               Xóa bộ lọc
+                            </Button>
+                          ) : showMine && (
+                            <Button
+                              size="small"
+                              startIcon={<ApartmentOutlined />}
+                              onClick={() => handleScope('department')}
+                              sx={{ mt: 1 }}
+                            >
+                              Xem việc của đơn vị
                             </Button>
                           )}
                         </TableCell>
@@ -862,8 +1014,18 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
                   <Box sx={{ py: 7, px: 2, textAlign: 'center' }}>
                     <AssignmentIndOutlined sx={{ fontSize: 42, color: 'text.disabled', mb: 1 }} />
                     <Typography color="text.secondary">
-                      Không có công việc phù hợp với bộ lọc.
+                      {emptyMessage}
                     </Typography>
+                    {showMine && !hasFilters && (
+                      <Button
+                        size="small"
+                        startIcon={<ApartmentOutlined />}
+                        onClick={() => handleScope('department')}
+                        sx={{ mt: 1 }}
+                      >
+                        Xem việc của đơn vị
+                      </Button>
+                    )}
                   </Box>
                 ) : (
                   <Stack spacing={0} divider={<Box sx={{ borderTop: '1px solid #E2E8EC' }} />}>

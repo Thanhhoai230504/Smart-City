@@ -17,30 +17,48 @@ import '../../core/widgets/surfaces.dart';
 import '../../data/models/common.dart';
 import '../../data/models/issue.dart';
 import '../../data/repositories/issue_repository.dart';
+import '../../data/repositories/meta_repository.dart';
 import '../auth/auth_controller.dart';
 import '../home/home_screen.dart';
 import '../issues/issue_list_screen.dart';
+import '../issues/issue_rules.dart';
 import '../issues/widgets/filter_bar.dart';
 import '../issues/widgets/issue_card.dart';
 import '../report/offline_queue.dart';
+import 'status_change.dart';
 
-/// Mặc định: việc đang mở, ưu tiên cao trước.
-final workQueryProvider = StateProvider.autoDispose<IssueQuery>(
-  (ref) => const IssueQuery(sort: '-priorityScore'),
+/// Hai tab của cổng cán bộ: mọi việc của đơn vị, và những phiếu chính mình đã
+/// nhận — nơi cập nhật trạng thái / báo hoàn tất nhanh nhất.
+enum WorkScope { department, mine }
+
+final workScopeProvider = StateProvider.autoDispose<WorkScope>((ref) => WorkScope.department);
+
+/// Bộ lọc gốc của từng tab — "Xoá lọc" quay về đây. Tab "Việc của tôi" khoá
+/// người phụ trách là chính mình. Cả hai xếp ưu tiên cao trước; phiếu đã đóng
+/// không còn điểm ưu tiên nên tự xuống cuối.
+IssueQuery workBaseQuery(WorkScope scope, String? me) => switch (scope) {
+      WorkScope.department => const IssueQuery(sort: '-priorityScore'),
+      WorkScope.mine => IssueQuery(sort: '-priorityScore', assigneeId: me),
+    };
+
+/// Bộ lọc riêng của từng tab — đổi tab không làm mất bộ lọc của tab kia.
+final workQueryProvider = StateProvider.autoDispose.family<IssueQuery, WorkScope>(
+  (ref, scope) => workBaseQuery(scope, ref.watch(currentUserProvider.select((u) => u?.id))),
 );
 
 class WorkListController extends PagedController<Issue> {
   @override
   PagedState<Issue> build() {
-    ref.watch(workQueryProvider);
+    ref.watch(workQueryProvider(ref.watch(workScopeProvider)));
     return super.build();
   }
 
   /// `/issues/work` — backend tự bó phạm vi về đơn vị của cán bộ, ghi đè mọi
   /// `departmentId` client gửi lên.
   @override
-  Future<Paged<Issue>> fetchPage(int page, CancelToken cancel) =>
-      ref.read(issueRepositoryProvider).work(ref.read(workQueryProvider), page: page, cancel: cancel);
+  Future<Paged<Issue>> fetchPage(int page, CancelToken cancel) => ref
+      .read(issueRepositoryProvider)
+      .work(ref.read(workQueryProvider(ref.read(workScopeProvider))), page: page, cancel: cancel);
 
   @override
   String idOf(Issue item) => item.id;
@@ -52,24 +70,47 @@ final workListProvider =
 /// Số liệu đầu trang — đếm thật trên toàn đơn vị (mỗi ô một truy vấn `limit=1`
 /// đọc `pagination.total`), không chỉ trên trang đang tải như web.
 class WorkSummary {
-  const WorkSummary({required this.mineInProgress, required this.overdue, required this.dueSoon});
+  const WorkSummary({required this.mineOpen, required this.overdue, required this.dueSoon});
 
-  final int mineInProgress;
+  /// Phiếu mình đang giữ mà chưa đóng: đã nhận (còn "Chờ tiếp nhận") + đang xử lý.
+  final int mineOpen;
   final int overdue;
   final int dueSoon;
 }
 
 final workSummaryProvider = FutureProvider.autoDispose<WorkSummary>((ref) async {
   final repo = ref.read(issueRepositoryProvider);
-  final me = ref.read(currentUserProvider)?.id;
+  final me = ref.watch(currentUserProvider.select((u) => u?.id));
   Future<int> count(IssueQuery q) async => (await repo.work(q, limit: 1)).pagination.total;
+  // `/issues/work` chỉ lọc được một trạng thái mỗi lần → đếm riêng rồi cộng.
   final results = await Future.wait([
-    if (me != null) count(IssueQuery(assigneeId: me, status: 'processing')) else Future.value(0),
+    if (me != null) ...[
+      count(IssueQuery(assigneeId: me, status: 'reported')),
+      count(IssueQuery(assigneeId: me, status: 'processing')),
+    ] else ...[
+      Future.value(0),
+      Future.value(0),
+    ],
     count(const IssueQuery(slaStatus: 'overdue')),
     count(const IssueQuery(slaStatus: 'due_soon')),
   ]);
-  return WorkSummary(mineInProgress: results[0], overdue: results[1], dueSoon: results[2]);
+  return WorkSummary(mineOpen: results[0] + results[1], overdue: results[2], dueSoon: results[3]);
 });
+
+/// Nhận việc, đổi trạng thái, sự kiện realtime → tải lại danh sách và số liệu.
+void invalidateWork(void Function(ProviderOrFamily provider) invalidate) {
+  invalidate(workListProvider);
+  invalidate(workSummaryProvider);
+}
+
+/// Chuyển tab; `filter` (nếu có) đặt bộ lọc của tab đích tính từ bộ lọc gốc.
+void showWorkScope(WidgetRef ref, WorkScope scope, {IssueQuery Function(IssueQuery base)? filter}) {
+  if (filter != null) {
+    final base = workBaseQuery(scope, ref.read(currentUserProvider)?.id);
+    ref.read(workQueryProvider(scope).notifier).state = filter(base);
+  }
+  ref.read(workScopeProvider.notifier).state = scope;
+}
 
 /// Tab "Công việc" của cán bộ — thay cho Trang chủ (design system mục 5).
 class WorkListScreen extends ConsumerStatefulWidget {
@@ -80,36 +121,131 @@ class WorkListScreen extends ConsumerStatefulWidget {
 }
 
 class _WorkListScreenState extends ConsumerState<WorkListScreen> {
-  final Set<String> _claiming = {};
+  /// Phiếu đang chờ server (nhận việc / đổi trạng thái) — khoá nút trên các thẻ.
+  final Set<String> _busy = {};
 
   Future<void> _refresh() async {
     ref.invalidate(workSummaryProvider);
     await ref.read(workListProvider.notifier).refresh();
   }
 
-  /// "Nhận việc" ngay trên danh sách (như web) — không phải mở từng phiếu.
-  Future<void> _claim(Issue issue) async {
-    setState(() => _claiming.add(issue.id));
+  /// Chạy một thao tác trên phiếu. Lỗi (người khác vừa nhận, phiếu vừa đổi ở
+  /// nơi khác…) thì báo rồi tải lại để thấy trạng thái mới nhất.
+  Future<void> _run(Issue issue, Future<void> Function() action) async {
+    setState(() => _busy.add(issue.id));
     try {
-      await ref.read(issueRepositoryProvider).claim(issue.id);
-      if (mounted) showAppSnack(context, 'Bạn đã nhận “${issue.title}”.');
-      await _refresh();
+      await action();
     } on AppException catch (e) {
-      if (mounted) showAppSnack(context, e.message, error: true);
-      await _refresh();
+      if (mounted) showAppSnack(context, explainStaffError(e), error: true);
+      if (mounted) await _refresh();
     } finally {
-      if (mounted) setState(() => _claiming.remove(issue.id));
+      if (mounted) setState(() => _busy.remove(issue.id));
     }
+  }
+
+  /// "Nhận việc" ngay trên danh sách (như web) — không phải mở từng phiếu.
+  Future<void> _claim(Issue issue) => _run(issue, () async {
+        await ref.read(issueRepositoryProvider).claim(issue.id);
+        if (!mounted) return;
+        showAppSnack(context, 'Bạn đã nhận “${issue.title}”. Phiếu nằm trong tab “Việc của tôi”.');
+        await _refresh();
+      });
+
+  Future<void> _changeStatus(Issue issue, IssueStatus target) async {
+    // Hoàn tất cần ảnh minh chứng; màn đó tự làm mới danh sách khi xong. Thẻ
+    // danh sách thiếu ảnh (backend bỏ `images`/`resolutionImages` ở danh sách)
+    // → lấy bản đầy đủ, để ảnh đã tải lên lần trước không phải chụp lại.
+    if (target == IssueStatus.resolved) {
+      Issue? full;
+      await _run(issue, () async => full = await ref.read(issueRepositoryProvider).detail(issue.id));
+      final loaded = full;
+      if (loaded != null && mounted) await openResolveFlow(context, loaded);
+      return;
+    }
+    final note = await askStatusNote(context, target);
+    if (note == null || !mounted) return;
+    final label = ref.read(metaProvider).statusLabel(target.name);
+    await _run(issue, () async {
+      await ref.read(issueRepositoryProvider).updateStatus(issue.id, target, note: note);
+      if (!mounted) return;
+      showAppSnack(context, 'Đã chuyển “${issue.title}” sang “$label”.');
+      await _refresh();
+    });
+  }
+
+  Future<void> _pickStatus(Issue issue) async {
+    final target = await pickStatusTarget(context, issue, ref.read(metaProvider));
+    if (target != null && mounted) await _changeStatus(issue, target);
+  }
+
+  /// Thao tác ngay trên thẻ: phiếu chưa ai nhận → "Nhận việc"; phiếu của mình
+  /// còn mở → "Cập nhật" + "Hoàn tất". Như web, phiếu người khác giữ chỉ xem.
+  Widget? _actions(Issue issue, {required String? me, required String? departmentId}) {
+    if (!issue.status.isOpen || !staffCanHandle(issue, departmentId: departmentId)) return null;
+    final palette = context.palette;
+    final busy = _busy.contains(issue.id);
+    final locked = _busy.isNotEmpty;
+    const spinner = SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2));
+
+    if (issue.assignee == null) {
+      return Align(
+        alignment: Alignment.centerRight,
+        child: FilledButton.tonalIcon(
+          onPressed: locked ? null : () => _claim(issue),
+          style: FilledButton.styleFrom(minimumSize: const Size(kMinTouchTarget, 44)),
+          icon: busy ? spinner : Icon(Icons.play_circle_outline, color: palette.success.text),
+          label: const Text('Nhận việc'),
+        ),
+      );
+    }
+    if (me == null || issue.assignee!.id != me) return null;
+
+    final targets = statusTargets(issue, ref.read(metaProvider));
+    // Padding ngang hẹp hơn mặc định + bỏ icon khi chữ lớn để hai nút không
+    // xuống dòng ở chữ 1.6×.
+    const pairPadding = EdgeInsets.symmetric(horizontal: Gap.md);
+    final icons = !pairButtonsWithoutIcons(context);
+    return Row(
+      children: [
+        if (targets.isNotEmpty)
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: locked ? null : () => _pickStatus(issue),
+              style: OutlinedButton.styleFrom(minimumSize: const Size(kMinTouchTarget, 44), padding: pairPadding),
+              icon: busy ? spinner : (icons ? const Icon(Icons.sync_alt) : null),
+              label: const Text('Cập nhật'),
+            ),
+          ),
+        if (targets.contains(IssueStatus.resolved)) ...[
+          Gap.w8,
+          Expanded(
+            child: FilledButton.icon(
+              onPressed: locked ? null : () => _changeStatus(issue, IssueStatus.resolved),
+              style: FilledButton.styleFrom(minimumSize: const Size(kMinTouchTarget, 44), padding: pairPadding),
+              icon: icons ? const Icon(Icons.task_alt) : null,
+              label: const Text('Hoàn tất'),
+            ),
+          ),
+        ],
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(workListProvider);
-    final query = ref.watch(workQueryProvider);
+    final scope = ref.watch(workScopeProvider);
+    // Giữ bộ lọc của cả hai tab khi chuyển qua lại.
+    final queries = {for (final s in WorkScope.values) s: ref.watch(workQueryProvider(s))};
+    final query = queries[scope]!;
     final user = ref.watch(currentUserProvider);
+    final mineOpen = ref.watch(workSummaryProvider).valueOrNull?.mineOpen;
     final online = ref.watch(isOnlineProvider);
     final pending = ref.watch(offlineQueueProvider.select((s) => s.count));
-    final palette = context.palette;
+    final textTheme = Theme.of(context).textTheme;
+    final mine = scope == WorkScope.mine;
+    final base = workBaseQuery(scope, user?.id);
+    final filterCount = query.activeFilterCount - base.activeFilterCount;
 
     if (user != null && user.department == null) {
       return const Scaffold(
@@ -123,6 +259,8 @@ class _WorkListScreenState extends ConsumerState<WorkListScreen> {
       );
     }
 
+    void resetFilters() => ref.read(workQueryProvider(scope).notifier).state = base;
+
     return Scaffold(
       body: PagedListView<Issue>(
         state: state,
@@ -134,6 +272,14 @@ class _WorkListScreenState extends ConsumerState<WorkListScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             _WorkHero(total: state.pagination.total, loading: state.isLoading),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(Gap.screen, Gap.lg, Gap.screen, 0),
+              child: _ScopeTabs(
+                scope: scope,
+                mineOpen: mineOpen,
+                onChanged: (s) => showWorkScope(ref, s),
+              ),
+            ),
             if (OfflineBanner.isVisible(online: online, pendingCount: pending))
               Padding(
                 padding: const EdgeInsets.fromLTRB(Gap.screen, Gap.md, Gap.screen, 0),
@@ -150,19 +296,31 @@ class _WorkListScreenState extends ConsumerState<WorkListScreen> {
               padding: const EdgeInsets.fromLTRB(Gap.screen, Gap.lg, Gap.screen, 0),
               child: Row(
                 children: [
-                  Expanded(child: Text('Danh sách việc', style: Theme.of(context).textTheme.titleLarge)),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(mine ? 'Phiếu bạn đã nhận' : 'Danh sách việc', style: textTheme.titleLarge),
+                        if (mine)
+                          Text(
+                            'Cập nhật trạng thái hoặc báo hoàn tất ngay trên từng thẻ.',
+                            style: textTheme.bodySmall,
+                          ),
+                      ],
+                    ),
+                  ),
                   Badge(
-                    isLabelVisible: query.activeFilterCount > 0,
-                    label: Text('${query.activeFilterCount}'),
+                    isLabelVisible: filterCount > 0,
+                    label: Text('$filterCount'),
                     child: IconButton.filledTonal(
                       tooltip: 'Bộ lọc và sắp xếp',
                       icon: const Icon(Icons.tune),
                       onPressed: () => showIssueFilterSheet(
                         context,
                         ref,
-                        workQueryProvider,
+                        workQueryProvider(scope),
                         staffMode: true,
-                        currentUserId: user?.id,
+                        baseQuery: base,
                       ),
                     ),
                   ),
@@ -172,60 +330,175 @@ class _WorkListScreenState extends ConsumerState<WorkListScreen> {
             Padding(
               padding: Gap.screenPadding,
               child: IssueFilterBar(
-                provider: workQueryProvider,
+                provider: workQueryProvider(scope),
                 total: state.pagination.total,
                 loading: state.isLoading,
                 staffMode: true,
-                defaultSort: '-priorityScore',
+                baseQuery: base,
               ),
             ),
             Gap.h4,
           ],
         ),
-        itemBuilder: (context, issue) {
-          final claimable = issue.assignee == null && issue.status.isOpen;
-          final claiming = _claiming.contains(issue.id);
-          return Padding(
-            padding: Gap.screenPadding,
-            child: IssueCard(
-              issue: issue,
-              showSla: true,
-              showPriority: true,
-              showAssignee: true,
-              showDepartment: false,
-              onTap: () => context.push(Routes.staffIssue(issue.id)),
-              footer: claimable
-                  ? Align(
-                      alignment: Alignment.centerRight,
-                      child: FilledButton.tonalIcon(
-                        onPressed: claiming || _claiming.isNotEmpty ? null : () => _claim(issue),
-                        style: FilledButton.styleFrom(minimumSize: const Size(kMinTouchTarget, 44)),
-                        icon: claiming
-                            ? const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                            : Icon(Icons.play_circle_outline, color: palette.success.text),
-                        label: const Text('Nhận việc'),
-                      ),
-                    )
-                  : null,
-            ),
-          );
-        },
+        itemBuilder: (context, issue) => Padding(
+          padding: Gap.screenPadding,
+          child: IssueCard(
+            issue: issue,
+            showSla: true,
+            showPriority: true,
+            showAssignee: !mine,
+            showDepartment: false,
+            onTap: () => context.push(Routes.staffIssue(issue.id)),
+            footer: _actions(issue, me: user?.id, departmentId: user?.department?.id),
+          ),
+        ),
         empty: Padding(
           padding: Gap.screenPadding,
-          child: EmptyState(
-            icon: Icons.task_alt,
-            title: query.activeFilterCount > 0 ? 'Không có việc khớp bộ lọc' : 'Đơn vị chưa có việc nào',
-            message: query.activeFilterCount > 0
-                ? 'Thử bỏ bớt điều kiện lọc.'
-                : 'Việc được quản trị viên phân công cho đơn vị sẽ hiện ở đây.',
-            actionLabel: query.activeFilterCount > 0 ? 'Xoá bộ lọc' : 'Làm mới',
-            onAction: () {
-              if (query.activeFilterCount > 0) {
-                ref.read(workQueryProvider.notifier).state = const IssueQuery(sort: '-priorityScore');
-              } else {
-                _refresh();
-              }
-            },
+          child: filterCount > 0
+              ? EmptyState(
+                  icon: Icons.filter_alt_off_outlined,
+                  title: 'Không có việc khớp bộ lọc',
+                  message: 'Thử bỏ bớt điều kiện lọc.',
+                  actionLabel: 'Xoá bộ lọc',
+                  onAction: resetFilters,
+                )
+              : mine
+                  ? EmptyState(
+                      icon: Icons.assignment_ind_outlined,
+                      title: 'Bạn chưa nhận việc nào',
+                      message: 'Mở tab “Việc đơn vị” và bấm “Nhận việc” ở phiếu chưa có người phụ trách.',
+                      actionLabel: 'Xem việc đơn vị',
+                      onAction: () => showWorkScope(ref, WorkScope.department),
+                    )
+                  : EmptyState(
+                      icon: Icons.task_alt,
+                      title: 'Đơn vị chưa có việc nào',
+                      message: 'Việc được quản trị viên phân công cho đơn vị sẽ hiện ở đây.',
+                      actionLabel: 'Làm mới',
+                      onAction: _refresh,
+                    ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "Việc đơn vị" / "Việc của tôi". Viên thuốc tự vẽ (không dùng SegmentedButton)
+/// để chữ phóng 1.6× vẫn co lại bằng dấu "…" thay vì tràn.
+class _ScopeTabs extends StatelessWidget {
+  const _ScopeTabs({required this.scope, required this.mineOpen, required this.onChanged});
+
+  final WorkScope scope;
+
+  /// Số phiếu mình đang giữ chưa đóng; `null` khi chưa đếm xong.
+  final int? mineOpen;
+  final ValueChanged<WorkScope> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    return Container(
+      padding: const EdgeInsets.all(Gap.xs),
+      decoration: BoxDecoration(
+        color: palette.surfaceAlt,
+        borderRadius: BorderRadius.circular(Radii.chip),
+        border: Border.all(color: palette.border),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _ScopeTab(
+              label: 'Việc đơn vị',
+              icon: Icons.apartment_outlined,
+              selected: scope == WorkScope.department,
+              onTap: () => onChanged(WorkScope.department),
+            ),
+          ),
+          Gap.w4,
+          Expanded(
+            child: _ScopeTab(
+              label: 'Việc của tôi',
+              icon: Icons.assignment_ind_outlined,
+              count: mineOpen,
+              selected: scope == WorkScope.mine,
+              onTap: () => onChanged(WorkScope.mine),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ScopeTab extends StatelessWidget {
+  const _ScopeTab({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+    this.count,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+  final int? count;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final textTheme = Theme.of(context).textTheme;
+    final fg = selected ? palette.onPrimary : palette.textSecondary;
+    final n = count;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: n == null ? label : '$label: $n việc đang mở',
+      excludeSemantics: true,
+      child: Material(
+        color: selected ? palette.primary : Colors.transparent,
+        shape: const StadiumBorder(),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: kMinTouchTarget),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: 18, color: fg),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: textTheme.labelLarge?.copyWith(color: fg),
+                    ),
+                  ),
+                  if (n != null && n > 0) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: selected ? palette.onPrimary : palette.accentSoft,
+                        borderRadius: BorderRadius.circular(Radii.chip),
+                      ),
+                      child: Text(
+                        Fmt.number(n),
+                        style: textTheme.labelSmall?.copyWith(
+                          color: selected ? palette.primary : palette.accentInk,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -245,11 +518,12 @@ class _WorkHero extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
     final summary = ref.watch(workSummaryProvider).valueOrNull;
-    final query = ref.watch(workQueryProvider);
+    final scope = ref.watch(workScopeProvider);
+    final query = ref.watch(workQueryProvider(scope));
     final palette = context.palette;
     final textTheme = Theme.of(context).textTheme;
     final dept = user?.department;
-    void apply(IssueQuery q) => ref.read(workQueryProvider.notifier).state = q;
+    final inDepartment = scope == WorkScope.department;
     String n(int? v) => v == null ? '—' : Fmt.number(v);
 
     Widget tile(String value, String label, IconData icon, {required bool selected, required VoidCallback onTap}) =>
@@ -319,19 +593,21 @@ class _WorkHero extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 tile(loading ? '—' : Fmt.number(total), 'Trong bộ lọc', Icons.inbox_outlined,
-                    selected: false, onTap: () => apply(const IssueQuery(sort: '-priorityScore'))),
+                    selected: false, onTap: () => showWorkScope(ref, scope, filter: (base) => base)),
                 Gap.w8,
-                tile(n(summary?.mineInProgress), 'Tôi đang làm', Icons.person_pin_circle_outlined,
-                    selected: query.assigneeId != null && query.status == 'processing',
-                    onTap: () => apply(IssueQuery(sort: '-priorityScore', assigneeId: user?.id, status: 'processing'))),
+                tile(n(summary?.mineOpen), 'Tôi đang làm', Icons.person_pin_circle_outlined,
+                    selected: !inDepartment, onTap: () => showWorkScope(ref, WorkScope.mine)),
                 Gap.w8,
+                // Hai ô hạn xử lý đếm trên toàn đơn vị nên lọc ở tab "Việc đơn vị".
                 tile(n(summary?.overdue), 'Quá hạn', Icons.error_outline,
-                    selected: query.slaStatus == 'overdue',
-                    onTap: () => apply(const IssueQuery(sort: '-priorityScore', slaStatus: 'overdue'))),
+                    selected: inDepartment && query.slaStatus == 'overdue',
+                    onTap: () => showWorkScope(ref, WorkScope.department,
+                        filter: (base) => base.copyWith(slaStatus: 'overdue'))),
                 Gap.w8,
                 tile(n(summary?.dueSoon), 'Sắp đến hạn', Icons.warning_amber,
-                    selected: query.slaStatus == 'due_soon',
-                    onTap: () => apply(const IssueQuery(sort: 'dueAt', slaStatus: 'due_soon'))),
+                    selected: inDepartment && query.slaStatus == 'due_soon',
+                    onTap: () => showWorkScope(ref, WorkScope.department,
+                        filter: (base) => base.copyWith(sort: 'dueAt', slaStatus: 'due_soon'))),
               ],
             ),
           ),

@@ -35,7 +35,7 @@ class IssueFilterBar extends ConsumerWidget {
     this.staffMode = false,
     this.showStatusChips = true,
     this.onClearAll,
-    this.defaultSort = '-createdAt',
+    this.baseQuery = const IssueQuery(),
   });
 
   final AutoDisposeStateProvider<IssueQuery> provider;
@@ -47,9 +47,10 @@ class IssueFilterBar extends ConsumerWidget {
   /// Màn cha cần xoá cả ô tìm kiếm của nó khi bỏ hết bộ lọc.
   final VoidCallback? onClearAll;
 
-  /// Kiểu sắp xếp mặc định của màn — không tính là "đang lọc" (cổng cán bộ
-  /// mặc định xếp theo ưu tiên).
-  final String defaultSort;
+  /// Bộ lọc gốc của màn: kiểu sắp xếp mặc định (cổng cán bộ xếp theo ưu tiên)
+  /// và điều kiện bị khoá (tab "Việc của tôi" khoá người phụ trách). Không hiện
+  /// thành chip "đang lọc", và "Xoá lọc" quay về đây.
+  final IssueQuery baseQuery;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -71,12 +72,13 @@ class IssueFilterBar extends ConsumerWidget {
       if (q.priorityLevel != null)
         ('Ưu tiên ${meta.priorityLabel(q.priorityLevel!).toLowerCase()}', () => set((x) => x.copyWith(priorityLevel: null))),
       if (q.slaStatus != null) (meta.slaLabel(q.slaStatus!), () => set((x) => x.copyWith(slaStatus: null))),
-      if (q.assigneeId != null) ('Việc tôi đang nhận', () => set((x) => x.copyWith(assigneeId: null))),
+      if (q.assigneeId != null && q.assigneeId != baseQuery.assigneeId)
+        ('Việc tôi đang nhận', () => set((x) => x.copyWith(assigneeId: baseQuery.assigneeId))),
       if (q.reopened) ('Bị mở lại', () => set((x) => x.copyWith(reopened: false))),
-      if (q.sort != defaultSort)
+      if (q.sort != baseQuery.sort)
         (
           issueSortOptions(staffMode: staffMode).where((o) => o.$1 == q.sort).map((o) => o.$2).firstOrNull ?? q.sort,
-          () => set((x) => x.copyWith(sort: defaultSort)),
+          () => set((x) => x.copyWith(sort: baseQuery.sort)),
         ),
     ];
 
@@ -106,7 +108,7 @@ class IssueFilterBar extends ConsumerWidget {
                 onPressed: () {
                   onClearAll?.call();
                   ref.read(provider.notifier).state =
-                      IssueQuery(search: onClearAll == null ? q.search : null, sort: defaultSort);
+                      baseQuery.copyWith(search: onClearAll == null ? q.search : null);
                 },
                 child: const Text('Xoá lọc'),
               ),

@@ -78,13 +78,17 @@ class _FakeAuth extends AuthController {
   AuthState build() => _state;
 }
 
+/// Id của "Lê Minh Cường" (canbo.giaothong@demo.vn) trong fixture `/issues/work`.
+const staffDemoId = '6abf1d2e954088cb98914221';
+
 AppUser demoUser(UserRole role) {
   final login = fixtureData('login_mobile')['user'] as Map<String, dynamic>;
   if (role == UserRole.user) return AppUser.fromJson(login);
   final staff = fixtureData('work_list_staff')['issues'] as List;
   final dept = (staff.first as Map)['departmentId'];
   return AppUser.fromJson({
-    '_id': 'staff-demo',
+    // Đúng cán bộ đang phụ trách vài phiếu trong fixture → test được "việc của tôi".
+    '_id': staffDemoId,
     'name': 'Lê Minh Cường',
     'email': 'canbo.giaothong@demo.vn',
     'role': 'staff',
