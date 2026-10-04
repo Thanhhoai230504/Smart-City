@@ -1,139 +1,172 @@
 const axios = require('axios');
 const cache = require('../utils/cache');
 
-// Tọa độ chính xác các tuyến đường chính Đà Nẵng (verified via Google Maps)
+/**
+ * Điểm đo tốc độ — mỗi điểm nằm GIỮA một đoạn của đúng tuyến đó, lấy từ hình
+ * học OpenStreetMap (04/10/2026) và đã kiểm bằng TomTom: cả 32 điểm rơi đúng
+ * trên đoạn được đo (lệch 0–10 m).
+ *
+ * Danh sách cũ ghi "verified via Google Maps" nhưng 23/32 điểm bị TomTom bắt
+ * sang đoạn cách 25 m – 1,5 km (điểm "Cách Mạng Tháng 8" thực ra đo một tuyến
+ * cách 1,5 km), vài tên khác nhau còn ra cùng một đoạn.
+ *
+ * Tên hiển thị lấy từ đây. KHÔNG tra địa chỉ ngược nữa: Goong trả về số nhà,
+ * kiệt, tên cửa hàng gần điểm nhất ("Trà chanh …", "Kiệt 372 …") chứ không phải
+ * tên đường. Cầu Nguyễn Văn Trỗi không có — giờ chỉ dành cho người đi bộ.
+ */
 const DA_NANG_ROADS = [
-  // ═══ Hải Châu ═══
-  { lat: 16.0544, lon: 108.2186, fallbackName: 'Đường 2 Tháng 9' },
-  { lat: 16.0710, lon: 108.2242, fallbackName: 'Đường Bạch Đằng' },
-  { lat: 16.0725, lon: 108.2195, fallbackName: 'Đường Lê Duẩn' },
-  { lat: 16.0605, lon: 108.2103, fallbackName: 'Đường Điện Biên Phủ' },
-  { lat: 16.0678, lon: 108.2153, fallbackName: 'Đường Hùng Vương' },
-  { lat: 16.0698, lon: 108.2103, fallbackName: 'Đường Trần Cao Vân' },
-  { lat: 16.0653, lon: 108.2188, fallbackName: 'Đường Trần Phú' },
-  { lat: 16.0688, lon: 108.2143, fallbackName: 'Đường Phan Chu Trinh' },
-  { lat: 16.0563, lon: 108.2073, fallbackName: 'Đường Nguyễn Văn Linh' },
-
-  // ═══ Thanh Khê ═══
-  { lat: 16.0655, lon: 108.1968, fallbackName: 'Đường Ông Ích Khiêm' },
-  { lat: 16.0710, lon: 108.1930, fallbackName: 'Đường Đinh Tiên Hoàng' },
-  { lat: 16.0640, lon: 108.1870, fallbackName: 'Đường Tôn Đức Thắng' },
-  { lat: 16.0575, lon: 108.1885, fallbackName: 'Đường Hà Huy Tập' },
-
-  // ═══ Sơn Trà ═══
-  { lat: 16.0830, lon: 108.2328, fallbackName: 'Đường Ngô Quyền' },
-  { lat: 16.0918, lon: 108.2478, fallbackName: 'Đường Hoàng Sa' },
-  { lat: 16.0810, lon: 108.2378, fallbackName: 'Đường Phạm Văn Đồng' },
-  { lat: 16.0860, lon: 108.2290, fallbackName: 'Đường Lê Đức Thọ' },
-
-  // ═══ Ngũ Hành Sơn ═══
-  { lat: 16.0480, lon: 108.2488, fallbackName: 'Đường Võ Nguyên Giáp' },
-  { lat: 16.0320, lon: 108.2508, fallbackName: 'Đường Trường Sa' },
-  { lat: 16.0350, lon: 108.2380, fallbackName: 'Đường Lê Văn Hiến' },
-  { lat: 16.0413, lon: 108.2398, fallbackName: 'Đường Ngũ Hành Sơn' },
-
-  // ═══ Cẩm Lệ ═══
-  { lat: 16.0210, lon: 108.2120, fallbackName: 'Đường Nguyễn Hữu Thọ' },
-  { lat: 16.0380, lon: 108.2018, fallbackName: 'Đường Cách Mạng Tháng 8' },
-  { lat: 16.0180, lon: 108.2008, fallbackName: 'Đường Trường Chinh' },
-
-  // ═══ Liên Chiểu ═══
-  { lat: 16.0830, lon: 108.1548, fallbackName: 'Đường Nguyễn Tất Thành' },
-  { lat: 16.0728, lon: 108.1518, fallbackName: 'Đường Nguyễn Lương Bằng' },
-  { lat: 16.0680, lon: 108.1585, fallbackName: 'Đường Tôn Đức Thắng (Liên Chiểu)' },
-
-  // ═══ Cầu & nút giao ═══
-  { lat: 16.0612, lon: 108.2275, fallbackName: 'Cầu Rồng' },
-  { lat: 16.0525, lon: 108.2275, fallbackName: 'Cầu Trần Thị Lý' },
-  { lat: 16.0724, lon: 108.2270, fallbackName: 'Cầu Sông Hàn' },
-  { lat: 16.0835, lon: 108.2105, fallbackName: 'Cầu Thuận Phước' },
-  { lat: 16.0643, lon: 108.2048, fallbackName: 'Nút giao Ngã Ba Huế' },
+  { name: 'Đường 2 Tháng 9', lat: 16.057384, lon: 108.222359 },
+  { name: 'Đường Bạch Đằng', lat: 16.066704, lon: 108.224814 },
+  { name: 'Đường Lê Duẩn', lat: 16.070779, lon: 108.216251 },
+  { name: 'Đường Hùng Vương', lat: 16.067895, lon: 108.21721 },
+  { name: 'Đường Trần Phú', lat: 16.066457, lon: 108.223685 },
+  { name: 'Đường Phan Châu Trinh', lat: 16.057226, lon: 108.218891 },
+  { name: 'Đường Nguyễn Văn Linh', lat: 16.060903, lon: 108.220717 },
+  { name: 'Đường Hoàng Diệu', lat: 16.056245, lon: 108.217156 },
+  { name: 'Đường Điện Biên Phủ', lat: 16.065609, lon: 108.196079 },
+  { name: 'Đường Ông Ích Khiêm', lat: 16.075337, lon: 108.212451 },
+  { name: 'Đường Trần Cao Vân', lat: 16.071199, lon: 108.194207 },
+  { name: 'Đường Hà Huy Tập', lat: 16.061888, lon: 108.191851 },
+  { name: 'Đường Nguyễn Tri Phương', lat: 16.0524, lon: 108.21054 },
+  { name: 'Đường Ngô Quyền', lat: 16.079344, lon: 108.233329 },
+  { name: 'Đường Phạm Văn Đồng', lat: 16.07008, lon: 108.241494 },
+  { name: 'Đường Võ Văn Kiệt', lat: 16.063128, lon: 108.242809 },
+  { name: 'Đường Hoàng Sa', lat: 16.095087, lon: 108.252184 },
+  { name: 'Đường Võ Nguyên Giáp', lat: 16.026328, lon: 108.25583 },
+  { name: 'Đường Trường Sa', lat: 15.977128, lon: 108.277803 },
+  { name: 'Đường Lê Văn Hiến', lat: 16.025527, lon: 108.249596 },
+  { name: 'Đường Ngũ Hành Sơn', lat: 16.046959, lon: 108.238627 },
+  { name: 'Đường Cách Mạng Tháng 8', lat: 16.02316, lon: 108.215125 },
+  { name: 'Đường Trường Chinh', lat: 16.039999, lon: 108.185948 },
+  { name: 'Đường Nguyễn Hữu Thọ', lat: 16.047089, lon: 108.209596 },
+  { name: 'Đường Tôn Đức Thắng', lat: 16.060947, lon: 108.161609 },
+  { name: 'Đường Nguyễn Tất Thành', lat: 16.082886, lon: 108.163751 },
+  { name: 'Đường Nguyễn Lương Bằng', lat: 16.093196, lon: 108.140457 },
+  { name: 'Cầu Rồng', lat: 16.061092, lon: 108.2279 },
+  { name: 'Cầu Sông Hàn', lat: 16.07236, lon: 108.228411 },
+  { name: 'Cầu Trần Thị Lý', lat: 16.05039, lon: 108.229994 },
+  { name: 'Cầu Thuận Phước', lat: 16.095126, lon: 108.220565 },
+  { name: 'Cầu Tiên Sơn', lat: 16.035426, lon: 108.235672 },
 ];
 
-const GOONG_API_KEY = process.env.GOONG_API_KEY;
+// Zoom 18: TomTom xét cả đường cấp thấp nên bắt đúng đoạn tại điểm đo. Ở zoom
+// 12 (bản cũ) chỉ còn đường lớn, điểm trên đường nhỏ bị bắt sang tuyến khác.
+const FLOW_URL = 'https://api.tomtom.com/traffic/services/4/flowSegmentData/relative0/18/json';
+
+// TomTom: confidence > 0.6 nghĩa là tốc độ đo từ xe đang chạy (thời gian thực);
+// thấp hơn là ước tính từ dữ liệu lịch sử — không phản ánh tình hình lúc này.
+const LIVE_CONFIDENCE = 0.6;
+
 const CACHE_KEY = 'traffic_stats';
 const CACHE_TTL = 15 * 60 * 1000;
 
-// Reverse geocode via Goong to get accurate road name
-const reverseGeocode = async (lat, lon) => {
-  if (!GOONG_API_KEY) return null;
-  try {
-    const { data } = await axios.get(
-      `https://rsapi.goong.io/Geocode?latlng=${lat},${lon}&api_key=${GOONG_API_KEY}`,
-      { timeout: 5000 }
-    );
-    if (data.status === 'OK' && data.results?.length > 0) {
-      // Lấy tên đường từ compound hoặc formatted_address
-      const result = data.results[0];
-      const route = result.address_components?.find(c => c.types?.includes('route'));
-      return route?.long_name || result.formatted_address?.split(',')[0] || null;
-    }
-  } catch { /* ignore */ }
-  return null;
-};
+const levelOf = (ratio) => (ratio > 0.75 ? 'normal' : ratio > 0.5 ? 'slow' : ratio > 0.25 ? 'congested' : 'heavy');
 
-// Fetch traffic data for a road point from TomTom
 const fetchRoadSpeed = async (road, apiKey) => {
   try {
-    const { data } = await axios.get(
-      'https://api.tomtom.com/traffic/services/4/flowSegmentData/relative0/12/json',
-      { params: { key: apiKey, point: `${road.lat},${road.lon}`, unit: 'KMPH' }, timeout: 8000 }
-    );
+    const { data } = await axios.get(FLOW_URL, {
+      params: { key: apiKey, point: `${road.lat},${road.lon}`, unit: 'KMPH' },
+      timeout: 8000,
+    });
     const flow = data.flowSegmentData;
-    const ratio = flow.currentSpeed / flow.freeFlowSpeed;
+    if (!flow || !(flow.freeFlowSpeed > 0)) return null;
 
-    // Get accurate road name from Goong, fallback to predefined name
-    let roadName = road.fallbackName;
-    const goongName = await reverseGeocode(road.lat, road.lon);
-    if (goongName && goongName.length > 3) roadName = goongName;
+    const closed = flow.roadClosure === true;
+    const ratio = closed ? 0 : flow.currentSpeed / flow.freeFlowSpeed;
+    const coords = flow.coordinates?.coordinate || [];
+    const first = coords[0];
+    const last = coords[coords.length - 1];
 
     return {
-      name: roadName,
+      name: road.name,
       lat: road.lat,
       lon: road.lon,
       currentSpeed: flow.currentSpeed,
       freeFlowSpeed: flow.freeFlowSpeed,
+      currentTravelTime: flow.currentTravelTime,
+      freeFlowTravelTime: flow.freeFlowTravelTime,
+      confidence: flow.confidence,
+      live: flow.confidence > LIVE_CONFIDENCE,
+      closed,
       ratio,
-      level: ratio > 0.75 ? 'normal' : ratio > 0.5 ? 'slow' : ratio > 0.25 ? 'congested' : 'heavy',
+      level: closed ? 'closed' : levelOf(ratio),
+      // TomTom có khi trả một đoạn dài phủ nhiều tuyến nối liền (Võ Nguyên Giáp →
+      // Trường Sa). Cùng đoạn thì thống kê chỉ tính một lần.
+      segmentKey: first && last
+        ? `${first.latitude},${first.longitude}|${last.latitude},${last.longitude}`
+        : `${road.lat},${road.lon}`,
     };
   } catch {
     return null;
   }
 };
 
-const calculateStats = (segments) => {
-  const total = segments.length;
-  const avgSpeed = Math.round(segments.reduce((sum, s) => sum + s.currentSpeed, 0) / total);
-  const avgFreeFlow = Math.round(segments.reduce((sum, s) => sum + s.freeFlowSpeed, 0) / total);
-  const avgRatio = segments.reduce((sum, s) => sum + s.ratio, 0) / total;
+const roadView = (s, sharedWith = []) => ({
+  name: s.name,
+  lat: s.lat,
+  lon: s.lon,
+  currentSpeed: s.currentSpeed,
+  freeFlowSpeed: s.freeFlowSpeed,
+  level: s.level,
+  live: s.live,
+  confidence: s.confidence,
+  closed: s.closed,
+  // Tuyến khác cùng đoạn đo TomTom → cùng số liệu; ghi ra để người xem không
+  // tưởng là lỗi khi hai tuyến hiện y hệt nhau.
+  sharedWith,
+});
 
-  const levelCount = { normal: 0, slow: 0, congested: 0, heavy: 0 };
-  segments.forEach(s => { levelCount[s.level]++; });
+const average = (items, pick) => (items.length
+  ? Math.round(items.reduce((sum, s) => sum + pick(s), 0) / items.length)
+  : 0);
 
-  const worstRoads = [...segments]
-    .sort((a, b) => a.ratio - b.ratio)
-    .slice(0, 5)
-    .map(s => ({ name: s.name, lat: s.lat, lon: s.lon, currentSpeed: s.currentSpeed, freeFlowSpeed: s.freeFlowSpeed, level: s.level }));
+/**
+ * Số liệu tổng hợp chỉ dùng đoạn có dữ liệu thời gian thực, mỗi đoạn một lần.
+ * Chỉ số tắc nghẽn theo cách TomTom Traffic Index: thời gian đi lại tăng bao
+ * nhiêu % so với lúc thông thoáng (tổng thời gian hiện tại / tổng thời gian
+ * thông thoáng − 1). Bản cũ dùng 1 − trung bình(tốc độ / tốc độ thông thoáng):
+ * không phải thước đo chuẩn, và nhẹ tay với đoạn kẹt (chạy nửa tốc độ = 50%,
+ * trong khi thời gian đi lại thực tế gấp đôi).
+ */
+const calculateStats = (segments, now = new Date()) => {
+  const namesBySegment = new Map();
+  segments.forEach((s) => namesBySegment.set(s.segmentKey, [...(namesBySegment.get(s.segmentKey) || []), s.name]));
+  const view = (s) => roadView(s, namesBySegment.get(s.segmentKey).filter((n) => n !== s.name));
 
-  const bestRoads = [...segments]
-    .sort((a, b) => b.ratio - a.ratio)
-    .slice(0, 5)
-    .map(s => ({ name: s.name, lat: s.lat, lon: s.lon, currentSpeed: s.currentSpeed, freeFlowSpeed: s.freeFlowSpeed, level: s.level }));
+  const seen = new Set();
+  const unique = segments.filter((s) => (seen.has(s.segmentKey) ? false : seen.add(s.segmentKey)));
+  const measured = unique.filter((s) => s.live && !s.closed);
+
+  const travel = measured.reduce(
+    (acc, s) => ({ now: acc.now + (s.currentTravelTime || 0), free: acc.free + (s.freeFlowTravelTime || 0) }),
+    { now: 0, free: 0 },
+  );
+  const congestionIndex = travel.free > 0
+    ? Math.max(0, Math.round((travel.now / travel.free - 1) * 100))
+    : 0;
+
+  const summary = { normal: 0, slow: 0, congested: 0, heavy: 0, closed: 0 };
+  unique.forEach((s) => { if (s.closed || s.live) summary[s.level] += 1; });
+
+  // Đóng đường đứng đầu "cần chú ý"; đoạn chưa có dữ liệu thời gian thực không
+  // được xếp hạng tốt/xấu vì tốc độ đó là ước tính.
+  const ranked = unique.filter((s) => s.closed || s.live);
+  const worstRoads = [...ranked].sort((a, b) => a.ratio - b.ratio).slice(0, 5).map(view);
+  const bestRoads = [...ranked].filter((s) => !s.closed).sort((a, b) => b.ratio - a.ratio).slice(0, 5).map(view);
 
   return {
-    source: 'api',
-    lastUpdated: new Date().toISOString(),
-    totalRoads: total,
-    averageSpeed: avgSpeed,
-    averageFreeFlowSpeed: avgFreeFlow,
-    congestionIndex: Math.round((1 - avgRatio) * 100),
-    summary: { normal: levelCount.normal, slow: levelCount.slow, congested: levelCount.congested, heavy: levelCount.heavy },
+    source: 'tomtom',
+    lastUpdated: now.toISOString(),
+    totalRoads: segments.length,
+    measuredSegments: measured.length,
+    estimatedRoads: segments.filter((s) => !s.live && !s.closed).length,
+    averageSpeed: average(measured, (s) => s.currentSpeed),
+    averageFreeFlowSpeed: average(measured, (s) => s.freeFlowSpeed),
+    congestionIndex,
+    summary,
     worstRoads,
     bestRoads,
-    roads: segments.map(s => ({
-      name: s.name, lat: s.lat, lon: s.lon,
-      currentSpeed: s.currentSpeed, freeFlowSpeed: s.freeFlowSpeed, level: s.level,
-    })),
+    roads: segments.map(view),
   };
 };
 
@@ -141,17 +174,19 @@ const getMockStats = () => ({
   source: 'mock',
   lastUpdated: new Date().toISOString(),
   totalRoads: 20,
+  measuredSegments: 20,
+  estimatedRoads: 0,
   averageSpeed: 32,
   averageFreeFlowSpeed: 45,
   congestionIndex: 29,
-  summary: { normal: 8, slow: 8, congested: 3, heavy: 1 },
+  summary: { normal: 8, slow: 8, congested: 3, heavy: 1, closed: 0 },
   worstRoads: [
-    { name: 'Đường Điện Biên Phủ', lat: 16.0605, lon: 108.2103, currentSpeed: 12, freeFlowSpeed: 50, level: 'heavy' },
-    { name: 'Đường Trần Cao Vân', lat: 16.0698, lon: 108.2103, currentSpeed: 18, freeFlowSpeed: 45, level: 'congested' },
+    { name: 'Đường Điện Biên Phủ', lat: 16.065609, lon: 108.196079, currentSpeed: 12, freeFlowSpeed: 50, level: 'heavy' },
+    { name: 'Đường Trần Cao Vân', lat: 16.071199, lon: 108.194207, currentSpeed: 18, freeFlowSpeed: 45, level: 'congested' },
   ],
   bestRoads: [
-    { name: 'Đường Võ Nguyên Giáp', lat: 16.0480, lon: 108.2488, currentSpeed: 55, freeFlowSpeed: 60, level: 'normal' },
-    { name: 'Đường Hoàng Sa', lat: 16.0918, lon: 108.2478, currentSpeed: 50, freeFlowSpeed: 55, level: 'normal' },
+    { name: 'Đường Võ Nguyên Giáp', lat: 16.026328, lon: 108.25583, currentSpeed: 55, freeFlowSpeed: 60, level: 'normal' },
+    { name: 'Đường Hoàng Sa', lat: 16.095087, lon: 108.252184, currentSpeed: 50, freeFlowSpeed: 55, level: 'normal' },
   ],
   roads: [],
 });
@@ -163,16 +198,14 @@ const getTrafficStats = async () => {
   const apiKey = process.env.TOMTOM_API_KEY;
   if (!apiKey) return getMockStats();
 
-  // Fetch traffic + Goong reverse geocode in parallel batches (5 at a time to avoid rate limits)
+  // 5 điểm một lượt để không chạm giới hạn tần suất của TomTom
   const batchSize = 5;
   const segments = [];
 
   for (let i = 0; i < DA_NANG_ROADS.length; i += batchSize) {
     const batch = DA_NANG_ROADS.slice(i, i + batchSize);
-    const results = await Promise.allSettled(
-      batch.map(road => fetchRoadSpeed(road, apiKey))
-    );
-    results.forEach(r => {
+    const results = await Promise.allSettled(batch.map((road) => fetchRoadSpeed(road, apiKey)));
+    results.forEach((r) => {
       if (r.status === 'fulfilled' && r.value) segments.push(r.value);
     });
   }
@@ -184,4 +217,10 @@ const getTrafficStats = async () => {
   return stats;
 };
 
-module.exports = { getTrafficStats };
+module.exports = {
+  getTrafficStats,
+  calculateStats,
+  levelOf,
+  DA_NANG_ROADS,
+  LIVE_CONFIDENCE,
+};

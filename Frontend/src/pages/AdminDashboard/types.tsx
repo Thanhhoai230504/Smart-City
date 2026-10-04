@@ -26,6 +26,10 @@ export interface TopVotedIssue {
 export interface TrafficRoad {
   name: string; currentSpeed: number; freeFlowSpeed: number; level: string;
   lat?: number; lon?: number;
+  /** false: TomTom không có xe đang chạy ở đoạn này — tốc độ là ước tính từ lịch sử */
+  live?: boolean; confidence?: number; closed?: boolean;
+  /** Tuyến khác rơi vào cùng đoạn đo TomTom (nên cùng số liệu) */
+  sharedWith?: string[];
 }
 
 export interface TrafficStats {
@@ -34,6 +38,12 @@ export interface TrafficStats {
   worstRoads: TrafficRoad[];
   bestRoads?: TrafficRoad[];
   roads?: TrafficRoad[];
+  /** 'tomtom' = số liệu thật; 'mock' = dữ liệu mẫu khi server chưa có khoá TomTom */
+  source?: string;
+  lastUpdated?: string;
+  /** Số đoạn có dữ liệu thời gian thực, mỗi đoạn tính một lần — nền của số liệu tổng hợp */
+  measuredSegments?: number;
+  estimatedRoads?: number;
 }
 
 export interface EnvData {
@@ -80,10 +90,10 @@ export const CATEGORY_LABELS: Record<string, string> = {
 };
 export const BAR_COLORS = ['#0B5E8E', '#2F7D64', '#B26A00', '#C62828', '#397DA5', '#6B7F8C'];
 export const TRAFFIC_LEVEL_COLORS: Record<string, string> = {
-  normal: '#10B981', slow: '#F59E0B', congested: '#F97316', heavy: '#EF4444',
+  normal: '#10B981', slow: '#F59E0B', congested: '#F97316', heavy: '#EF4444', closed: '#7F1D1D',
 };
 export const TRAFFIC_LEVEL_LABELS: Record<string, string> = {
-  normal: 'Thông thoáng', slow: 'Chậm', congested: 'Đông đúc', heavy: 'Kẹt cứng',
+  normal: 'Thông thoáng', slow: 'Chậm', congested: 'Đông đúc', heavy: 'Kẹt cứng', closed: 'Đóng đường',
 };
 export const PLACE_TYPE_LABELS: Record<string, string> = {
   hospital: '🏥 Bệnh viện', school: '🏫 Trường học', bus_stop: '🚏 Trạm xe buýt',

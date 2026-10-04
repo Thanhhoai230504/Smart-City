@@ -1,8 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import {
+  Alert,
   Box,
   Button,
   Grid,
+  IconButton,
   LinearProgress,
   Stack,
   Table,
@@ -16,6 +18,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import { PlaceOutlined } from '@mui/icons-material';
 import {
   GlassCard,
   TRAFFIC_LEVEL_COLORS,
@@ -52,9 +55,58 @@ const TrafficStatus: React.FC<{ level: string }> = ({ level }) => (
   </Stack>
 );
 
+/**
+ * Tên tuyến + nút xem điểm đo trên bản đồ + ghi chú riêng của số liệu tuyến đó.
+ * Trước đây cột này là địa chỉ tra ngược quanh điểm đo ("Trà chanh …", "Kiệt
+ * 372 …") và không có cách nào biết số liệu đo ở đâu.
+ */
+const RoadName: React.FC<{ road: TrafficRoad; noWrap?: boolean }> = ({ road, noWrap = false }) => {
+  const mapHref = road.lat != null && road.lon != null
+    ? `https://www.google.com/maps/search/?api=1&query=${road.lat},${road.lon}`
+    : null;
+  const shared = road.sharedWith || [];
+  return (
+    <Box minWidth={0}>
+      <Stack direction="row" spacing={0.25} alignItems="center" minWidth={0}>
+        <Typography variant="body2" fontWeight={600} noWrap={noWrap}>{road.name}</Typography>
+        {mapHref && (
+          <Tooltip title="Xem điểm đo trên bản đồ">
+            <IconButton
+              size="small"
+              component="a"
+              href={mapHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`Xem điểm đo ${road.name} trên bản đồ`}
+              sx={{ p: 0.25, color: 'text.secondary' }}
+            >
+              <PlaceOutlined sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Stack>
+      {road.live === false && !road.closed && (
+        <Typography variant="caption" color="text.secondary" display="block">
+          Ước tính — chưa có xe dữ liệu trực tiếp
+        </Typography>
+      )}
+      {shared.length > 0 && (
+        <Typography variant="caption" color="text.secondary" display="block">
+          Cùng đoạn đo với {shared.join(', ')}
+        </Typography>
+      )}
+    </Box>
+  );
+};
+
 const TrafficDashboard: React.FC<Props> = ({ traffic }) => {
   const [view, setView] = useState<ViewMode>('overview');
   const [levelFilter, setLevelFilter] = useState<string>('all');
+  const isMock = traffic.source === 'mock';
+  const measured = traffic.measuredSegments ?? traffic.totalRoads;
+  const updatedAt = traffic.lastUpdated
+    ? new Date(traffic.lastUpdated).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+    : null;
 
   const congestionColor = traffic.congestionIndex > 60
     ? '#C62828'
@@ -64,18 +116,20 @@ const TrafficDashboard: React.FC<Props> = ({ traffic }) => {
         ? '#B26A00'
         : '#2F7D64';
 
-  const trafficLevels = useMemo(
-    () => Object.entries(traffic.summary).map(([key, value]) => ({
-      key,
-      label: TRAFFIC_LEVEL_LABELS[key] || key,
-      value,
-      color: TRAFFIC_LEVEL_COLORS[key] || '#6B7280',
-      percentage: traffic.totalRoads > 0
-        ? Math.round((value / traffic.totalRoads) * 100)
-        : 0,
-    })),
-    [traffic.summary, traffic.totalRoads],
-  );
+  // Tỷ trọng tính trên số đoạn được xếp mức (mỗi đoạn một lần, bỏ đoạn chỉ có
+  // số ước tính) — chia cho tổng số tuyến thì các thanh không cộng lại 100%.
+  const trafficLevels = useMemo(() => {
+    const counted = Object.values(traffic.summary).reduce((sum, value) => sum + value, 0);
+    return Object.entries(traffic.summary)
+      .filter(([key, value]) => key !== 'closed' || value > 0)
+      .map(([key, value]) => ({
+        key,
+        label: TRAFFIC_LEVEL_LABELS[key] || key,
+        value,
+        color: TRAFFIC_LEVEL_COLORS[key] || '#6B7280',
+        percentage: counted > 0 ? Math.round((value / counted) * 100) : 0,
+      }));
+  }, [traffic.summary]);
 
   const filteredRoads = (traffic.roads || []).filter(
     (road) => levelFilter === 'all' || road.level === levelFilter,
@@ -85,13 +139,13 @@ const TrafficDashboard: React.FC<Props> = ({ traffic }) => {
     {
       label: 'Chỉ số tắc nghẽn',
       value: `${traffic.congestionIndex}%`,
-      note: 'mức độ toàn mạng lưới',
+      note: 'thời gian đi lại tăng so với lúc thông thoáng',
       color: congestionColor,
     },
     {
       label: 'Tốc độ trung bình',
       value: `${traffic.averageSpeed} km/h`,
-      note: `${traffic.totalRoads} tuyến đang theo dõi`,
+      note: `trên ${measured} đoạn có dữ liệu trực tiếp`,
       color: '#172B3A',
     },
     {
@@ -120,7 +174,9 @@ const TrafficDashboard: React.FC<Props> = ({ traffic }) => {
         <Box>
           <Typography variant="h6" component="h2">Tình hình giao thông</Typography>
           <Typography variant="caption" color="text.secondary">
-            Theo dõi tốc độ và mức độ lưu thông trên các tuyến đường chính
+            {isMock
+              ? 'Dữ liệu mẫu'
+              : `Nguồn TomTom${updatedAt ? ` · cập nhật ${updatedAt}` : ''} · ${traffic.totalRoads} tuyến chính, ${measured} đoạn có dữ liệu trực tiếp`}
           </Typography>
         </Box>
         <ToggleButtonGroup
@@ -138,6 +194,12 @@ const TrafficDashboard: React.FC<Props> = ({ traffic }) => {
           </ToggleButton>
         </ToggleButtonGroup>
       </Stack>
+
+      {isMock && (
+        <Alert severity="warning" sx={{ borderRadius: 0 }}>
+          Server chưa cấu hình TOMTOM_API_KEY nên đây là dữ liệu mẫu, không phải tình hình giao thông thật.
+        </Alert>
+      )}
 
       {view === 'overview' ? (
         <>
@@ -227,8 +289,8 @@ const TrafficDashboard: React.FC<Props> = ({ traffic }) => {
                   <TableHead>
                     <TableRow>
                       <TableCell sx={{ color: 'text.secondary', fontWeight: 700 }}>Tuyến đường</TableCell>
-                      <TableCell align="right" sx={{ color: 'text.secondary', fontWeight: 700 }}>Hiện tại</TableCell>
-                      <TableCell align="right" sx={{ color: 'text.secondary', fontWeight: 700 }}>Tự do</TableCell>
+                      <TableCell align="right" sx={{ color: 'text.secondary', fontWeight: 700 }}>Hiện tại (km/h)</TableCell>
+                      <TableCell align="right" sx={{ color: 'text.secondary', fontWeight: 700 }}>Thông thoáng (km/h)</TableCell>
                       <TableCell sx={{ color: 'text.secondary', fontWeight: 700 }}>Hiệu suất</TableCell>
                     </TableRow>
                   </TableHead>
@@ -237,8 +299,8 @@ const TrafficDashboard: React.FC<Props> = ({ traffic }) => {
                       const ratio = getRoadRatio(road);
                       return (
                         <TableRow key={road.name} hover>
-                          <TableCell>
-                            <Typography variant="body2" fontWeight={600} noWrap>{road.name}</Typography>
+                          <TableCell sx={{ maxWidth: 260 }}>
+                            <RoadName road={road} noWrap />
                             <TrafficStatus level={road.level} />
                           </TableCell>
                           <TableCell align="right">
@@ -324,7 +386,7 @@ const TrafficDashboard: React.FC<Props> = ({ traffic }) => {
                   <TableCell sx={{ bgcolor: '#F2F5F7', color: 'text.secondary', fontWeight: 700 }}>#</TableCell>
                   <TableCell sx={{ bgcolor: '#F2F5F7', color: 'text.secondary', fontWeight: 700 }}>Tên đường</TableCell>
                   <TableCell align="right" sx={{ bgcolor: '#F2F5F7', color: 'text.secondary', fontWeight: 700 }}>Tốc độ</TableCell>
-                  <TableCell align="right" sx={{ bgcolor: '#F2F5F7', color: 'text.secondary', fontWeight: 700 }}>Tốc độ tự do</TableCell>
+                  <TableCell align="right" sx={{ bgcolor: '#F2F5F7', color: 'text.secondary', fontWeight: 700 }}>Tốc độ thông thoáng</TableCell>
                   <TableCell sx={{ bgcolor: '#F2F5F7', color: 'text.secondary', fontWeight: 700 }}>Hiệu suất</TableCell>
                   <TableCell sx={{ bgcolor: '#F2F5F7', color: 'text.secondary', fontWeight: 700 }}>Trạng thái</TableCell>
                 </TableRow>
@@ -336,7 +398,7 @@ const TrafficDashboard: React.FC<Props> = ({ traffic }) => {
                     <TableRow key={`${road.name}-${index}`} hover>
                       <TableCell sx={{ color: 'text.secondary' }}>{index + 1}</TableCell>
                       <TableCell>
-                        <Typography variant="body2" fontWeight={600}>{road.name}</Typography>
+                        <RoadName road={road} />
                       </TableCell>
                       <TableCell align="right">
                         <Typography variant="body2" fontWeight={700} color={TRAFFIC_LEVEL_COLORS[road.level]}>
@@ -374,6 +436,16 @@ const TrafficDashboard: React.FC<Props> = ({ traffic }) => {
           </TableContainer>
         </Box>
       )}
+
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        component="p"
+        sx={{ px: 2.5, py: 1.5, borderTop: '1px solid', borderColor: 'divider' }}
+      >
+        Tốc độ đo tại một điểm giữa mỗi tuyến. Hiệu suất = tốc độ hiện tại ÷ tốc độ khi đường thông thoáng.
+        Chỉ số tắc nghẽn và tốc độ trung bình chỉ tính các đoạn có dữ liệu trực tiếp, mỗi đoạn một lần.
+      </Typography>
     </GlassCard>
   );
 };
