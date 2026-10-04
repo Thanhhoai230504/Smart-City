@@ -78,18 +78,36 @@ const addComment = async (issueId, { content, user }) => {
       io.to(`user_${reporterId}`).emit('notification:new', notification);
     }
 
-    // Người dân bình luận → báo cho quản trị viên
+    // Người dân bình luận → báo cho người đang xử lý (cán bộ phụ trách, hoặc cả
+    // đơn vị khi chưa ai nhận) và quản trị viên. Trước đây chỉ admin nhận, nên
+    // cán bộ không biết người dân vừa phản hồi trên phiếu mình đang giữ.
     if (!isHandler) {
+      const recipients = new Map();
+      if (issue.assigneeId) {
+        const assigneeId = issue.assigneeId._id || issue.assigneeId;
+        recipients.set(assigneeId.toString(), { id: assigneeId, handler: true });
+      } else if (issue.departmentId) {
+        const staff = await User.find({
+          departmentId: issue.departmentId._id || issue.departmentId,
+          role: 'staff',
+          isActive: true,
+        }).select('_id');
+        staff.forEach((s) => recipients.set(s._id.toString(), { id: s._id, handler: true }));
+      }
       const adminUsers = await User.find({ role: 'admin', isActive: true }).select('_id');
-      for (const admin of adminUsers) {
-        const adminNotif = await Notification.create({
-          userId: admin._id,
+      adminUsers.forEach((a) => {
+        if (!recipients.has(a._id.toString())) recipients.set(a._id.toString(), { id: a._id, handler: false });
+      });
+
+      for (const { id, handler } of recipients.values()) {
+        const notification = await Notification.create({
+          userId: id,
           type: 'comment',
-          title: 'Bình luận mới từ người dân',
+          title: handler ? 'Người dân phản hồi phiếu bạn xử lý' : 'Bình luận mới từ người dân',
           message: `${user.name || 'Người dùng'} bình luận về "${issue.title}"`,
           issueId: issue._id
         });
-        io.to(`user_${admin._id}`).emit('notification:new', adminNotif);
+        io.to(`user_${id}`).emit('notification:new', notification);
       }
     }
   } catch (socketError) {

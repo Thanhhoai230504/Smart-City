@@ -13,6 +13,9 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { setStatusTransitions } from './utils/constants';
 import { setReopenRules } from './utils/reopen';
 
+/** Thông báo cần người nhận chú ý ngay — toast màu cảnh báo. */
+const WARNING_TYPES = new Set(['sla_reminder', 'sla_escalated', 'intake_overdue', 'issue_reopened', 'issue_unassigned']);
+
 const App: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { isAuthenticated } = useSelector((s: RootState) => s.auth);
@@ -37,17 +40,24 @@ const App: React.FC = () => {
     return () => controller.abort();
   }, []);
 
-  // Socket.io notifications
+  // Toast cho MỌI thông báo realtime, theo đúng bản ghi Notification của người
+  // nhận. Trước đây chỉ có toast cho `issue:created/updated/resolved` — cán bộ
+  // được giao việc, nhắc hạn, bị mở lại… chỉ thấy số trên chuông nhảy; còn toast
+  // "sự cố mới" của admin in nguyên câu tiếng Anh từ server. Mỗi sự kiện
+  // `issue:*` luôn đi kèm một `notification:new` cho cùng người nhận nên không
+  // mất toast nào, và không bị hai toast cho một việc.
   useSocket((event, data) => {
-    if (event === 'issue:created') {
-      toast.info(`📍 Sự cố mới: ${data.message}`, { position: 'bottom-right' });
-    }
-    if (event === 'issue:updated') {
-      toast.info(`🔄 ${data.message}`, { position: 'bottom-right' });
-    }
-    if (event === 'issue:resolved') {
-      toast.success(`✅ ${data.message}`, { position: 'bottom-right' });
-    }
+    if (event !== 'notification:new' || !data) return;
+    const content = (
+      <div>
+        <strong>{data.title}</strong>
+        <div>{data.message}</div>
+      </div>
+    );
+    const options = { position: 'bottom-right' as const };
+    if (data.type === 'issue_resolved') toast.success(content, options);
+    else if (WARNING_TYPES.has(data.type) || String(data.title || '').startsWith('⚠️')) toast.warning(content, options);
+    else toast.info(content, options);
   });
 
   return (

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
@@ -60,6 +60,12 @@ import PriorityBadge from '../../components/PriorityBadge';
 import SlaBadge from '../../components/SlaBadge';
 import UpdateStatusDialog from './UpdateStatusDialog';
 import DepartmentEvaluationsPanel from './DepartmentEvaluationsPanel';
+import { SOCKET_RECONNECTED, useSocket } from '../../hooks/useSocket';
+
+/** Thông báo làm đổi danh sách việc của cán bộ → tải lại bàn điều phối. */
+const WORK_REFRESH_TYPES = new Set([
+  'issue_assigned', 'issue_unassigned', 'issue_reopened', 'sla_reminder', 'sla_escalated',
+]);
 
 interface ApiErrorResponse {
   message?: string;
@@ -379,6 +385,17 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
     () => Promise.all([loadIssues(), loadMineOpen()]),
     [loadIssues, loadMineOpen],
   );
+
+  // Được giao việc, bị thu hồi, phiếu bị mở lại, nhắc hạn… thì danh sách và số
+  // liệu tự cập nhật (trước đây chỉ chuông nhảy số, phải bấm "Làm mới"). Gộp các
+  // thông báo đến dồn dập (lượt quét SLA) thành một lần tải.
+  const realtimeRefresh = useRef<ReturnType<typeof setTimeout>>();
+  useSocket((event, data) => {
+    if (event !== SOCKET_RECONNECTED && !(event === 'notification:new' && WORK_REFRESH_TYPES.has(data?.type))) return;
+    clearTimeout(realtimeRefresh.current);
+    realtimeRefresh.current = setTimeout(() => { refreshAll(); }, 400);
+  });
+  useEffect(() => () => clearTimeout(realtimeRefresh.current), []);
 
   const filterDescription = useMemo(() => {
     const parts: string[] = [];

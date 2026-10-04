@@ -98,6 +98,58 @@ describe('CommentService', () => {
       );
     });
 
+    describe('người dân bình luận → báo cả người đang xử lý', () => {
+      const mockUsers = ({ staff, admins }) => {
+        User.find.mockImplementation((query) => ({
+          select: jest.fn().mockResolvedValue(query.role === 'staff' ? staff : admins),
+        }));
+      };
+      const comment = () => {
+        Comment.create.mockResolvedValue({ _id: 'c1', populate: jest.fn().mockResolvedValue(true) });
+        Notification.create.mockImplementation(async (doc) => ({ _id: `n-${doc.userId}`, ...doc }));
+        return commentService.addComment('issue1', {
+          content: 'Ổ gà đang to ra',
+          user: { id: 'citizen1', name: 'Dân', role: 'user' },
+        });
+      };
+
+      it('cán bộ đang giữ phiếu nhận thông báo realtime, cùng với admin', async () => {
+        Issue.findOne.mockReturnValue({
+          populate: jest.fn().mockResolvedValue({
+            _id: 'issue1', title: 'Pothole', userId: { _id: 'citizen1' },
+            departmentId: 'dept1', assigneeId: 'staff1',
+          }),
+        });
+        mockUsers({ staff: [{ _id: 'staff1' }, { _id: 'staff2' }], admins: [{ _id: 'admin1' }] });
+
+        await comment();
+
+        const recipients = Notification.create.mock.calls.map(([doc]) => doc.userId.toString());
+        expect(recipients).toEqual(['staff1', 'admin1']);
+        expect(Notification.create).toHaveBeenCalledWith(
+          expect.objectContaining({ userId: 'staff1', title: 'Người dân phản hồi phiếu bạn xử lý' })
+        );
+        expect(mockIO.to).toHaveBeenCalledWith('user_staff1');
+        expect(mockIO.emit).toHaveBeenCalledWith('notification:new', expect.objectContaining({ userId: 'staff1' }));
+      });
+
+      it('phiếu chưa ai nhận → báo cả cán bộ của đơn vị', async () => {
+        Issue.findOne.mockReturnValue({
+          populate: jest.fn().mockResolvedValue({
+            _id: 'issue1', title: 'Pothole', userId: { _id: 'citizen1' },
+            departmentId: 'dept1', assigneeId: null,
+          }),
+        });
+        mockUsers({ staff: [{ _id: 'staff1' }, { _id: 'staff2' }], admins: [{ _id: 'admin1' }] });
+
+        await comment();
+
+        expect(User.find).toHaveBeenCalledWith({ departmentId: 'dept1', role: 'staff', isActive: true });
+        const recipients = Notification.create.mock.calls.map(([doc]) => doc.userId.toString());
+        expect(recipients).toEqual(['staff1', 'staff2', 'admin1']);
+      });
+    });
+
     it('should create comment and notify reporter when admin comments', async () => {
       Issue.findOne.mockReturnValue({
         populate: jest.fn().mockResolvedValue({

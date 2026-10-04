@@ -72,6 +72,11 @@ const issueSlice = createSlice({
   reducers: {
     clearCurrentIssue: (state) => { state.currentIssue = null; },
     addNewIssue: (state, action) => { state.issues.unshift(action.payload); },
+    // Làm mới chi tiết đang mở mà không bật `loading` (trang không nháy màn chờ)
+    // — dùng khi có thông báo realtime về chính phiếu này.
+    currentIssueRefreshed: (state, action) => {
+      if (state.currentIssue?._id === action.payload?._id) state.currentIssue = action.payload;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -140,5 +145,5 @@ const issueSlice = createSlice({
   },
 });
 
-export const { clearCurrentIssue, addNewIssue } = issueSlice.actions;
+export const { clearCurrentIssue, addNewIssue, currentIssueRefreshed } = issueSlice.actions;
 export default issueSlice.reducer;

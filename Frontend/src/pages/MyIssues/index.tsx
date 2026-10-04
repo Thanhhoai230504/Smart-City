@@ -14,6 +14,10 @@ import { CATEGORY_MAP, STATUS_MAP } from '../../utils/constants';
 import { timeAgo } from '../../utils/helpers';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { toast } from 'react-toastify';
+import { SOCKET_RECONNECTED, useSocket } from '../../hooks/useSocket';
+
+/** Thông báo làm đổi trạng thái phiếu của chính mình → tải lại danh sách. */
+const MY_ISSUE_REFRESH_TYPES = new Set(['issue_updated', 'issue_resolved', 'issue_rejected', 'issue_merged']);
 
 const MyIssuesPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -40,6 +44,14 @@ const MyIssuesPage: React.FC = () => {
     const request = loadIssues();
     return () => request.abort();
   }, [loadIssues]);
+
+  // Toast báo "đã xử lý" mà danh sách vẫn ghi "Đang xử lý" thì người dân sẽ
+  // nghi ngờ — tải lại ngay khi trạng thái phiếu của mình đổi.
+  useSocket((event, data) => {
+    if (event === SOCKET_RECONNECTED || (event === 'notification:new' && MY_ISSUE_REFRESH_TYPES.has(data?.type))) {
+      loadIssues();
+    }
+  });
 
   const handleDelete = async (e: React.MouseEvent, issueId: string) => {
     e.stopPropagation();

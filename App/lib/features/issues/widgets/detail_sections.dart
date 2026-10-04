@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,6 +23,7 @@ import '../../../data/models/public_info.dart';
 import '../../../data/repositories/issue_repository.dart';
 import '../../../data/repositories/meta_repository.dart';
 import '../../../data/repositories/support_repositories.dart';
+import '../../../data/socket/socket_service.dart';
 import '../../auth/auth_controller.dart';
 import '../issue_detail_controller.dart';
 import '../issue_rules.dart';
@@ -577,17 +580,40 @@ class _CommentsSectionState extends ConsumerState<CommentsSection> {
   AppException? _error;
   final _input = TextEditingController();
   bool _sending = false;
+  StreamSubscription<Object>? _live;
 
   @override
   void initState() {
     super.initState();
     _loadMore();
+    // Bình luận mới của phía bên kia (cán bộ ↔ người dân) hiện ngay khi có
+    // thông báo, không phải thoát ra vào lại màn này.
+    _live = ref.read(socketServiceProvider).incoming.listen((n) {
+      if (n.type == 'comment' && n.issueId == widget.issueId) unawaited(_pullNewest());
+    });
   }
 
   @override
   void dispose() {
+    _live?.cancel();
     _input.dispose();
     super.dispose();
+  }
+
+  /// Lấy trang mới nhất, chèn bình luận chưa có lên đầu — cùng chỗ với bình luận
+  /// vừa tự gửi — mà không xoá danh sách đang xem.
+  Future<void> _pullNewest() async {
+    try {
+      final page = await ref.read(commentRepositoryProvider).list(widget.issueId);
+      if (!mounted) return;
+      setState(() {
+        final seen = {for (final c in _items) c.id};
+        _items.insertAll(0, page.items.where((c) => !seen.contains(c.id)));
+        _total = page.pagination.total;
+      });
+    } on AppException {
+      // Giữ danh sách đang có; lần mở sau sẽ tải lại.
+    }
   }
 
   Future<void> _loadMore() async {

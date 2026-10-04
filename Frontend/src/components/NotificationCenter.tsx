@@ -3,7 +3,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../store/store';
 import { useNavigate } from 'react-router-dom';
 import { notificationApi } from '../api/notificationApi';
-import { useSocket } from '../hooks/useSocket';
+import { SOCKET_RECONNECTED, useSocket } from '../hooks/useSocket';
 import {
   IconButton, Badge, Popover, Box, Typography, Stack, Divider,
   Button, Chip, List, ListItemButton, ListItemText, ListItemIcon,
@@ -76,6 +76,8 @@ const NotificationCenter: React.FC = () => {
       setNotifications((prev) => [data, ...prev].slice(0, 20));
       setUnreadCount((prev) => prev + 1);
     }
+    // Thông báo phát ra lúc socket rớt không được gửi lại — tải lại danh sách.
+    if (event === SOCKET_RECONNECTED) fetchNotifications();
   });
 
   const handleMarkAsRead = async (id: string) => {

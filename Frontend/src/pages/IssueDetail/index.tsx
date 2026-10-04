@@ -2,7 +2,8 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../../store/store';
-import { fetchIssueById, clearCurrentIssue } from '../../store/slices/issueSlice';
+import { fetchIssueById, clearCurrentIssue, currentIssueRefreshed } from '../../store/slices/issueSlice';
+import { SOCKET_RECONNECTED, useSocket } from '../../hooks/useSocket';
 import { commentApi } from '../../api/commentApi';
 import { issueApi } from '../../api/issueApi';
 import {
@@ -131,6 +132,19 @@ const IssueDetailPage: React.FC = () => {
     loadComments(1, controller.signal);
     return () => controller.abort();
   }, [loadComments]);
+
+  // Thông báo realtime về chính phiếu đang mở (đổi trạng thái, được phân công,
+  // bình luận mới…) → cập nhật tại chỗ, không bắt người xem tải lại trang.
+  useSocket((event, data) => {
+    if (!id) return;
+    const aboutThisIssue = event === SOCKET_RECONNECTED
+      || (event === 'notification:new' && String(data?.issueId) === id);
+    if (!aboutThisIssue) return;
+    issueApi.getIssueById(id)
+      .then(({ data: res }) => dispatch(currentIssueRefreshed(res.data.issue)))
+      .catch(() => { /* giữ bản đang hiển thị */ });
+    if (event === SOCKET_RECONNECTED || data?.type === 'comment') loadComments(1);
+  });
 
   const handleSubmitComment = async () => {
     if (!newComment.trim() || !id || submitting) return;
