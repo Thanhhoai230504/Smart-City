@@ -4,10 +4,13 @@ import { Routes, Route } from 'react-router-dom';
 import MainLayout from '../layout/MainLayout';
 import ProtectedRoute from '../hocs/ProtectedRoute';
 import LoadingSpinner from '../components/LoadingSpinner';
+// Trang chủ là nơi phần lớn người dùng vào đầu tiên: nạp cùng bundle chính thay
+// vì thêm một vòng tải chunk — trước đây người dùng thấy màn chờ "Đang mở
+// trang..." chen giữa header và footer rồi trang mới bật ra.
+import HomePage from '../pages/Home';
 
-// Mỗi trang là một chunk riêng. Bản đồ, biểu đồ và dashboard không còn làm
-// nặng lần tải đầu của trang chủ.
-const HomePage = lazy(() => import('../pages/Home'));
+// Các trang khác là chunk riêng. Bản đồ, biểu đồ và dashboard không làm nặng
+// lần tải đầu của trang chủ.
 const MapPage = lazy(() => import('../pages/Map'));
 const IssuesPage = lazy(() => import('../pages/Issues'));
 const IssueDetailPage = lazy(() => import('../pages/IssueDetail'));
@@ -39,7 +42,7 @@ const AppRouter: React.FC = () => {
   return (
     <Routes>
       <Route element={<MainLayout />}>
-        <Route path="/" element={page(<HomePage />)} />
+        <Route path="/" element={<HomePage />} />
         <Route path="/map" element={page(<MapPage />)} />
         <Route path="/issues" element={page(<IssuesPage />)} />
         <Route path="/issues/:id" element={page(<IssueDetailPage />)} />

@@ -26,7 +26,9 @@ const MainLayout: React.FC = () => {
       minHeight: '100vh',
       overflowX: 'hidden',
       maxWidth: '100vw',
-      bgcolor: pathname === '/' ? '#07111F' : 'background.default',
+      // Cùng nền sáng với trang chủ — nền navy cũ (#07111F) làm màn chờ và vùng
+      // cuộn quá đà nháy tối trước khi trang chủ sáng hiện ra.
+      bgcolor: 'background.default',
     }}>
       <Header />
       <Box aria-hidden="true" sx={{ height: 64, flexShrink: 0 }} />

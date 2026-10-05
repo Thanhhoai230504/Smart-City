@@ -16,6 +16,12 @@ import { setReopenRules } from './utils/reopen';
 /** Thông báo cần người nhận chú ý ngay — toast màu cảnh báo. */
 const WARNING_TYPES = new Set(['sla_reminder', 'sla_escalated', 'intake_overdue', 'issue_reopened', 'issue_unassigned']);
 
+/**
+ * `issue_rated` dùng chung cho đánh giá tốt lẫn thấp — đánh giá thấp nhận theo
+ * tiêu đề. Backend đã bỏ emoji khỏi tiêu đề; vẫn nhận bản cũ "⚠️ Đánh giá thấp…".
+ */
+const isLowRatingTitle = (title: unknown) => /^(⚠️\s*)?Đánh giá thấp/.test(String(title || ''));
+
 const App: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { isAuthenticated } = useSelector((s: RootState) => s.auth);
@@ -56,7 +62,7 @@ const App: React.FC = () => {
     );
     const options = { position: 'bottom-right' as const };
     if (data.type === 'issue_resolved') toast.success(content, options);
-    else if (WARNING_TYPES.has(data.type) || String(data.title || '').startsWith('⚠️')) toast.warning(content, options);
+    else if (WARNING_TYPES.has(data.type) || isLowRatingTitle(data.title)) toast.warning(content, options);
     else toast.info(content, options);
   });
 

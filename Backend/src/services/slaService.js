@@ -156,7 +156,7 @@ const escalateOverdueIssues = async (now = new Date()) => {
     }
     await notify(admin._id, {
       type: 'sla_escalated',
-      title: repeated ? '🚨 Sự cố tồn đọng kéo dài' : '🚨 Sự cố tồn đọng',
+      title: repeated ? 'Sự cố tồn đọng kéo dài' : 'Sự cố tồn đọng',
       message: `${rows.length} sự cố đã quá hạn dù đã nhắc đơn vị. Cần can thiệp hoặc chuyển đơn vị khác.`
         + (repeated ? ` Trong đó ${repeated} sự cố đã được báo từ các vòng trước mà vẫn chưa xử lý.` : ''),
       issueId: issues[0]._id,

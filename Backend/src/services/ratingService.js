@@ -83,7 +83,6 @@ const rateIssue = async (issueId, userId, { score, comment }) => {
 
   // ─── Khép vòng phản hồi ───
   const isLow = score <= LOW_RATING_THRESHOLD;
-  const stars = '⭐'.repeat(score);
 
   // Người trực tiếp xử lý cần biết kết quả công việc của mình được đánh giá ra sao.
   const handlerIds = new Map();
@@ -101,7 +100,8 @@ const rateIssue = async (issueId, userId, { score, comment }) => {
   for (const handlerId of handlerIds.values()) {
     await notify(handlerId, {
       type: 'issue_rated',
-      title: isLow ? '⚠️ Đánh giá thấp về sự cố bạn xử lý' : `${stars} Người dân đã đánh giá`,
+      // Không emoji trong tiêu đề: web/app đã có icon riêng cho từng loại.
+      title: isLow ? 'Đánh giá thấp về sự cố bạn xử lý' : `Người dân đánh giá ${score}/5 sao`,
       message: `Sự cố "${issue.title}" được chấm ${score}/5 sao`
         + (comment ? `: ${comment}` : '.'),
       issueId: issue._id,
