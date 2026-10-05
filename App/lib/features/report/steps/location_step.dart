@@ -88,7 +88,6 @@ class _LocationStepState extends ConsumerState<LocationStep> {
   Widget build(BuildContext context) {
     final state = ref.watch(reportControllerProvider);
     final controller = ref.read(reportControllerProvider.notifier);
-    final palette = context.palette;
     final textTheme = Theme.of(context).textTheme;
 
     // Vị trí đổi từ GPS / gợi ý địa chỉ → đưa bản đồ tới đó.
@@ -171,7 +170,7 @@ class _LocationStepState extends ConsumerState<LocationStep> {
                   child: Center(
                     child: Padding(
                       padding: const EdgeInsets.only(bottom: 36),
-                      child: Icon(Icons.location_on, size: 44, color: palette.error),
+                      child: Icon(Icons.location_on, size: 44, color: mapPalette.error),
                     ),
                   ),
                 ),

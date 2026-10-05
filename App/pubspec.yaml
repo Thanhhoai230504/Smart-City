@@ -72,6 +72,11 @@ flutter:
   # Giấy phép SIL OFL 1.1 — assets/fonts/OFL.txt.
   assets:
     - assets/fonts/OFL.txt
+    # Logo màn chờ (SplashScreen) và ô logo trong header / màn đăng nhập. Các ảnh
+    # khác trong assets/branding chỉ là nguồn để sinh icon / màn chờ native — không
+    # đóng vào app.
+    - assets/branding/splash_logo.png
+    - assets/branding/logo_tile.png
 
   fonts:
     - family: BeVietnamPro

@@ -11,10 +11,14 @@ import 'contrast.dart';
 /// `test/core/theme/contrast_test.dart` chặn cặp nào dưới 4.5:1.
 @immutable
 class ChipColors {
-  const ChipColors(this.text, this.container);
+  const ChipColors(this.text, this.container, [Color? graphic]) : graphic = graphic ?? text;
 
   final Color text;
   final Color container;
+
+  /// Màu đồ hoạ (mảng biểu đồ không có chữ đè lên) — sáng hơn [text], chỉ cần
+  /// ≥ 3:1 với mặt card (WCAG 1.4.11). Mặc định trùng [text].
+  final Color graphic;
 }
 
 /// Bảng token của một theme. Gắn vào [ThemeData.extensions] để widget đọc bằng
@@ -139,12 +143,13 @@ class AppPalette extends ThemeExtension<AppPalette> {
       BoxShadow(color: Color(0x0F0B2540), blurRadius: 2, offset: Offset(0, 1)),
       BoxShadow(color: Color(0x140B2540), blurRadius: 20, offset: Offset(0, 8)),
     ],
+    // Cột thứ ba: màu đồ hoạ trên mặt trắng (3.92 · 3.19 · 3.77 · 4.83).
     status: {
-      IssueStatus.reported: ChipColors(Color(0xFFA82C22), Color(0xFFFBE9E7)), // 5.88
-      IssueStatus.processing: ChipColors(Color(0xFF7D4F05), Color(0xFFFDF2E0)), // 6.33
-      IssueStatus.resolved: ChipColors(Color(0xFF17543E), Color(0xFFE6F2EC)), // 7.70
-      IssueStatus.rejected: ChipColors(Color(0xFF485862), Color(0xFFEDF1F4)), // 6.49
-      IssueStatus.unknown: ChipColors(Color(0xFF485862), Color(0xFFEDF1F4)),
+      IssueStatus.reported: ChipColors(Color(0xFFA82C22), Color(0xFFFBE9E7), Color(0xFFE5484D)), // 5.88
+      IssueStatus.processing: ChipColors(Color(0xFF7D4F05), Color(0xFFFDF2E0), Color(0xFFD97706)), // 6.33
+      IssueStatus.resolved: ChipColors(Color(0xFF17543E), Color(0xFFE6F2EC), Color(0xFF059669)), // 7.70
+      IssueStatus.rejected: ChipColors(Color(0xFF485862), Color(0xFFEDF1F4), Color(0xFF6B7280)), // 6.49
+      IssueStatus.unknown: ChipColors(Color(0xFF485862), Color(0xFFEDF1F4), Color(0xFF6B7280)),
     },
     priority: {
       PriorityLevel.low: ChipColors(Color(0xFF485862), Color(0xFFEDF1F4)), // 6.49
@@ -191,11 +196,11 @@ class AppPalette extends ThemeExtension<AppPalette> {
     accentInk: Color(0xFFFFB59A),
     cardShadow: [],
     status: {
-      IssueStatus.reported: ChipColors(Color(0xFFFFB4AB), Color(0xFF3A1F1D)),
-      IssueStatus.processing: ChipColors(Color(0xFFFFD08A), Color(0xFF3A2E14)),
-      IssueStatus.resolved: ChipColors(Color(0xFF8FD3B4), Color(0xFF16332A)),
-      IssueStatus.rejected: ChipColors(Color(0xFFC9D3DA), Color(0xFF26313A)),
-      IssueStatus.unknown: ChipColors(Color(0xFFC9D3DA), Color(0xFF26313A)),
+      IssueStatus.reported: ChipColors(Color(0xFFFFB4AB), Color(0xFF3A1F1D), Color(0xFFF87171)),
+      IssueStatus.processing: ChipColors(Color(0xFFFFD08A), Color(0xFF3A2E14), Color(0xFFFBBF24)),
+      IssueStatus.resolved: ChipColors(Color(0xFF8FD3B4), Color(0xFF16332A), Color(0xFF34D399)),
+      IssueStatus.rejected: ChipColors(Color(0xFFC9D3DA), Color(0xFF26313A), Color(0xFF94A3B8)),
+      IssueStatus.unknown: ChipColors(Color(0xFFC9D3DA), Color(0xFF26313A), Color(0xFF94A3B8)),
     },
     priority: {
       PriorityLevel.low: ChipColors(Color(0xFFC9D3DA), Color(0xFF26313A)),

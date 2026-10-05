@@ -233,7 +233,7 @@ class _HeroGalleryState extends ConsumerState<_HeroGallery> {
           onPageChanged: (i) => setState(() => _page = i),
           itemBuilder: (context, i) => GestureDetector(
             onTap: () => PhotoViewer.open(context, photos, initialIndex: i, title: 'Ảnh người dân chụp'),
-            child: AppImage(photos[i], semanticLabel: 'Ảnh sự cố ${i + 1}/${photos.length}'),
+            child: AppImage(photos[i], fullResolution: true, semanticLabel: 'Ảnh sự cố ${i + 1}/${photos.length}'),
           ),
         ),
         // Lớp tối phía trên cho thanh trạng thái và hai nút tròn.
@@ -288,11 +288,9 @@ class _DetailBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final meta = ref.watch(metaProvider);
     final user = ref.watch(currentUserProvider);
     final palette = context.palette;
     final textTheme = Theme.of(context).textTheme;
-    final category = meta.category(issue.category);
     final voted = issue.hasVoted(user?.id);
     final isStaffHere = user?.role == UserRole.staff &&
         staffCanHandle(issue, departmentId: user?.department?.id);
@@ -371,27 +369,11 @@ class _DetailBody extends ConsumerWidget {
             ),
           ],
           Gap.h16,
-          Row(
-            children: [
-              Expanded(
-                child: (voted ? FilledButton.tonalIcon : OutlinedButton.icon)(
-                  onPressed: issue.isMerged ? null : () => _vote(context, ref),
-                  icon: Icon(voted ? Icons.thumb_up_alt : Icons.thumb_up_alt_outlined),
-                  label: Text(voted ? 'Đã ủng hộ · ${issue.voteCount}' : 'Tôi cũng gặp · ${issue.voteCount}'),
-                ),
-              ),
-              Gap.w8,
-              IconButton.outlined(
-                tooltip: 'Chia sẻ',
-                style: IconButton.styleFrom(
-                  minimumSize: const Size(52, 52),
-                  side: BorderSide(color: palette.border, width: 1.5),
-                  backgroundColor: palette.surface,
-                ),
-                onPressed: () => showShareIssueSheet(context, ref, issue),
-                icon: Icon(Icons.share_outlined, color: palette.primary),
-              ),
-            ],
+          // Chia sẻ nằm trên thanh tiêu đề (luôn hiện, kể cả khi đã cuộn).
+          (voted ? FilledButton.tonalIcon : OutlinedButton.icon)(
+            onPressed: issue.isMerged ? null : () => _vote(context, ref),
+            icon: Icon(voted ? Icons.thumb_up_alt : Icons.thumb_up_alt_outlined),
+            label: Text(voted ? 'Đã ủng hộ · ${issue.voteCount}' : 'Tôi cũng gặp · ${issue.voteCount}'),
           ),
           if (isStaffHere) ...[
             Gap.h8,
@@ -453,22 +435,22 @@ class _DetailBody extends ConsumerWidget {
                 const SectionTitle('Vị trí', icon: Icons.place_outlined),
                 Text(issue.location, style: textTheme.bodyMedium),
                 Gap.h12,
-                MiniMap(lat: issue.latitude, lng: issue.longitude, color: hexColor(category.color)),
+                MiniMap(lat: issue.latitude, lng: issue.longitude, category: issue.category),
               ],
             ),
           ),
           Gap.h12,
           DepartmentCard(issue: issue),
           Gap.h12,
+          // Thẻ đánh giá / mở lại tự mang khoảng cách phía dưới (ẩn khi không áp dụng).
           RatingCard(issue: issue),
           ReopenCard(issue: issue),
-          Gap.h12,
           TimelineSection(issue: issue),
           Gap.h12,
+          // Hai khối "gần đây" tự mang khoảng cách phía dưới — rỗng thì biến mất
+          // hẳn, không để lại hai khoảng trống trước bình luận.
           NearbyCamerasSection(issue: issue, onOpen: (c) => CameraPlayer.open(context, c)),
-          Gap.h12,
           NearbySection(issue: issue),
-          Gap.h16,
           CommentsSection(issueId: issue.id),
         ],
       ),

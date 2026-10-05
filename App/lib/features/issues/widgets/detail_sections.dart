@@ -60,17 +60,19 @@ class SectionTitle extends StatelessWidget {
   }
 }
 
-/// Bản đồ nhỏ không tương tác + nút chỉ đường bằng app bản đồ của máy.
-class MiniMap extends StatelessWidget {
-  const MiniMap({super.key, required this.lat, required this.lng, this.color});
+/// Bản đồ nhỏ không tương tác + nút chỉ đường bằng app bản đồ của máy. Ghim
+/// giống bản đồ chính: màu + icon của danh mục.
+class MiniMap extends ConsumerWidget {
+  const MiniMap({super.key, required this.lat, required this.lng, required this.category});
 
   final double lat;
   final double lng;
-  final Color? color;
+  final String category;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final point = LatLng(lat, lng);
+    final c = ref.watch(metaProvider).category(category);
     return ClipRRect(
       borderRadius: BorderRadius.circular(Radii.tile),
       child: SizedBox(
@@ -90,7 +92,7 @@ class MiniMap extends StatelessWidget {
                     point: point,
                     width: 40,
                     height: 40,
-                    child: MapPin(color: color ?? context.palette.error, icon: Icons.warning_rounded),
+                    child: MapPin(color: mapPinColor(hexColor(c.color)), icon: AppIcons.category(category)),
                   ),
                 ]),
                 mapAttribution(),
@@ -317,21 +319,24 @@ class _RatingCardState extends ConsumerState<RatingCard> {
     final palette = context.palette;
 
     if (issue.rating.isRated) {
-      return AppCard(
-        padding: EdgeInsets.zero,
-        child: Padding(
-          padding: const EdgeInsets.all(Gap.card),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SectionTitle('Đánh giá của người báo cáo', icon: Icons.star_outline),
-              _Stars(score: issue.rating.score ?? 0),
-              if ((issue.rating.comment ?? '').isNotEmpty) ...[
-                Gap.h8,
-                Text('“${issue.rating.comment}”', style: textTheme.bodyMedium),
+      return Padding(
+        padding: const EdgeInsets.only(bottom: Gap.md),
+        child: AppCard(
+          padding: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(Gap.card),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SectionTitle('Đánh giá của người báo cáo', icon: Icons.star_outline),
+                _Stars(score: issue.rating.score ?? 0),
+                if ((issue.rating.comment ?? '').isNotEmpty) ...[
+                  Gap.h8,
+                  Text('“${issue.rating.comment}”', style: textTheme.bodyMedium),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       );
@@ -339,44 +344,47 @@ class _RatingCardState extends ConsumerState<RatingCard> {
     if (!canRateIssue(issue, userId)) return const SizedBox.shrink();
 
     final rejected = issue.status == IssueStatus.rejected;
-    return AppCard(
-      padding: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(Gap.card),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SectionTitle(
-              rejected ? 'Bạn thấy quyết định này thế nào?' : 'Sự cố của bạn đã được xử lý',
-              icon: Icons.star_outline,
-            ),
-            Text(
-              rejected
-                  ? 'Đánh giá giúp đơn vị cải thiện cách tiếp nhận phản ánh.'
-                  : 'Đánh giá chất lượng xử lý — 1–2 sao sẽ được báo lên quản trị viên xem lại.',
-              style: textTheme.bodySmall,
-            ),
-            Gap.h8,
-            _Stars(score: _score, onChanged: _busy ? null : (s) => setState(() => _score = s)),
-            Gap.h8,
-            TextField(
-              controller: _comment,
-              maxLength: 500,
-              maxLines: 3,
-              minLines: 1,
-              decoration: const InputDecoration(labelText: 'Nhận xét (không bắt buộc)'),
-            ),
-            if (_error != null)
-              Text(_error!, style: textTheme.bodySmall?.copyWith(color: palette.error)),
-            Align(
-              alignment: Alignment.centerRight,
-              child: FilledButton(
-                onPressed: _busy ? null : _submit,
-                child: const Text('Gửi đánh giá'),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Gap.md),
+      child: AppCard(
+        padding: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(Gap.card),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SectionTitle(
+                rejected ? 'Bạn thấy quyết định này thế nào?' : 'Sự cố của bạn đã được xử lý',
+                icon: Icons.star_outline,
               ),
-            ),
-          ],
+              Text(
+                rejected
+                    ? 'Đánh giá giúp đơn vị cải thiện cách tiếp nhận phản ánh.'
+                    : 'Đánh giá chất lượng xử lý — 1–2 sao sẽ được báo lên quản trị viên xem lại.',
+                style: textTheme.bodySmall,
+              ),
+              Gap.h8,
+              _Stars(score: _score, onChanged: _busy ? null : (s) => setState(() => _score = s)),
+              Gap.h8,
+              TextField(
+                controller: _comment,
+                maxLength: 500,
+                maxLines: 3,
+                minLines: 1,
+                decoration: const InputDecoration(labelText: 'Nhận xét (không bắt buộc)'),
+              ),
+              if (_error != null)
+                Text(_error!, style: textTheme.bodySmall?.copyWith(color: palette.error)),
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton(
+                  onPressed: _busy ? null : _submit,
+                  child: const Text('Gửi đánh giá'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -455,42 +463,46 @@ class _ReopenCardState extends ConsumerState<ReopenCard> {
     if (eligibility.block == ReopenBlock.mergedIssue) return const SizedBox.shrink();
 
     final rejected = widget.issue.status == IssueStatus.rejected;
-    return AppCard(
-      padding: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(Gap.card),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SectionTitle(
-              rejected ? 'Không đồng ý với quyết định từ chối?' : 'Chưa hài lòng với kết quả?',
-              icon: Icons.replay,
-            ),
-            if (eligibility.allowed) ...[
-              Text(
-                rejected
-                    ? 'Nếu sự cố vẫn còn, bạn có thể yêu cầu đơn vị xem xét lại kèm lý do.'
-                    : 'Ra hiện trường mà sự cố vẫn còn? Mở lại để đơn vị xử lý tiếp.',
-                style: textTheme.bodySmall,
+    return Padding(
+      // Tự mang khoảng cách như [RatingCard]: ẩn thì không để lại ô trống.
+      padding: const EdgeInsets.only(bottom: Gap.md),
+      child: AppCard(
+        padding: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(Gap.card),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SectionTitle(
+                rejected ? 'Không đồng ý với quyết định từ chối?' : 'Chưa hài lòng với kết quả?',
+                icon: Icons.replay,
               ),
-              Gap.h4,
-              Text(
-                [
-                  'Còn ${policy.maxCount - widget.issue.reopenCount}/${policy.maxCount} lượt',
-                  if (eligibility.daysLeft != null) 'còn ${eligibility.daysLeft} ngày',
-                ].join(' · '),
-                style: textTheme.labelSmall?.copyWith(color: palette.textSecondary),
-              ),
-              Gap.h8,
-              OutlinedButton.icon(
-                onPressed: _open,
-                icon: const Icon(Icons.replay),
-                label: const Text('Mở lại sự cố'),
-              ),
-            ] else
-              Text(eligibility.block!.explain(policy), style: textTheme.bodySmall),
-          ],
+              if (eligibility.allowed) ...[
+                Text(
+                  rejected
+                      ? 'Nếu sự cố vẫn còn, bạn có thể yêu cầu đơn vị xem xét lại kèm lý do.'
+                      : 'Ra hiện trường mà sự cố vẫn còn? Mở lại để đơn vị xử lý tiếp.',
+                  style: textTheme.bodySmall,
+                ),
+                Gap.h4,
+                Text(
+                  [
+                    'Còn ${policy.maxCount - widget.issue.reopenCount}/${policy.maxCount} lượt',
+                    if (eligibility.daysLeft != null) 'còn ${eligibility.daysLeft} ngày',
+                  ].join(' · '),
+                  style: textTheme.labelSmall?.copyWith(color: palette.textSecondary),
+                ),
+                Gap.h8,
+                OutlinedButton.icon(
+                  onPressed: _open,
+                  icon: const Icon(Icons.replay),
+                  label: const Text('Mở lại sự cố'),
+                ),
+              ] else
+                Text(eligibility.block!.explain(policy), style: textTheme.bodySmall),
+            ],
+          ),
         ),
       ),
     );
@@ -666,110 +678,112 @@ class _CommentsSectionState extends ConsumerState<CommentsSection> {
     final textTheme = Theme.of(context).textTheme;
     final palette = context.palette;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SectionTitle(_total > 0 ? 'Bình luận ($_total)' : 'Bình luận', icon: Icons.forum_outlined),
-        if (user != null)
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _input,
-                  minLines: 1,
-                  maxLines: 4,
-                  maxLength: maxLength,
-                  decoration: const InputDecoration(hintText: 'Viết bình luận…', counterText: ''),
-                ),
-              ),
-              Gap.w8,
-              IconButton.filled(
-                tooltip: 'Gửi bình luận',
-                onPressed: _sending ? null : _send,
-                icon: const Icon(Icons.send),
-              ),
-            ],
-          )
-        else
-          OutlinedButton.icon(
-            onPressed: () => context.push(Routes.login),
-            icon: const Icon(Icons.login),
-            label: const Text('Đăng nhập để bình luận'),
-          ),
-        Gap.h12,
-        if (_items.isEmpty && !_loading && _error == null)
-          Text('Chưa có bình luận nào.', style: textTheme.bodySmall),
-        for (final c in _items)
-          Padding(
-            padding: const EdgeInsets.only(bottom: Gap.md),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SectionTitle(_total > 0 ? 'Bình luận ($_total)' : 'Bình luận', icon: Icons.forum_outlined),
+          if (user != null)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor: c.isFromHandler ? palette.primary : palette.surfaceAlt,
-                  child: Text(
-                    Fmt.initial(c.author?.name),
-                    style: TextStyle(color: c.isFromHandler ? palette.onPrimary : palette.textPrimary),
+                Expanded(
+                  child: TextField(
+                    controller: _input,
+                    minLines: 1,
+                    maxLines: 4,
+                    maxLength: maxLength,
+                    decoration: const InputDecoration(hintText: 'Viết bình luận…', counterText: ''),
                   ),
                 ),
-                Gap.w12,
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Wrap(
-                        spacing: Gap.sm,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          Text(c.author?.name ?? 'Người dùng', style: textTheme.titleSmall),
-                          if (c.isFromHandler)
-                            InfoChip(
-                              label: c.author?.role == 'admin' ? 'Quản trị viên' : 'Cán bộ',
-                              icon: Icons.verified_user_outlined,
-                              colors: palette.success,
-                              dense: true,
-                            ),
-                          Text(Fmt.relative(c.createdAt), style: textTheme.bodySmall),
-                        ],
-                      ),
-                      Gap.h4,
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm + 2),
-                        decoration: BoxDecoration(
-                          color: c.isFromHandler
-                              ? Theme.of(context).colorScheme.primaryContainer
-                              : palette.field,
-                          borderRadius: const BorderRadius.only(
-                            topRight: Radius.circular(16),
-                            bottomLeft: Radius.circular(16),
-                            bottomRight: Radius.circular(16),
-                            topLeft: Radius.circular(4),
-                          ),
-                        ),
-                        child: Text(c.content, style: textTheme.bodyMedium),
-                      ),
-                    ],
-                  ),
+                Gap.w8,
+                IconButton.filled(
+                  tooltip: 'Gửi bình luận',
+                  onPressed: _sending ? null : _send,
+                  icon: const Icon(Icons.send),
                 ),
               ],
+            )
+          else
+            OutlinedButton.icon(
+              onPressed: () => context.push(Routes.login),
+              icon: const Icon(Icons.login),
+              label: const Text('Đăng nhập để bình luận'),
             ),
-          ),
-        if (_loading) const Center(child: Padding(padding: EdgeInsets.all(Gap.md), child: CircularProgressIndicator())),
-        if (_error != null)
-          TextButton.icon(
-            onPressed: _loadMore,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Không tải được bình luận — thử lại'),
-          ),
-        if (_hasMore && !_loading && _items.isNotEmpty)
-          Center(
-            child: TextButton(onPressed: _loadMore, child: const Text('Xem bình luận cũ hơn')),
-          ),
-      ],
+          Gap.h12,
+          if (_items.isEmpty && !_loading && _error == null)
+            Text('Chưa có bình luận nào.', style: textTheme.bodySmall),
+          for (final c in _items)
+            Padding(
+              padding: const EdgeInsets.only(bottom: Gap.md),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor: c.isFromHandler ? palette.primary : palette.surfaceAlt,
+                    child: Text(
+                      Fmt.initial(c.author?.name),
+                      style: TextStyle(color: c.isFromHandler ? palette.onPrimary : palette.textPrimary),
+                    ),
+                  ),
+                  Gap.w12,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Wrap(
+                          spacing: Gap.sm,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(c.author?.name ?? 'Người dùng', style: textTheme.titleSmall),
+                            if (c.isFromHandler)
+                              InfoChip(
+                                label: c.author?.role == 'admin' ? 'Quản trị viên' : 'Cán bộ',
+                                icon: Icons.verified_user_outlined,
+                                colors: palette.success,
+                                dense: true,
+                              ),
+                            Text(Fmt.relative(c.createdAt), style: textTheme.bodySmall),
+                          ],
+                        ),
+                        Gap.h4,
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm + 2),
+                          decoration: BoxDecoration(
+                            color: c.isFromHandler
+                                ? Theme.of(context).colorScheme.primaryContainer
+                                : palette.field,
+                            borderRadius: const BorderRadius.only(
+                              topRight: Radius.circular(16),
+                              bottomLeft: Radius.circular(16),
+                              bottomRight: Radius.circular(16),
+                              topLeft: Radius.circular(4),
+                            ),
+                          ),
+                          child: Text(c.content, style: textTheme.bodyMedium),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (_loading) const Center(child: Padding(padding: EdgeInsets.all(Gap.md), child: CircularProgressIndicator())),
+          if (_error != null)
+            TextButton.icon(
+              onPressed: _loadMore,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Không tải được bình luận — thử lại'),
+            ),
+          if (_hasMore && !_loading && _items.isNotEmpty)
+            Center(
+              child: TextButton(onPressed: _loadMore, child: const Text('Xem bình luận cũ hơn')),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -798,22 +812,26 @@ class NearbySection extends ConsumerWidget {
         .toList();
     if (items.isEmpty) return const SizedBox.shrink();
     final textTheme = Theme.of(context).textTheme;
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SectionTitle('Sự cố khác đang mở gần đây', icon: Icons.near_me_outlined),
-          for (final n in items)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: CategoryEmoji(n.issue.category),
-              title: Text(n.issue.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-              subtitle: Text('Cách ${Fmt.distance(n.distanceMeters)} · ${Fmt.relative(n.issue.createdAt)}',
-                  style: textTheme.bodySmall),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.push(Routes.issue(n.issue.id)),
-            ),
-        ],
+    return Padding(
+      // Tự mang khoảng cách: không có gì để hiện thì không để lại ô trống.
+      padding: const EdgeInsets.only(bottom: Gap.md),
+      child: AppCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SectionTitle('Sự cố khác đang mở gần đây', icon: Icons.near_me_outlined),
+            for (final n in items)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: CategoryEmoji(n.issue.category),
+                title: Text(n.issue.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                subtitle: Text('Cách ${Fmt.distance(n.distanceMeters)} · ${Fmt.relative(n.issue.createdAt)}',
+                    style: textTheme.bodySmall),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push(Routes.issue(n.issue.id)),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -850,26 +868,29 @@ class NearbyCamerasSection extends ConsumerWidget {
         const <PublicCamera>[];
     if (cams.isEmpty) return const SizedBox.shrink();
     final palette = context.palette;
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SectionTitle('Camera công cộng gần đây', icon: Icons.videocam_outlined),
-          for (final c in cams.take(3))
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: IconBubble(
-                icon: Icons.videocam_outlined,
-                ink: palette.accentInk,
-                container: palette.accentSoft,
-                size: 40,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Gap.md),
+      child: AppCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SectionTitle('Camera công cộng gần đây', icon: Icons.videocam_outlined),
+            for (final c in cams.take(3))
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: IconBubble(
+                  icon: Icons.videocam_outlined,
+                  ink: palette.accentInk,
+                  container: palette.accentSoft,
+                  size: 40,
+                ),
+                title: Text(c.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                subtitle: c.distanceMeters == null ? null : Text('Cách ${Fmt.distance(c.distanceMeters!)}'),
+                trailing: Icon(Icons.play_circle_outline, color: palette.primary),
+                onTap: () => onOpen(c),
               ),
-              title: Text(c.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-              subtitle: c.distanceMeters == null ? null : Text('Cách ${Fmt.distance(c.distanceMeters!)}'),
-              trailing: Icon(Icons.play_circle_outline, color: palette.primary),
-              onTap: () => onOpen(c),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }

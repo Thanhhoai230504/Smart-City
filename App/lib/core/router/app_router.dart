@@ -48,19 +48,23 @@ class RoleHome extends ConsumerWidget {
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
 
+  /// Nền navy của logo — trùng màn chờ native (flutter_native_splash.yaml) và nền
+  /// icon, nên từ lúc bấm icon tới khi app vẽ xong không nháy sang màu khác.
+  static const brandNavy = Color(0xFF1B4164);
+
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: scheme.primary,
+      backgroundColor: brandNavy,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.location_city, size: 64, color: scheme.onPrimary),
+            // Cùng ảnh, cùng cỡ (192dp) với màn chờ native trước Android 12.
+            Image.asset('assets/branding/splash_logo.png', width: 192, height: 192),
             const SizedBox(height: 16),
             Text('Smart City Đà Nẵng',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(color: scheme.onPrimary)),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white)),
           ],
         ),
       ),

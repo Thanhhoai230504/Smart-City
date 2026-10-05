@@ -1,0 +1,20 @@
+# Màn chờ native (task 7.1) — cùng nền navy với icon và với SplashScreen trong app,
+# nên lúc mở app không còn nháy từ màn trắng sang màn xanh.
+#
+# Công cụ KHÔNG nằm trong pubspec (cùng lý do với flutter_launcher_icons.yaml).
+# Tạo lại:
+#   flutter pub add --dev flutter_native_splash
+#   dart run flutter_native_splash:create --path=flutter_native_splash.yaml
+#   flutter pub remove flutter_native_splash
+flutter_native_splash:
+  color: "#1B4164"
+  image: assets/branding/splash_logo.png
+  # Android 12+ dùng Splash Screen API: icon bị cắt tròn (2/3 khung 288dp).
+  android_12:
+    image: assets/branding/splash_icon.png
+    color: "#1B4164"
+    icon_background_color: "#1B4164"
+  android: true
+  ios: true
+  web: false
+  fullscreen: false

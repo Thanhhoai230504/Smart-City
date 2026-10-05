@@ -6,6 +6,7 @@ import '../../core/platform/connectivity.dart';
 import '../../core/router/route_guard.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/theme/feature_styles.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/async_states.dart';
 import '../../core/widgets/offline_banner.dart';
@@ -40,26 +41,25 @@ String homeGreeting(String? name, {DateTime? now}) {
   return given.isEmpty ? '$part!' : '$part, $given';
 }
 
-/// Lối tắt trên trang chủ. Màu chỉ để phân biệt nhanh bằng mắt — mỗi ô vẫn có
-/// nhãn chữ; tông được chỉnh qua [CategoryTone] cho đủ tương phản.
+/// Lối tắt trên trang chủ. Icon + màu lấy từ [AppFeatures] — cùng một tính năng
+/// ở màn Cá nhân mang đúng icon/màu đó; tông được chỉnh qua [CategoryTone].
 class _Shortcut {
-  const _Shortcut(this.icon, this.label, this.color, this.onTap);
+  const _Shortcut(this.style, this.label, this.onTap);
 
-  final IconData icon;
+  final FeatureStyle style;
   final String label;
-  final Color color;
   final void Function(BuildContext) onTap;
 }
 
 final _shortcuts = <_Shortcut>[
-  _Shortcut(Icons.map_outlined, 'Bản đồ', const Color(0xFF0EA5E9), (c) => c.go(Routes.map)),
-  _Shortcut(Icons.view_list_outlined, 'Danh sách', const Color(0xFF6366F1), (c) => c.push(Routes.issues)),
-  _Shortcut(Icons.assignment_ind_outlined, 'Của tôi', const Color(0xFF14B8A6), (c) => c.push(Routes.myIssues)),
-  _Shortcut(Icons.insights_outlined, 'Thống kê', const Color(0xFF8B5CF6), (c) => c.push(Routes.statistics)),
-  _Shortcut(Icons.videocam_outlined, 'Camera', const Color(0xFFF43F5E), (c) => c.push(Routes.cameras)),
-  _Shortcut(Icons.emoji_events_outlined, 'Xếp hạng', const Color(0xFFF59E0B), (c) => c.push(Routes.badges)),
-  _Shortcut(Icons.support_agent, 'Trợ lý AI', const Color(0xFF10B981), (c) => c.push(Routes.chatbot)),
-  _Shortcut(Icons.schedule_send_outlined, 'Chờ gửi', const Color(0xFF64748B), (c) => c.push(Routes.pendingReports)),
+  _Shortcut(AppFeatures.map, 'Bản đồ', (c) => c.go(Routes.map)),
+  _Shortcut(AppFeatures.issues, 'Danh sách', (c) => c.push(Routes.issues)),
+  _Shortcut(AppFeatures.myIssues, 'Của tôi', (c) => c.push(Routes.myIssues)),
+  _Shortcut(AppFeatures.statistics, 'Thống kê', (c) => c.push(Routes.statistics)),
+  _Shortcut(AppFeatures.cameras, 'Camera', (c) => c.push(Routes.cameras)),
+  _Shortcut(AppFeatures.badges, 'Xếp hạng', (c) => c.push(Routes.badges)),
+  _Shortcut(AppFeatures.chatbot, 'Trợ lý AI', (c) => c.push(Routes.chatbot)),
+  _Shortcut(AppFeatures.pending, 'Chờ gửi', (c) => c.push(Routes.pendingReports)),
 ];
 
 /// Trang chủ (task 2.1) — **không port landing page 828 dòng của web**: mobile
@@ -82,89 +82,91 @@ class HomeScreen extends ConsumerWidget {
       await ref.read(_recentIssuesProvider.future).catchError((_) => const Paged<Issue>([], Pagination.empty));
     }
 
-    return Scaffold(
-      body: RefreshIndicator(
-        onRefresh: refresh,
-        edgeOffset: MediaQuery.paddingOf(context).top,
-        child: ListView(
-          padding: const EdgeInsets.only(bottom: 120),
-          children: [
-            _HomeHero(name: user?.name),
-            if (OfflineBanner.isVisible(online: online, pendingCount: queue.count))
-              Padding(
-                padding: const EdgeInsets.fromLTRB(Gap.screen, Gap.md, Gap.screen, 0),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(Radii.tile),
-                  child: OfflineBanner(
-                    online: online,
-                    pendingCount: queue.count,
-                    onTap: queue.count > 0 ? () => context.push(Routes.pendingReports) : null,
+    return HeroScrollScope(
+      child: Scaffold(
+        body: RefreshIndicator(
+          onRefresh: refresh,
+          edgeOffset: MediaQuery.paddingOf(context).top,
+          child: ListView(
+            padding: const EdgeInsets.only(bottom: 120),
+            children: [
+              _HomeHero(name: user?.name),
+              if (OfflineBanner.isVisible(online: online, pendingCount: queue.count))
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(Gap.screen, Gap.md, Gap.screen, 0),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(Radii.tile),
+                    child: OfflineBanner(
+                      online: online,
+                      pendingCount: queue.count,
+                      onTap: queue.count > 0 ? () => context.push(Routes.pendingReports) : null,
+                    ),
                   ),
                 ),
-              ),
-            Padding(
-              padding: Gap.screenPadding,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (queue.needsAttention > 0) ...[
-                    Gap.h16,
-                    AppCard(
-                      color: palette.offline.container,
-                      borderColor: Colors.transparent,
-                      elevated: false,
-                      onTap: () => context.push(Routes.pendingReports),
-                      child: Row(
-                        children: [
-                          Icon(Icons.edit_note, color: palette.offline.text),
-                          Gap.w12,
-                          Expanded(
-                            child: Text(
-                              '${queue.needsAttention} báo cáo cần bạn sửa lại trước khi gửi',
-                              style: Theme.of(context).textTheme.titleSmall?.copyWith(color: palette.offline.text),
+              Padding(
+                padding: Gap.screenPadding,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (queue.needsAttention > 0) ...[
+                      Gap.h16,
+                      AppCard(
+                        color: palette.offline.container,
+                        borderColor: Colors.transparent,
+                        elevated: false,
+                        onTap: () => context.push(Routes.pendingReports),
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit_note, color: palette.offline.text),
+                            Gap.w12,
+                            Expanded(
+                              child: Text(
+                                '${queue.needsAttention} báo cáo cần bạn sửa lại trước khi gửi',
+                                style: Theme.of(context).textTheme.titleSmall?.copyWith(color: palette.offline.text),
+                              ),
                             ),
-                          ),
-                          Icon(Icons.chevron_right, color: palette.offline.text),
-                        ],
+                            Icon(Icons.chevron_right, color: palette.offline.text),
+                          ],
+                        ),
                       ),
+                    ],
+                    const SectionHeader('Lối tắt'),
+                    const _ShortcutGrid(),
+                    SectionHeader(
+                      'Sự cố mới',
+                      actionLabel: 'Xem tất cả',
+                      onAction: () => context.push(Routes.issues),
+                    ),
+                    recent.when(
+                      loading: () => const Column(children: [
+                        SkeletonBox(height: 120),
+                        SizedBox(height: Gap.md),
+                        SkeletonBox(height: 120),
+                      ]),
+                      error: (e, _) => SizedBox(
+                        height: 220,
+                        child: ErrorState(error: e, onRetry: () => ref.invalidate(_recentIssuesProvider)),
+                      ),
+                      data: (page) => page.items.isEmpty
+                          ? const EmptyState(
+                              icon: Icons.verified_outlined,
+                              title: 'Chưa có sự cố nào',
+                              message: 'Thành phố đang yên ổn. Thấy sự cố, hãy là người báo đầu tiên.',
+                            )
+                          : Column(
+                              children: [
+                                for (final issue in page.items) ...[
+                                  IssueCard(issue: issue, onTap: () => context.push(Routes.issue(issue.id))),
+                                  Gap.h12,
+                                ],
+                              ],
+                            ),
                     ),
                   ],
-                  const SectionHeader('Lối tắt'),
-                  const _ShortcutGrid(),
-                  SectionHeader(
-                    'Sự cố mới',
-                    actionLabel: 'Xem tất cả',
-                    onAction: () => context.push(Routes.issues),
-                  ),
-                  recent.when(
-                    loading: () => const Column(children: [
-                      SkeletonBox(height: 120),
-                      SizedBox(height: Gap.md),
-                      SkeletonBox(height: 120),
-                    ]),
-                    error: (e, _) => SizedBox(
-                      height: 220,
-                      child: ErrorState(error: e, onRetry: () => ref.invalidate(_recentIssuesProvider)),
-                    ),
-                    data: (page) => page.items.isEmpty
-                        ? const EmptyState(
-                            icon: Icons.verified_outlined,
-                            title: 'Chưa có sự cố nào',
-                            message: 'Thành phố đang yên ổn. Thấy sự cố, hãy là người báo đầu tiên.',
-                          )
-                        : Column(
-                            children: [
-                              for (final issue in page.items) ...[
-                                IssueCard(issue: issue, onTap: () => context.push(Routes.issue(issue.id))),
-                                Gap.h12,
-                              ],
-                            ],
-                          ),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -190,15 +192,7 @@ class _HomeHero extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: palette.onBrand.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(Icons.location_city_rounded, color: palette.onBrand, size: 24),
-              ),
+              const BrandLogo(),
               Gap.w12,
               Expanded(
                 child: Column(
@@ -212,7 +206,7 @@ class _HomeHero extends ConsumerWidget {
               IconButton(
                 tooltip: 'Trợ lý hỏi đáp',
                 style: IconButton.styleFrom(backgroundColor: palette.onBrand.withValues(alpha: 0.14)),
-                icon: Icon(Icons.support_agent, color: palette.onBrand),
+                icon: Icon(AppFeatures.chatbot.icon, color: palette.onBrand),
                 onPressed: () => context.push(Routes.chatbot),
               ),
             ],
@@ -327,7 +321,7 @@ class _ShortcutGrid extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
 
     Widget tile(_Shortcut s) {
-      final tone = CategoryTone.of(s.color, palette);
+      final tone = CategoryTone.of(s.style.color, palette);
       return Semantics(
         button: true,
         label: s.label,
@@ -339,7 +333,7 @@ class _ShortcutGrid extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: Gap.sm, horizontal: 2),
             child: Column(
               children: [
-                IconBubble(icon: s.icon, ink: tone.ink, container: tone.container, size: 52),
+                IconBubble(icon: s.style.icon, ink: tone.ink, container: tone.container, size: 52),
                 Gap.h8,
                 Text(
                   s.label,

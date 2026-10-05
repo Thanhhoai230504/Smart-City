@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- Gọi API, tải tile bản đồ, Socket.IO -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <!-- connectivity_plus: biết khi nào có mạng lại để tự gửi phiếu chờ (3.6) -->
@@ -7,10 +8,26 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
 
+    <!-- Quyền do plugin tự kéo vào manifest gộp nhưng app KHÔNG dùng (task 7.3) —
+         gỡ đi để người dùng và Play không thấy app đòi quyền vô cớ:
+         - FOREGROUND_SERVICE_LOCATION (geolocator: theo dõi vị trí nền; app chỉ lấy
+           vị trí lúc đang báo cáo)
+         - USE_BIOMETRIC / USE_FINGERPRINT (app không khoá token bằng vân tay) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" tools:node="remove"/>
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" tools:node="remove"/>
+    <uses-permission android:name="android.permission.USE_FINGERPRINT" tools:node="remove"/>
+
+    <!-- allowBackup=false: phiếu chờ gửi (ảnh, GPS, SĐT) không được đẩy lên bản sao
+         lưu đám mây; refresh token mã hoá bằng khoá Keystore của máy này, khôi phục
+         sang máy khác cũng không giải mã được (flutter_secure_storage khuyến nghị tắt).
+         Nhãn dưới icon chỉ vừa ~12 ký tự ("Smart City Đà Nẵng" bị cắt thành
+         "Smart City Đ…") — tên đầy đủ vẫn hiện trong app. -->
     <application
-        android:label="Smart City Đà Nẵng"
+        android:label="Smart City ĐN"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="false">
         <activity
             android:name=".MainActivity"
             android:exported="true"

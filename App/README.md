@@ -80,12 +80,49 @@ lib/
 | `workmanager` chạy nền | Chưa dùng | Kế hoạch 1.4.5: không được phụ thuộc chạy nền. App thử gửi lại khi mở lại và khi mạng đổi — chạy đúng trên cả hai nền tảng |
 | `permission_handler` | Dùng API quyền của `geolocator` + `image_picker` | Đủ ba nhánh quyền vị trí mà bớt một plugin |
 
+## Phát hành Android
+
+**Icon + màn chờ** (task 7.1) đã sinh sẵn trong `android/` và `ios/` từ logo web — nguồn ở
+`assets/branding/`, cách tạo lại ghi trong `flutter_launcher_icons.yaml`,
+`flutter_native_splash.yaml` và `tool/make_branding.dart`.
+
+**Khoá ký phát hành** (task 7.2) — tự tạo MỘT lần, cất ngoài repo, sao lưu cả file lẫn mật
+khẩu (mất khoá là không phát hành bản cập nhật cho app đã cài được nữa):
+
+```bash
+keytool -genkey -v -keystore D:/keystore/smartcity-upload.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+```
+
+Rồi tạo `android/key.properties` (đã `.gitignore`):
+
+```properties
+storeFile=D:/keystore/smartcity-upload.jks
+storePassword=<mật khẩu kho>
+keyAlias=upload
+keyPassword=<mật khẩu khoá>
+```
+
+Chưa có `key.properties` thì bản release tạm ký bằng debug key (chỉ để thử). Có khoá rồi:
+lấy SHA-1 bằng `keytool -list -v -keystore D:/keystore/smartcity-upload.jks -alias upload`
+và **thêm SHA-1 đó vào OAuth client Android** trên Google Cloud (project chứa
+`GOOGLE_CLIENT_ID`) — thiếu bước này đăng nhập Google trên bản release sẽ lỗi. Đổi khoá ký là
+đổi chữ ký app: cài lên máy đang có bản debug phải gỡ bản cũ trước (mất phiên đăng nhập).
+
+**Build bản release** (task 7.3) — biên dịch AOT, nhỏ và mượt hơn hẳn bản debug:
+
+```bash
+flutter build apk --release --split-per-abi --dart-define=API_URL=https://smart-city-tgsf.onrender.com/api --dart-define=APP_ENV=prod
+```
+
+Ra một APK cho mỗi kiến trúc trong `build/app/outputs/flutter-apk/`: điện thoại thật dùng
+`app-arm64-v8a-release.apk`, máy ảo x86_64 dùng `app-x86_64-release.apk`. Lên Play thì dùng
+`flutter build appbundle` thay cho `apk --split-per-abi`.
+
 ## Chưa làm — chặn bởi việc ngoài code
 
 - **B2 / Phase 5.1–5.3, 5.5, 4.8 — push FCM**: cần Firebase project + service account. Hiện
   thông báo đến qua Socket.IO khi app đang mở (5.4) và trung tâm thông báo (5.6).
-- **B4 / 1.4 — Google Sign-In**: cần OAuth client ID Android/iOS.
-- **Phase 7** — icon, keystore ký release, hồ sơ store, tài khoản Apple Developer.
+- **Phase 7 còn lại** — tạo khoá ký thật (lệnh ở trên), hồ sơ store, tài khoản Apple Developer, build iOS.
 - **Deep link xác thực email** — theo phương án (a) của kế hoạch: link mở trên web, app có
   màn "chưa xác thực" + gửi lại.
 

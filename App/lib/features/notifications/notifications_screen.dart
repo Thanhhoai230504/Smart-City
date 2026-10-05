@@ -14,7 +14,6 @@ import '../../core/widgets/surfaces.dart';
 import '../../data/models/issue.dart';
 import '../../data/models/notification.dart';
 import '../../data/models/user.dart';
-import '../../data/repositories/meta_repository.dart';
 import '../auth/auth_controller.dart';
 import 'notifications_controller.dart';
 
@@ -62,7 +61,6 @@ class NotificationsScreen extends ConsumerWidget {
     final user = ref.watch(currentUserProvider);
     final state = ref.watch(notificationsProvider);
     final controller = ref.read(notificationsProvider.notifier);
-    final meta = ref.watch(metaProvider);
     final palette = context.palette;
     final textTheme = Theme.of(context).textTheme;
 
@@ -156,7 +154,7 @@ class NotificationsScreen extends ConsumerWidget {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  n.title,
+                                  n.displayTitle,
                                   style: textTheme.titleSmall?.copyWith(
                                     fontWeight: n.isRead ? FontWeight.w500 : FontWeight.w700,
                                   ),
@@ -164,8 +162,10 @@ class NotificationsScreen extends ConsumerWidget {
                                 const SizedBox(height: 2),
                                 Text(n.message, style: textTheme.bodySmall, maxLines: 3, overflow: TextOverflow.ellipsis),
                                 Gap.h4,
+                                // Chỉ thời gian: nhãn loại ("Sự cố đã xử lý") lặp lại
+                                // tiêu đề, còn loại đã có icon riêng ở bên trái.
                                 Text(
-                                  '${meta.notificationTypeLabel(n.type)} · ${Fmt.relative(n.createdAt)}',
+                                  Fmt.relative(n.createdAt),
                                   style: textTheme.labelSmall?.copyWith(color: palette.textSecondary),
                                 ),
                               ],

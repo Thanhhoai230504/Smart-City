@@ -58,7 +58,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       if (!mounted) return;
       final role = ref.read(currentUserProvider)?.role;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(n.title.isEmpty ? n.message : '${n.title}: ${n.message}', maxLines: 3),
+        content: Text(n.title.isEmpty ? n.message : '${n.displayTitle}: ${n.message}', maxLines: 3),
         action: n.issueId == null
             ? null
             : SnackBarAction(label: 'Xem', onPressed: () => context.push(routeForNotification(n, role))),
@@ -143,7 +143,9 @@ class _BottomBar extends StatelessWidget {
           constraints: const BoxConstraints(minHeight: 72),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: Gap.xs),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: children),
+            // Canh đáy: nút Báo cáo cao hơn các tab, canh giữa thì nhãn của nó
+            // lệch xuống ~11 dp so với nhãn các tab bên cạnh.
+            child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: children),
           ),
         ),
       ),
@@ -223,46 +225,50 @@ class _ReportSlot extends StatelessWidget {
     final light = palette.brightness == Brightness.light;
     final deep = Color.lerp(palette.accent, Colors.black, 0.12)!;
     return Expanded(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Semantics(
-            button: true,
-            label: 'Báo cáo sự cố',
-            excludeSemantics: true,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [palette.accent, deep],
+      child: Padding(
+        // Cùng lề đáy với [_NavButton] để năm nhãn nằm trên một đường chân chữ.
+        padding: const EdgeInsets.only(bottom: Gap.sm),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Semantics(
+              button: true,
+              label: 'Báo cáo sự cố',
+              excludeSemantics: true,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [palette.accent, deep],
+                  ),
+                  boxShadow: light
+                      ? [BoxShadow(color: palette.accent.withValues(alpha: 0.38), blurRadius: 16, offset: const Offset(0, 6))]
+                      : null,
                 ),
-                boxShadow: light
-                    ? [BoxShadow(color: palette.accent.withValues(alpha: 0.38), blurRadius: 16, offset: const Offset(0, 6))]
-                    : null,
-              ),
-              child: Material(
-                type: MaterialType.transparency,
-                shape: const CircleBorder(),
-                clipBehavior: Clip.antiAlias,
-                child: InkWell(
-                  onTap: () => context.push(Routes.report),
-                  child: SizedBox.square(
-                    dimension: 58,
-                    child: Icon(Icons.add_a_photo_rounded, color: palette.onAccent, size: 27),
+                child: Material(
+                  type: MaterialType.transparency,
+                  shape: const CircleBorder(),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: () => context.push(Routes.report),
+                    child: SizedBox.square(
+                      dimension: 56,
+                      child: Icon(Icons.add_a_photo_rounded, color: palette.onAccent, size: 26),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            'Báo cáo',
-            maxLines: 1,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(color: palette.accentInk),
-          ),
-        ],
+            const SizedBox(height: 2),
+            Text(
+              'Báo cáo',
+              maxLines: 1,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(color: palette.accentInk),
+            ),
+          ],
+        ),
       ),
     );
   }

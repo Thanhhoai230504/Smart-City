@@ -89,8 +89,11 @@ class PriorityChip extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final meta = ref.watch(metaProvider);
     final label = meta.priorityLabel(level.name);
+    // Chip đầy đủ ghi rõ thang điểm như web ("58/100") — người dân không biết
+    // con số trần là gì; chip gọn trong danh sách của cán bộ giữ số trần.
+    final scoreText = score == null ? null : (dense ? '${score!.round()}' : '${score!.round()}/100');
     return InfoChip(
-      label: score == null ? label : '$label · ${score!.round()}',
+      label: scoreText == null ? label : '$label · $scoreText',
       icon: AppIcons.priority(level),
       colors: context.palette.priorityColors(level),
       semanticsPrefix: 'Mức ưu tiên',

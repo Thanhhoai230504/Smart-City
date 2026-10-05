@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../utils/image_url.dart';
 
 /// Nguồn ảnh: URL (đã lên server) hoặc bytes (ảnh vừa chụp, phiếu offline).
 class PhotoSource {
@@ -14,13 +15,24 @@ class PhotoSource {
   final Uint8List? bytes;
 }
 
-/// Ảnh có trạng thái tải và lỗi — dùng chung toàn app.
+/// Ảnh có trạng thái tải và lỗi — dùng chung toàn app. Ảnh Cloudinary được xin
+/// đúng cỡ khung hiển thị ([cloudinarySized]) thay vì tải nguyên ảnh gốc.
 class AppImage extends StatelessWidget {
-  const AppImage(this.source, {super.key, this.fit = BoxFit.cover, this.semanticLabel});
+  const AppImage(
+    this.source, {
+    super.key,
+    this.fit = BoxFit.cover,
+    this.semanticLabel,
+    this.fullResolution = false,
+  });
 
   final PhotoSource source;
   final BoxFit fit;
   final String? semanticLabel;
+
+  /// Ảnh gốc: trình xem phóng to (zoom không vỡ) và ảnh lớn đầu màn chi tiết —
+  /// dùng chung bộ nhớ đệm với trình xem nên mở ra là có ngay.
+  final bool fullResolution;
 
   @override
   Widget build(BuildContext context) {
@@ -40,22 +52,32 @@ class AppImage extends StatelessWidget {
         errorBuilder: (_, _, _) => fallback(),
       );
     }
-    return Image.network(
-      source.url!,
-      fit: fit,
-      semanticLabel: semanticLabel,
-      errorBuilder: (_, _, _) => fallback(),
-      loadingBuilder: (context, child, progress) => progress == null
-          ? child
-          : ColoredBox(
-              color: palette.surfaceAlt,
-              child: const Center(
-                child: SizedBox.square(
-                  dimension: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+    Widget network(String url) => Image.network(
+          url,
+          fit: fit,
+          semanticLabel: semanticLabel,
+          errorBuilder: (_, _, _) => fallback(),
+          loadingBuilder: (context, child, progress) => progress == null
+              ? child
+              : ColoredBox(
+                  color: palette.surfaceAlt,
+                  child: const Center(
+                    child: SizedBox.square(
+                      dimension: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
                 ),
-              ),
-            ),
+        );
+
+    if (fullResolution) return network(source.url!);
+    return LayoutBuilder(
+      builder: (context, box) => network(cloudinarySized(
+        source.url!,
+        width: box.maxWidth,
+        height: box.maxHeight,
+        dpr: MediaQuery.devicePixelRatioOf(context),
+      )),
     );
   }
 }
@@ -186,7 +208,7 @@ class _PhotoViewerState extends State<PhotoViewer> {
         onPageChanged: (i) => setState(() => _index = i),
         itemBuilder: (_, i) => InteractiveViewer(
           maxScale: 5,
-          child: Center(child: AppImage(widget.photos[i], fit: BoxFit.contain)),
+          child: Center(child: AppImage(widget.photos[i], fit: BoxFit.contain, fullResolution: true)),
         ),
       ),
     );

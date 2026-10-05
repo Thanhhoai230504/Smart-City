@@ -7,6 +7,15 @@ import '../theme/app_colors.dart';
 /// Test tắt tile để không phát request mạng (flutter_test chặn HTTP).
 bool mapTilesEnabled = true;
 
+/// Tile nền mặc định (Google `lyrs=m`) chỉ có bản sáng, kể cả khi app ở theme
+/// tối. Mọi đồ hoạ vẽ *trên* bản đồ (ghim, chấm, vạch đường, vòng bán kính) và
+/// màu chữ thanh trạng thái phía trên bản đồ tính theo bảng sáng; khung nổi (ô
+/// tìm kiếm, chip, nút) vẫn theo theme của app.
+const AppPalette mapPalette = AppPalette.light;
+
+/// Màu ghim của một danh mục trên nền bản đồ — icon trắng đọc được ở cả hai theme.
+Color mapPinColor(Color category) => CategoryTone.of(category, mapPalette).ink;
+
 /// Lớp tile nền dùng chung — nguồn tile cấu hình qua `MAP_TILE_URL`
 /// (xem [AppConfig.mapTileUrl]).
 Widget baseTileLayer() => !mapTilesEnabled
@@ -55,7 +64,7 @@ class _Attribution extends StatelessWidget {
       );
 }
 
-/// Marker hình giọt nước có viền — đọc được trên nền bản đồ sáng.
+/// Marker tròn có viền trắng — đọc được trên nền bản đồ sáng ([mapPalette]).
 class MapPin extends StatelessWidget {
   const MapPin({super.key, required this.color, this.icon, this.emoji, this.size = 40});
 
@@ -66,7 +75,6 @@ class MapPin extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final surface = context.palette.surface;
     return SizedBox(
       width: size,
       height: size,
@@ -74,7 +82,7 @@ class MapPin extends StatelessWidget {
         decoration: BoxDecoration(
           color: color,
           shape: BoxShape.circle,
-          border: Border.all(color: surface, width: 2.5),
+          border: Border.all(color: mapPalette.surface, width: 2.5),
           boxShadow: const [BoxShadow(color: Color(0x40000000), blurRadius: 4, offset: Offset(0, 2))],
         ),
         child: Center(

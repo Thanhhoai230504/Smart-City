@@ -5,10 +5,15 @@ import '../../data/models/issue.dart';
 /// Icon trạng thái — **cố định, không đổi theo theme** (design system mục 6.2).
 /// Mọi chip có đủ ba kênh màu + icon + nhãn chữ: ~8% nam giới mù màu đỏ–lục,
 /// đúng cặp phân biệt `reported`/`resolved`, và dưới nắng màu mất đầu tiên.
+///
+/// Các bộ icon đứng cạnh nhau (danh mục, trạng thái, SLA, loại địa điểm) dùng
+/// chung kiểu nét viền; icon đặc chỉ dành cho tab đang chọn.
 abstract final class AppIcons {
   static IconData status(IssueStatus s) => switch (s) {
         IssueStatus.reported => Icons.radio_button_checked,
-        IssueStatus.processing => Icons.engineering,
+        // Búa + tua vít: "đang sửa". `engineering` (người + bánh răng) nhoè thành
+        // một vệt ở cỡ 16 dp của chip.
+        IssueStatus.processing => Icons.handyman_outlined,
         IssueStatus.resolved => Icons.task_alt,
         IssueStatus.rejected => Icons.block,
         IssueStatus.unknown => Icons.help_outline,
@@ -23,11 +28,11 @@ abstract final class AppIcons {
 
   static IconData sla(SlaStatus s) => switch (s) {
         SlaStatus.none => Icons.hourglass_empty,
-        SlaStatus.onTime => Icons.check_circle,
+        SlaStatus.onTime => Icons.check_circle_outline,
         SlaStatus.dueSoon => Icons.warning_amber,
-        SlaStatus.overdue => Icons.error,
-        SlaStatus.met => Icons.verified,
-        SlaStatus.breached => Icons.gpp_bad,
+        SlaStatus.overdue => Icons.error_outline,
+        SlaStatus.met => Icons.verified_outlined,
+        SlaStatus.breached => Icons.gpp_bad_outlined,
       };
 
   /// 14 loại thông báo (Phụ lục E.5) + **nhánh mặc định** cho loại backend thêm
@@ -53,22 +58,27 @@ abstract final class AppIcons {
   /// Icon danh mục — thay emoji của meta bằng nét icon đồng bộ với phần còn lại
   /// của app. Danh mục backend thêm sau rơi vào nhánh mặc định.
   static IconData category(String key) => switch (key) {
-        'pothole' => Icons.construction,
+        // Mặt đường hỏng. `construction` (búa + cờ lê) đọc ra "đang thi công" và
+        // trùng icon camera công trường.
+        'pothole' => Icons.edit_road_outlined,
         'garbage' => Icons.delete_outline,
         'streetlight' => Icons.lightbulb_outline,
         'flooding' => Icons.flood_outlined,
         'tree' => Icons.park_outlined,
-        'other' => Icons.push_pin_outlined,
+        // "Khác" (`other`) dùng chung nhánh mặc định: icon báo sự cố. Dấu "…" trên
+        // ghim bản đồ trông như nút "xem thêm", đinh ghim thì không nói lên gì.
         _ => Icons.report_outlined,
       };
 
   static IconData placeType(String type) => switch (type) {
-        'hospital' => Icons.local_hospital,
-        'school' => Icons.school,
-        'bus_stop' => Icons.directions_bus,
-        'park' => Icons.park,
-        'police' => Icons.local_police,
-        _ => Icons.place,
+        'hospital' => Icons.local_hospital_outlined,
+        'school' => Icons.school_outlined,
+        'bus_stop' => Icons.directions_bus_outlined,
+        // Không dùng `park_outlined` — đó là icon danh mục "Cây đổ", hai loại
+        // ghim nằm chung một bản đồ.
+        'park' => Icons.nature_people_outlined,
+        'police' => Icons.local_police_outlined,
+        _ => Icons.place_outlined,
       };
 
   static String placeTypeLabel(String type) => switch (type) {

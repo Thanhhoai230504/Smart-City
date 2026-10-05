@@ -12,6 +12,8 @@ analyzer:
     missing_return: error
   exclude:
     - build/**
+    # Script dựng icon chạy tay, cần gói `image` thêm tạm thời (xem trong file).
+    - tool/make_branding.dart
 
 linter:
   rules:

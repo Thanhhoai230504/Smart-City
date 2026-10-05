@@ -1,0 +1,18 @@
+# Icon app (task 7.1). Nguồn: assets/branding/app_icon.png — dựng từ logo web
+# (Frontend/public/pwa-icon-512.png) bằng tool/make_branding.dart.
+#
+# Công cụ KHÔNG nằm trong pubspec (nó kéo gói `xml` mà app dùng lúc chạy xuống bản
+# cũ). Tạo lại icon:
+#   flutter pub add --dev flutter_launcher_icons
+#   dart run flutter_launcher_icons
+#   flutter pub remove flutter_launcher_icons
+flutter_launcher_icons:
+  android: "ic_launcher"
+  ios: true
+  remove_alpha_ios: true
+  image_path: "assets/branding/app_icon.png"
+  # Icon thích ứng (Android 8+): nền navy của logo + hình đường chân trời nằm trong
+  # vùng an toàn (launcher cắt thành tròn / bo góc tuỳ máy).
+  adaptive_icon_background: "#1B4164"
+  adaptive_icon_foreground: "assets/branding/app_icon_foreground.png"
+  min_sdk_android: 21

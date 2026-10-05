@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:smart_city_app/core/widgets/surfaces.dart';
 import 'package:smart_city_app/data/models/issue.dart';
+import 'package:smart_city_app/data/models/notification.dart';
 import 'package:smart_city_app/data/models/public_info.dart';
 import 'package:smart_city_app/data/models/user.dart';
 import 'package:smart_city_app/data/repositories/issue_repository.dart';
@@ -156,6 +159,54 @@ void main() {
       expect(notificationBucket(DateTime(2026, 9, 20), now: now), 'Trước đó');
       expect(notificationBucket(null, now: now), 'Trước đó');
     });
+
+    test('tiêu đề thông báo: bỏ emoji đầu dòng, sửa tiêu đề trạng thái kiểu cũ', () {
+      expect(notificationDisplayTitle('📋 Sự cố được phân công'), 'Sự cố được phân công');
+      expect(notificationDisplayTitle('⚠️ Đánh giá thấp cần xem lại'), 'Đánh giá thấp cần xem lại');
+      expect(notificationDisplayTitle('Sự cố Đã xử lý'), 'Sự cố đã được xử lý');
+      expect(notificationDisplayTitle('Sự cố Từ chối'), 'Sự cố bị từ chối');
+      expect(notificationDisplayTitle('Sự cố Đang xử lý'), 'Sự cố đang được xử lý');
+      // Tiêu đề mới và emoji giữa câu giữ nguyên.
+      expect(notificationDisplayTitle('Sự cố đã được xử lý'), 'Sự cố đã được xử lý');
+      expect(notificationDisplayTitle('Cảm ơn bạn 🙏'), 'Cảm ơn bạn 🙏');
+    });
+  });
+
+  testWidgets('header cuộn khỏi giờ/pin: hiện dải nền, chữ thanh trạng thái theo theme', (tester) async {
+    tester.view.padding = const FakeViewPadding(top: 40);
+    addTearDown(tester.view.resetPadding);
+    await pumpScreen(
+      tester,
+      HeroScrollScope(
+        child: Scaffold(
+          body: ListView(
+            children: const [
+              HeroHeader(child: SizedBox(height: 160)),
+              SizedBox(height: 2000),
+            ],
+          ),
+        ),
+      ),
+    );
+    final strip = find.ancestor(
+      of: find.byType(AnimatedOpacity),
+      matching: find.byType(AnnotatedRegion<SystemUiOverlayStyle>),
+    );
+    SystemUiOverlayStyle style() => tester.widget<AnnotatedRegion<SystemUiOverlayStyle>>(strip).value;
+    double opacity() => tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity)).opacity;
+
+    expect(style(), SystemUiOverlayStyle.light, reason: 'header gradient còn dưới giờ/pin → chữ trắng');
+    expect(opacity(), 0);
+
+    await tester.drag(find.byType(ListView), const Offset(0, -500));
+    await settle(tester);
+    expect(style(), SystemUiOverlayStyle.dark, reason: 'nền sáng của trang → chữ tối');
+    expect(opacity(), 1);
+
+    await tester.drag(find.byType(ListView), const Offset(0, 500));
+    await settle(tester);
+    expect(style(), SystemUiOverlayStyle.light);
+    expect(opacity(), 0);
   });
 
   group('Màn hình', () {

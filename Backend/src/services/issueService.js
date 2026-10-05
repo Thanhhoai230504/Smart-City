@@ -421,7 +421,7 @@ const createIssue = async ({
           const watchNotif = await Notification.create({
             userId: watcher._id,
             type: 'area_alert',
-            title: '📍 Sự cố mới trong khu vực theo dõi',
+            title: 'Sự cố mới trong khu vực theo dõi',
             message: `Sự cố "${issue.title}" tại ${issue.location}`,
             issueId: issue._id,
           });
@@ -555,6 +555,12 @@ const updateIssueStatus = async (issueId, { status, note, adminUser }) => {
 
   // Create notification for reporter
   const statusLabels = { processing: 'Đang xử lý', resolved: 'Đã xử lý', rejected: 'Từ chối' };
+  // Tiêu đề là một câu hoàn chỉnh — ghép thẳng nhãn ra "Sự cố Đã xử lý".
+  const statusTitles = {
+    processing: 'Sự cố đang được xử lý',
+    resolved: 'Sự cố đã được xử lý',
+    rejected: 'Sự cố bị từ chối',
+  };
   try {
     const io = getIO();
     const reporterId = issue.userId._id || issue.userId;
@@ -570,7 +576,7 @@ const updateIssueStatus = async (issueId, { status, note, adminUser }) => {
       const notification = await Notification.create({
         userId: recipientId,
         type: status === 'resolved' ? 'issue_resolved' : status === 'rejected' ? 'issue_rejected' : 'issue_updated',
-        title: `Sự cố ${statusLabels[status] || status}`,
+        title: statusTitles[status] || `Sự cố: ${status}`,
         message: `Sự cố "${issue.title}" đã được cập nhật trạng thái: ${statusLabels[status] || status}`,
         issueId: issue._id
       });

@@ -31,54 +31,56 @@ class BadgesScreen extends ConsumerWidget {
     final myBadges = signedIn ? ref.watch(_myBadgesProvider) : null;
     final textTheme = Theme.of(context).textTheme;
 
-    return Scaffold(
-      body: RefreshIndicator(
-        edgeOffset: MediaQuery.paddingOf(context).top,
-        onRefresh: () async {
-          ref.invalidate(_leaderboardProvider);
-          if (signedIn) ref.invalidate(_myBadgesProvider);
-        },
-        child: ListView(
-          padding: const EdgeInsets.only(bottom: Gap.xxxl),
-          children: [
-            _BadgesHero(progress: myBadges?.valueOrNull, signedIn: signedIn),
-            Padding(
-              padding: Gap.screenPadding,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (myBadges != null) ...[
-                    const SectionHeader('Huy hiệu của bạn'),
-                    myBadges.when(
-                      loading: () => const SkeletonBox(height: 160),
-                      error: (e, _) => SizedBox(
-                        height: 200,
-                        child: ErrorState(error: e, onRetry: () => ref.invalidate(_myBadgesProvider)),
+    return HeroScrollScope(
+      child: Scaffold(
+        body: RefreshIndicator(
+          edgeOffset: MediaQuery.paddingOf(context).top,
+          onRefresh: () async {
+            ref.invalidate(_leaderboardProvider);
+            if (signedIn) ref.invalidate(_myBadgesProvider);
+          },
+          child: ListView(
+            padding: const EdgeInsets.only(bottom: Gap.xxxl),
+            children: [
+              _BadgesHero(progress: myBadges?.valueOrNull, signedIn: signedIn),
+              Padding(
+                padding: Gap.screenPadding,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (myBadges != null) ...[
+                      const SectionHeader('Huy hiệu của bạn'),
+                      myBadges.when(
+                        loading: () => const SkeletonBox(height: 160),
+                        error: (e, _) => SizedBox(
+                          height: 200,
+                          child: ErrorState(error: e, onRetry: () => ref.invalidate(_myBadgesProvider)),
+                        ),
+                        data: (p) => _BadgeGrid(badges: p.allBadges),
                       ),
-                      data: (p) => _BadgeGrid(badges: p.allBadges),
+                    ],
+                    const SectionHeader('Bảng xếp hạng người dân'),
+                    Text('Chỉ tính phiếu không bị từ chối.', style: textTheme.bodySmall),
+                    Gap.h12,
+                    leaderboard.when(
+                      loading: () => const SkeletonBox(height: 240),
+                      error: (e, _) => SizedBox(
+                        height: 220,
+                        child: ErrorState(error: e, onRetry: () => ref.invalidate(_leaderboardProvider)),
+                      ),
+                      data: (list) => list.isEmpty
+                          ? const EmptyState(
+                              icon: Icons.emoji_events_outlined,
+                              title: 'Chưa có ai trên bảng',
+                              message: 'Báo cáo sự cố hợp lệ đầu tiên để ghi tên mình.',
+                            )
+                          : _Leaderboard(entries: list),
                     ),
                   ],
-                  const SectionHeader('Bảng xếp hạng người dân'),
-                  Text('Chỉ tính phiếu không bị từ chối.', style: textTheme.bodySmall),
-                  Gap.h12,
-                  leaderboard.when(
-                    loading: () => const SkeletonBox(height: 240),
-                    error: (e, _) => SizedBox(
-                      height: 220,
-                      child: ErrorState(error: e, onRetry: () => ref.invalidate(_leaderboardProvider)),
-                    ),
-                    data: (list) => list.isEmpty
-                        ? const EmptyState(
-                            icon: Icons.emoji_events_outlined,
-                            title: 'Chưa có ai trên bảng',
-                            message: 'Báo cáo sự cố hợp lệ đầu tiên để ghi tên mình.',
-                          )
-                        : _Leaderboard(entries: list),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

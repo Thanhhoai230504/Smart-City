@@ -117,7 +117,7 @@ const rateIssue = async (issueId, userId, { score, comment }) => {
       if (handlerIds.has(admin._id.toString())) continue;
       await notify(admin._id, {
         type: 'issue_rated',
-        title: '⚠️ Đánh giá thấp cần xem lại',
+        title: 'Đánh giá thấp cần xem lại',
         message: `Sự cố "${issue.title}" bị chấm ${score}/5 sao`
           + (issue.departmentId?.name ? ` (đơn vị: ${issue.departmentId.name})` : '')
           + (comment ? `. Nhận xét: ${comment}` : '.'),

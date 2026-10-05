@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/network/app_exception.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/theme/feature_styles.dart';
 import '../../core/widgets/surfaces.dart';
 import '../../data/repositories/support_repositories.dart';
 
@@ -104,7 +105,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
         titleSpacing: 0,
         title: Row(
           children: [
-            IconBubble(icon: Icons.support_agent, ink: palette.onPrimary, container: palette.primary, size: 38),
+            IconBubble(icon: AppFeatures.chatbot.icon, ink: palette.onPrimary, container: palette.primary, size: 38),
             Gap.w12,
             Expanded(
               child: Column(
@@ -252,7 +253,7 @@ class _Bubble extends StatelessWidget {
         children: [
           if (!mine) ...[
             IconBubble(
-              icon: Icons.support_agent,
+              icon: AppFeatures.chatbot.icon,
               ink: Theme.of(context).colorScheme.onPrimaryContainer,
               container: Theme.of(context).colorScheme.primaryContainer,
               size: 30,

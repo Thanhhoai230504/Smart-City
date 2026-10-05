@@ -8,6 +8,7 @@ import '../../core/router/route_guard.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/theme/feature_styles.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/async_states.dart';
 import '../../core/widgets/offline_banner.dart';
@@ -37,111 +38,113 @@ class ProfileScreen extends ConsumerWidget {
     if (user == null) return const _GuestProfile();
 
     final summary = ref.watch(_summaryProvider);
-    return Scaffold(
-      body: RefreshIndicator(
-        edgeOffset: MediaQuery.paddingOf(context).top,
-        onRefresh: () async {
-          ref.invalidate(_summaryProvider);
-          await ref.read(authControllerProvider.notifier).reloadProfile();
-        },
-        child: ListView(
-          padding: const EdgeInsets.only(bottom: 120),
-          children: [
-            _ProfileHero(user: user),
-            if (OfflineBanner.isVisible(online: online, pendingCount: queue.count))
-              Padding(
-                padding: const EdgeInsets.fromLTRB(Gap.screen, Gap.md, Gap.screen, 0),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(Radii.tile),
-                  child: OfflineBanner(
-                    online: online,
-                    pendingCount: queue.count,
-                    onTap: queue.count > 0 ? () => context.push(Routes.pendingReports) : null,
+    return HeroScrollScope(
+      child: Scaffold(
+        body: RefreshIndicator(
+          edgeOffset: MediaQuery.paddingOf(context).top,
+          onRefresh: () async {
+            ref.invalidate(_summaryProvider);
+            await ref.read(authControllerProvider.notifier).reloadProfile();
+          },
+          child: ListView(
+            padding: const EdgeInsets.only(bottom: 120),
+            children: [
+              _ProfileHero(user: user),
+              if (OfflineBanner.isVisible(online: online, pendingCount: queue.count))
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(Gap.screen, Gap.md, Gap.screen, 0),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(Radii.tile),
+                    child: OfflineBanner(
+                      online: online,
+                      pendingCount: queue.count,
+                      onTap: queue.count > 0 ? () => context.push(Routes.pendingReports) : null,
+                    ),
                   ),
                 ),
-              ),
-            Padding(
-              padding: Gap.screenPadding,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (user.role == UserRole.admin) ...[
-                    Gap.h16,
-                    Text(
-                      'Chức năng quản trị (phân công, đơn vị, nhật ký…) dùng trên website — app phục vụ người dân '
-                      'và cán bộ hiện trường.',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                  const SectionHeader('Báo cáo của tôi'),
-                  summary.when(
-                    loading: () => const SkeletonBox(height: 168),
-                    error: (_, _) => const SizedBox.shrink(),
-                    data: (s) => _SummaryCard(summary: s),
-                  ),
-                  const SectionHeader('Hoạt động'),
-                  _MenuGroup(children: [
-                    _MenuTile(
-                      icon: Icons.assignment_ind_outlined,
-                      color: const Color(0xFF14B8A6),
-                      title: 'Sự cố của tôi',
-                      onTap: () => context.push(Routes.myIssues),
-                    ),
-                    _MenuTile(
-                      icon: Icons.schedule_send_outlined,
-                      color: const Color(0xFFF59E0B),
-                      title: 'Báo cáo chờ gửi',
-                      subtitle: queue.count == 0 ? 'Không có' : PendingBadge.describe(queue.count),
-                      onTap: () => context.push(Routes.pendingReports),
-                    ),
-                    _MenuTile(
-                      icon: Icons.emoji_events_outlined,
-                      color: const Color(0xFF8B5CF6),
-                      title: 'Huy hiệu & bảng xếp hạng',
-                      onTap: () => context.push(Routes.badges),
-                    ),
-                  ]),
-                  const SectionHeader('Tài khoản'),
-                  _MenuGroup(children: [
-                    _MenuTile(
-                      icon: Icons.edit_outlined,
-                      color: const Color(0xFF0EA5E9),
-                      title: 'Sửa hồ sơ & khu vực theo dõi',
-                      subtitle: user.watchedDistricts.isEmpty
-                          ? 'Chưa theo dõi khu vực nào'
-                          : 'Đang theo dõi: ${user.watchedDistricts.join(', ')}',
-                      onTap: () => context.push(Routes.editProfile),
-                    ),
-                    if (user.isLocalAccount)
-                      _MenuTile(
-                        icon: Icons.password_outlined,
-                        color: const Color(0xFF6366F1),
-                        title: 'Đổi mật khẩu',
-                        onTap: () => context.push(Routes.changePassword),
+              Padding(
+                padding: Gap.screenPadding,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (user.role == UserRole.admin) ...[
+                      Gap.h16,
+                      Text(
+                        'Chức năng quản trị (phân công, đơn vị, nhật ký…) dùng trên website — app phục vụ người dân '
+                        'và cán bộ hiện trường.',
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
-                    _MenuTile(
-                      icon: Icons.settings_outlined,
-                      color: const Color(0xFF64748B),
-                      title: 'Cài đặt',
-                      subtitle: 'Giao diện sáng/tối, phiên bản',
-                      onTap: () => context.push(Routes.settings),
+                    ],
+                    const SectionHeader('Báo cáo của tôi'),
+                    summary.when(
+                      loading: () => const SkeletonBox(height: 168),
+                      error: (_, _) => const SizedBox.shrink(),
+                      data: (s) => _SummaryCard(summary: s),
                     ),
-                  ]),
-                  Gap.h16,
-                  _MenuGroup(children: [
-                    _MenuTile(
-                      icon: Icons.logout,
-                      color: palette.error,
-                      title: 'Đăng xuất',
-                      danger: true,
-                      showChevron: false,
-                      onTap: () => _logout(context, ref, queue.count),
-                    ),
-                  ]),
-                ],
+                    const SectionHeader('Hoạt động'),
+                    _MenuGroup(children: [
+                      _MenuTile(
+                        icon: AppFeatures.myIssues.icon,
+                        color: AppFeatures.myIssues.color,
+                        title: 'Sự cố của tôi',
+                        onTap: () => context.push(Routes.myIssues),
+                      ),
+                      _MenuTile(
+                        icon: AppFeatures.pending.icon,
+                        color: AppFeatures.pending.color,
+                        title: 'Báo cáo chờ gửi',
+                        subtitle: queue.count == 0 ? 'Không có' : PendingBadge.describe(queue.count),
+                        onTap: () => context.push(Routes.pendingReports),
+                      ),
+                      _MenuTile(
+                        icon: AppFeatures.badges.icon,
+                        color: AppFeatures.badges.color,
+                        title: 'Huy hiệu & bảng xếp hạng',
+                        onTap: () => context.push(Routes.badges),
+                      ),
+                    ]),
+                    const SectionHeader('Tài khoản'),
+                    _MenuGroup(children: [
+                      _MenuTile(
+                        icon: Icons.edit_outlined,
+                        color: AppFeatures.account,
+                        title: 'Sửa hồ sơ & khu vực theo dõi',
+                        subtitle: user.watchedDistricts.isEmpty
+                            ? 'Chưa theo dõi khu vực nào'
+                            : 'Đang theo dõi: ${user.watchedDistricts.join(', ')}',
+                        onTap: () => context.push(Routes.editProfile),
+                      ),
+                      if (user.isLocalAccount)
+                        _MenuTile(
+                          icon: Icons.password_outlined,
+                          color: AppFeatures.account,
+                          title: 'Đổi mật khẩu',
+                          onTap: () => context.push(Routes.changePassword),
+                        ),
+                      _MenuTile(
+                        icon: Icons.settings_outlined,
+                        color: AppFeatures.account,
+                        title: 'Cài đặt',
+                        subtitle: 'Giao diện sáng/tối, phiên bản',
+                        onTap: () => context.push(Routes.settings),
+                      ),
+                    ]),
+                    Gap.h16,
+                    _MenuGroup(children: [
+                      _MenuTile(
+                        icon: Icons.logout,
+                        color: palette.error,
+                        title: 'Đăng xuất',
+                        danger: true,
+                        showChevron: false,
+                        onTap: () => _logout(context, ref, queue.count),
+                      ),
+                    ]),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -306,7 +309,9 @@ class _SummaryCard extends ConsumerWidget {
                         if (count > 0)
                           PieChartSectionData(
                             value: count.toDouble(),
-                            color: palette.statusColors(status).text,
+                            // Màu đồ hoạ: màu chữ của chip (rêu, than) làm vòng tròn
+                            // nặng và tối; chú giải bên cạnh đã có nhãn + số.
+                            color: palette.statusColors(status).graphic,
                             radius: 20,
                             showTitle: false,
                           ),
@@ -415,54 +420,56 @@ class _GuestProfile extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.palette;
     final textTheme = Theme.of(context).textTheme;
-    return Scaffold(
-      body: ListView(
-        padding: const EdgeInsets.only(bottom: 120),
-        children: [
-          HeroHeader(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Cá nhân', style: textTheme.labelMedium?.copyWith(color: palette.onBrandMuted)),
-                Gap.h16,
-                Icon(Icons.account_circle_outlined, size: 56, color: palette.onBrand),
-                Gap.h12,
-                Text('Bạn chưa đăng nhập', style: textTheme.headlineSmall?.copyWith(color: palette.onBrand)),
-                Gap.h4,
-                Text(
-                  'Đăng nhập để báo cáo sự cố, theo dõi tiến độ và nhận thông báo khi sự cố được xử lý.',
-                  style: textTheme.bodyMedium?.copyWith(color: palette.onBrandMuted),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(Gap.screen, Gap.xl, Gap.screen, 0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                FilledButton(onPressed: () => context.push(Routes.login), child: const Text('Đăng nhập')),
-                Gap.h8,
-                OutlinedButton(onPressed: () => context.push(Routes.register), child: const Text('Tạo tài khoản')),
-                Gap.h24,
-                _MenuGroup(children: [
-                  _MenuTile(
-                    icon: Icons.emoji_events_outlined,
-                    color: const Color(0xFF8B5CF6),
-                    title: 'Bảng xếp hạng người dân',
-                    onTap: () => context.push(Routes.badges),
+    return HeroScrollScope(
+      child: Scaffold(
+        body: ListView(
+          padding: const EdgeInsets.only(bottom: 120),
+          children: [
+            HeroHeader(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Cá nhân', style: textTheme.labelMedium?.copyWith(color: palette.onBrandMuted)),
+                  Gap.h16,
+                  Icon(Icons.account_circle_outlined, size: 56, color: palette.onBrand),
+                  Gap.h12,
+                  Text('Bạn chưa đăng nhập', style: textTheme.headlineSmall?.copyWith(color: palette.onBrand)),
+                  Gap.h4,
+                  Text(
+                    'Đăng nhập để báo cáo sự cố, theo dõi tiến độ và nhận thông báo khi sự cố được xử lý.',
+                    style: textTheme.bodyMedium?.copyWith(color: palette.onBrandMuted),
                   ),
-                  _MenuTile(
-                    icon: Icons.settings_outlined,
-                    color: const Color(0xFF64748B),
-                    title: 'Cài đặt',
-                    onTap: () => context.push(Routes.settings),
-                  ),
-                ]),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+            Padding(
+              padding: const EdgeInsets.fromLTRB(Gap.screen, Gap.xl, Gap.screen, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  FilledButton(onPressed: () => context.push(Routes.login), child: const Text('Đăng nhập')),
+                  Gap.h8,
+                  OutlinedButton(onPressed: () => context.push(Routes.register), child: const Text('Tạo tài khoản')),
+                  Gap.h24,
+                  _MenuGroup(children: [
+                    _MenuTile(
+                      icon: AppFeatures.badges.icon,
+                      color: AppFeatures.badges.color,
+                      title: 'Bảng xếp hạng người dân',
+                      onTap: () => context.push(Routes.badges),
+                    ),
+                    _MenuTile(
+                      icon: Icons.settings_outlined,
+                      color: AppFeatures.account,
+                      title: 'Cài đặt',
+                      onTap: () => context.push(Routes.settings),
+                    ),
+                  ]),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -52,5 +52,22 @@ void main() {
         });
       }
     });
+
+    group('bảng $name — màu đồ hoạ trạng thái ≥ 3:1 trên mặt card (WCAG 1.4.11)', () {
+      for (final e in p.status.entries) {
+        test('status ${e.key.name}', () {
+          final ratio = contrastRatio(e.value.graphic, p.surface);
+          expect(ratio, greaterThanOrEqualTo(3), reason: '${ratio.toStringAsFixed(2)}:1');
+        });
+      }
+    });
   }
+
+  test('ghim bản đồ: icon trắng trên màu danh mục ≥ 3:1 (đồ hoạ) với bảng sáng', () {
+    for (final hex in ['#FF6B35', '#8B5CF6', '#F59E0B', '#3B82F6', '#10B981', '#6B7280']) {
+      final ink = CategoryTone.of(hexColor(hex), AppPalette.light).ink;
+      final ratio = contrastRatio(const Color(0xFFFFFFFF), ink);
+      expect(ratio, greaterThanOrEqualTo(3), reason: '$hex → ${ratio.toStringAsFixed(2)}:1');
+    }
+  });
 }

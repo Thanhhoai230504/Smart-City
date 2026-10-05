@@ -252,7 +252,7 @@ const run = async () => {
   ]);
 
   await Notification.insertMany([
-    { userId: dan._id, type: 'issue_resolved', title: 'Sự cố Đã xử lý', message: `Sự cố "${resolved.title}" đã được cập nhật trạng thái: Đã xử lý`, issueId: resolved._id },
+    { userId: dan._id, type: 'issue_resolved', title: 'Sự cố đã được xử lý', message: `Sự cố "${resolved.title}" đã được cập nhật trạng thái: Đã xử lý`, issueId: resolved._id },
     { userId: dan._id, type: 'comment', title: 'Bình luận mới', message: 'Cán bộ Lê Minh Cường đã bình luận trên sự cố của bạn', issueId: resolved._id, isRead: true },
     { userId: staff._id, type: 'issue_assigned', title: 'Được phân công', message: `Đơn vị được giao xử lý "${issues[1].title}"`, issueId: issues[1]._id },
     { userId: staff._id, type: 'issue_reopened', title: 'Sự cố được mở lại', message: `Người dân mở lại "${issues[6].title}"`, issueId: issues[6]._id },

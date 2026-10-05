@@ -50,7 +50,7 @@ const notifyAssignment = async ({ issue, department, assignee }) => {
       const notification = await Notification.create({
         userId: person._id,
         type: 'issue_assigned',
-        title: '📋 Sự cố được phân công',
+        title: 'Sự cố được phân công',
         message: `Sự cố "${issue.title}" đã được phân công cho ${department.name}. Hạn xử lý: ${slaHours} giờ.`,
         issueId: issue._id,
       });

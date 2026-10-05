@@ -81,80 +81,74 @@ class AuthScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.palette;
     final textTheme = Theme.of(context).textTheme;
-    return Scaffold(
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                HeroHeader(
-                  padding: const EdgeInsets.fromLTRB(Gap.xl, Gap.sm, Gap.xl, Gap.xxl + Gap.sm),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        height: kMinTouchTarget,
-                        child: showBack
-                            ? Align(
-                                alignment: Alignment.centerLeft,
-                                child: IconButton(
-                                  tooltip: 'Quay lại',
-                                  style: IconButton.styleFrom(
-                                    backgroundColor: palette.onBrand.withValues(alpha: 0.14),
+    return HeroScrollScope(
+      child: Scaffold(
+        body: Column(
+          children: [
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  HeroHeader(
+                    padding: const EdgeInsets.fromLTRB(Gap.xl, Gap.sm, Gap.xl, Gap.xxl + Gap.sm),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          height: kMinTouchTarget,
+                          child: showBack
+                              ? Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: IconButton(
+                                    tooltip: 'Quay lại',
+                                    style: IconButton.styleFrom(
+                                      backgroundColor: palette.onBrand.withValues(alpha: 0.14),
+                                    ),
+                                    icon: Icon(Icons.arrow_back, color: palette.onBrand),
+                                    onPressed: () => Navigator.of(context).maybePop(),
                                   ),
-                                  icon: Icon(Icons.arrow_back, color: palette.onBrand),
-                                  onPressed: () => Navigator.of(context).maybePop(),
-                                ),
-                              )
-                            : null,
-                      ),
-                      Gap.h16,
-                      Row(
-                        children: [
-                          Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: palette.onBrand.withValues(alpha: 0.16),
-                              borderRadius: BorderRadius.circular(14),
+                                )
+                              : null,
+                        ),
+                        Gap.h16,
+                        Row(
+                          children: [
+                            const BrandLogo(size: 44),
+                            Gap.w12,
+                            Flexible(
+                              child: Text(
+                                'Smart City Đà Nẵng',
+                                style: textTheme.titleMedium?.copyWith(color: palette.onBrand),
+                              ),
                             ),
-                            child: Icon(Icons.location_city_rounded, color: palette.onBrand, size: 26),
-                          ),
-                          Gap.w12,
-                          Flexible(
-                            child: Text(
-                              'Smart City Đà Nẵng',
-                              style: textTheme.titleMedium?.copyWith(color: palette.onBrand),
-                            ),
-                          ),
-                        ],
-                      ),
-                      Gap.h24,
-                      Text(title, style: textTheme.headlineLarge?.copyWith(color: palette.onBrand)),
-                      Gap.h8,
-                      Text(subtitle, style: textTheme.bodyMedium?.copyWith(color: palette.onBrandMuted)),
-                    ],
+                          ],
+                        ),
+                        Gap.h24,
+                        Text(title, style: textTheme.headlineLarge?.copyWith(color: palette.onBrand)),
+                        Gap.h8,
+                        Text(subtitle, style: textTheme.bodyMedium?.copyWith(color: palette.onBrandMuted)),
+                      ],
+                    ),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(Gap.xl, Gap.xxl, Gap.xl, Gap.lg),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: children,
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(Gap.xl, Gap.xxl, Gap.xl, Gap.lg),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: children,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(Gap.xl, Gap.sm, Gap.xl, Gap.lg),
-              child: bottom,
+            SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(Gap.xl, Gap.sm, Gap.xl, Gap.lg),
+                child: bottom,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

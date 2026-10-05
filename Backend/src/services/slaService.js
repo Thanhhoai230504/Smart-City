@@ -224,7 +224,7 @@ const remindUnassignedIssues = async (now = new Date()) => {
     }
     await notify(admin._id, {
       type: 'intake_overdue',
-      title: '📥 Sự cố chờ phân công quá hạn',
+      title: 'Sự cố chờ phân công quá hạn',
       message: `${rows.length} sự cố chưa được phân công dù đã quá hạn tiếp nhận `
         + `(ngắn nhất ${shortestIntake} giờ). Cần phân công để đồng hồ SLA bắt đầu chạy.`,
       issueId: issues[0]._id,

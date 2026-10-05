@@ -58,9 +58,155 @@ class AppCard extends StatelessWidget {
   }
 }
 
+/// Bọc vùng cuộn có [HeroHeader] ở đầu. Header đặt chữ thanh trạng thái màu
+/// trắng; khi nó đã trôi khỏi giờ/pin, lớp này phủ một dải nền mờ dưới thanh
+/// trạng thái và trả màu chữ về theo theme. Thiếu nó, giờ/pin trắng ở lại trên
+/// nền sáng và nội dung chạy đè dưới chữ.
+class HeroScrollScope extends StatefulWidget {
+  const HeroScrollScope({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  State<HeroScrollScope> createState() => _HeroScrollScopeState();
+}
+
+class _HeroScrollScopeState extends State<HeroScrollScope> {
+  final _heroes = <BuildContext>{};
+  bool _heroOnTop = true;
+  bool _updateScheduled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Màn chưa có header (đang tải, lỗi) thì phải hiện dải nền ngay từ đầu.
+    _scheduleUpdate();
+  }
+
+  void _register(BuildContext hero) {
+    _heroes.add(hero);
+    _scheduleUpdate();
+  }
+
+  void _unregister(BuildContext hero) {
+    _heroes.remove(hero);
+    _scheduleUpdate();
+  }
+
+  /// Đo sau khi khung hình đã bố trí xong: thông báo cuộn tới *trước* lượt bố
+  /// trí của vị trí mới, và header cuộn ngược về chỉ được dựng lại trong lượt đó.
+  void _scheduleUpdate() {
+    if (_updateScheduled) return;
+    _updateScheduled = true;
+    WidgetsBinding.instance
+      ..addPostFrameCallback((_) {
+        _updateScheduled = false;
+        _update();
+      })
+      ..ensureVisualUpdate();
+  }
+
+  void _update() {
+    if (!mounted) return;
+    final statusBar = MediaQuery.paddingOf(context).top;
+    var onTop = false;
+    for (final hero in _heroes) {
+      final box = hero.findRenderObject();
+      if (box is RenderBox && box.attached && box.hasSize) {
+        if (box.localToGlobal(Offset(0, box.size.height)).dy > statusBar) {
+          onTop = true;
+          break;
+        }
+      }
+    }
+    if (onTop != _heroOnTop) setState(() => _heroOnTop = onTop);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final themeStyle = p.brightness == Brightness.light ? SystemUiOverlayStyle.dark : SystemUiOverlayStyle.light;
+    return _HeroScope(
+      state: this,
+      child: NotificationListener<ScrollNotification>(
+        onNotification: (n) {
+          if (n.metrics.axis == Axis.vertical) _scheduleUpdate();
+          return false;
+        },
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            widget.child,
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: MediaQuery.paddingOf(context).top,
+              // Vùng này luôn nằm trên cùng nên quyết định màu chữ thanh trạng
+              // thái: trắng khi header còn dưới giờ/pin, theo theme khi đã cuộn qua.
+              child: IgnorePointer(
+                child: AnnotatedRegion<SystemUiOverlayStyle>(
+                  value: _heroOnTop ? SystemUiOverlayStyle.light : themeStyle,
+                  child: AnimatedOpacity(
+                    opacity: _heroOnTop ? 0 : 1,
+                    duration: Motion.of(context, Motion.fast),
+                    child: ColoredBox(color: p.background.withValues(alpha: 0.97)),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroScope extends InheritedWidget {
+  const _HeroScope({required this.state, required super.child});
+
+  final _HeroScrollScopeState state;
+
+  @override
+  bool updateShouldNotify(_HeroScope old) => state != old.state;
+}
+
+/// Báo cho [HeroScrollScope] gần nhất biết header đang có mặt trên cây.
+class _HeroMarker extends StatefulWidget {
+  const _HeroMarker({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_HeroMarker> createState() => _HeroMarkerState();
+}
+
+class _HeroMarkerState extends State<_HeroMarker> {
+  _HeroScrollScopeState? _scope;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final scope = context.getInheritedWidgetOfExactType<_HeroScope>()?.state;
+    if (scope != _scope) {
+      _scope?._unregister(context);
+      _scope = scope?.._register(context);
+    }
+  }
+
+  @override
+  void dispose() {
+    _scope?._unregister(context);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
+}
+
 /// Header chữ ký: gradient "biển Đà Nẵng" kèm hoạ tiết sóng mờ, bo đáy 28.
 /// Nằm dưới thanh trạng thái (chữ trạng thái chuyển trắng) — màn dùng nó không
-/// có AppBar riêng.
+/// có AppBar riêng, và bọc vùng cuộn bằng [HeroScrollScope].
 class HeroHeader extends StatelessWidget {
   const HeroHeader({
     super.key,
@@ -77,19 +223,21 @@ class HeroHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = context.palette;
     final top = MediaQuery.paddingOf(context).top;
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
-      child: ClipRRect(
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(bottomRadius)),
-        child: DecoratedBox(
-          decoration: BoxDecoration(gradient: p.brandGradient),
-          child: CustomPaint(
-            painter: _WavePainter(p.onBrand),
-            child: Padding(
-              padding: EdgeInsets.only(top: top).add(padding),
-              child: DefaultTextStyle.merge(
-                style: TextStyle(color: p.onBrand),
-                child: IconTheme.merge(data: IconThemeData(color: p.onBrand), child: child),
+    return _HeroMarker(
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.light,
+        child: ClipRRect(
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(bottomRadius)),
+          child: DecoratedBox(
+            decoration: BoxDecoration(gradient: p.brandGradient),
+            child: CustomPaint(
+              painter: _WavePainter(p.onBrand),
+              child: Padding(
+                padding: EdgeInsets.only(top: top).add(padding),
+                child: DefaultTextStyle.merge(
+                  style: TextStyle(color: p.onBrand),
+                  child: IconTheme.merge(data: IconThemeData(color: p.onBrand), child: child),
+                ),
               ),
             ),
           ),
@@ -97,6 +245,30 @@ class HeroHeader extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Logo thương hiệu — cùng hình với icon app (skyline xanh ngọc trên nền navy),
+/// viền sáng mảnh để tách khỏi gradient của [HeroHeader]. Chữ tên app luôn đứng
+/// cạnh nên ảnh chỉ để trang trí với trình đọc màn hình.
+class BrandLogo extends StatelessWidget {
+  const BrandLogo({super.key, this.size = 40});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(size * 0.3),
+          border: Border.all(color: context.palette.onBrand.withValues(alpha: 0.22)),
+          image: const DecorationImage(
+            image: AssetImage('assets/branding/logo_tile.png'),
+            fit: BoxFit.cover,
+            filterQuality: FilterQuality.medium,
+          ),
+        ),
+      );
 }
 
 /// Ba dải sóng và một vầng mặt trời mờ — gợi biển và bình minh trên sông Hàn,

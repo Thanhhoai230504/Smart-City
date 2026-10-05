@@ -129,7 +129,7 @@ const reopenIssue = async (issueId, userId, { reason }) => {
   for (const recipientId of recipientIds.values()) {
     await notify(recipientId, {
       type: 'issue_reopened',
-      title: '🔄 Người dân mở lại sự cố',
+      title: 'Người dân mở lại sự cố',
       message: `Sự cố "${reopened.title}" được mở lại (lần ${reopened.reopenCount}): ${trimmedReason}`,
       issueId: reopened._id,
     });

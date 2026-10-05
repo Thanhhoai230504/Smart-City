@@ -8,6 +8,7 @@ import '../../core/platform/connectivity.dart';
 import '../../core/router/route_guard.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/theme/feature_styles.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/paged_controller.dart';
 import '../../core/widgets/async_states.dart';
@@ -261,122 +262,124 @@ class _WorkListScreenState extends ConsumerState<WorkListScreen> {
 
     void resetFilters() => ref.read(workQueryProvider(scope).notifier).state = base;
 
-    return Scaffold(
-      body: PagedListView<Issue>(
-        state: state,
-        onRefresh: _refresh,
-        onLoadMore: ref.read(workListProvider.notifier).loadMore,
-        padding: const EdgeInsets.only(bottom: 120),
-        header: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _WorkHero(total: state.pagination.total, loading: state.isLoading),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(Gap.screen, Gap.lg, Gap.screen, 0),
-              child: _ScopeTabs(
-                scope: scope,
-                mineOpen: mineOpen,
-                onChanged: (s) => showWorkScope(ref, s),
-              ),
-            ),
-            if (OfflineBanner.isVisible(online: online, pendingCount: pending))
+    return HeroScrollScope(
+      child: Scaffold(
+        body: PagedListView<Issue>(
+          state: state,
+          onRefresh: _refresh,
+          onLoadMore: ref.read(workListProvider.notifier).loadMore,
+          padding: const EdgeInsets.only(bottom: 120),
+          header: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _WorkHero(total: state.pagination.total, loading: state.isLoading),
               Padding(
-                padding: const EdgeInsets.fromLTRB(Gap.screen, Gap.md, Gap.screen, 0),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(Radii.tile),
-                  child: OfflineBanner(
-                    online: online,
-                    pendingCount: pending,
-                    onTap: pending > 0 ? () => context.push(Routes.pendingReports) : null,
-                  ),
+                padding: const EdgeInsets.fromLTRB(Gap.screen, Gap.lg, Gap.screen, 0),
+                child: _ScopeTabs(
+                  scope: scope,
+                  mineOpen: mineOpen,
+                  onChanged: (s) => showWorkScope(ref, s),
                 ),
               ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(Gap.screen, Gap.lg, Gap.screen, 0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(mine ? 'Phiếu bạn đã nhận' : 'Danh sách việc', style: textTheme.titleLarge),
-                        if (mine)
-                          Text(
-                            'Cập nhật trạng thái hoặc báo hoàn tất ngay trên từng thẻ.',
-                            style: textTheme.bodySmall,
-                          ),
-                      ],
+              if (OfflineBanner.isVisible(online: online, pendingCount: pending))
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(Gap.screen, Gap.md, Gap.screen, 0),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(Radii.tile),
+                    child: OfflineBanner(
+                      online: online,
+                      pendingCount: pending,
+                      onTap: pending > 0 ? () => context.push(Routes.pendingReports) : null,
                     ),
                   ),
-                  Badge(
-                    isLabelVisible: filterCount > 0,
-                    label: Text('$filterCount'),
-                    child: IconButton.filledTonal(
-                      tooltip: 'Bộ lọc và sắp xếp',
-                      icon: const Icon(Icons.tune),
-                      onPressed: () => showIssueFilterSheet(
-                        context,
-                        ref,
-                        workQueryProvider(scope),
-                        staffMode: true,
-                        baseQuery: base,
+                ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(Gap.screen, Gap.lg, Gap.screen, 0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(mine ? 'Phiếu bạn đã nhận' : 'Danh sách việc', style: textTheme.titleLarge),
+                          if (mine)
+                            Text(
+                              'Cập nhật trạng thái hoặc báo hoàn tất ngay trên từng thẻ.',
+                              style: textTheme.bodySmall,
+                            ),
+                        ],
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: Gap.screenPadding,
-              child: IssueFilterBar(
-                provider: workQueryProvider(scope),
-                total: state.pagination.total,
-                loading: state.isLoading,
-                staffMode: true,
-                baseQuery: base,
-              ),
-            ),
-            Gap.h4,
-          ],
-        ),
-        itemBuilder: (context, issue) => Padding(
-          padding: Gap.screenPadding,
-          child: IssueCard(
-            issue: issue,
-            showSla: true,
-            showPriority: true,
-            showAssignee: !mine,
-            showDepartment: false,
-            onTap: () => context.push(Routes.staffIssue(issue.id)),
-            footer: _actions(issue, me: user?.id, departmentId: user?.department?.id),
-          ),
-        ),
-        empty: Padding(
-          padding: Gap.screenPadding,
-          child: filterCount > 0
-              ? EmptyState(
-                  icon: Icons.filter_alt_off_outlined,
-                  title: 'Không có việc khớp bộ lọc',
-                  message: 'Thử bỏ bớt điều kiện lọc.',
-                  actionLabel: 'Xoá bộ lọc',
-                  onAction: resetFilters,
-                )
-              : mine
-                  ? EmptyState(
-                      icon: Icons.assignment_ind_outlined,
-                      title: 'Bạn chưa nhận việc nào',
-                      message: 'Mở tab “Việc đơn vị” và bấm “Nhận việc” ở phiếu chưa có người phụ trách.',
-                      actionLabel: 'Xem việc đơn vị',
-                      onAction: () => showWorkScope(ref, WorkScope.department),
-                    )
-                  : EmptyState(
-                      icon: Icons.task_alt,
-                      title: 'Đơn vị chưa có việc nào',
-                      message: 'Việc được quản trị viên phân công cho đơn vị sẽ hiện ở đây.',
-                      actionLabel: 'Làm mới',
-                      onAction: _refresh,
+                    Badge(
+                      isLabelVisible: filterCount > 0,
+                      label: Text('$filterCount'),
+                      child: IconButton.filledTonal(
+                        tooltip: 'Bộ lọc và sắp xếp',
+                        icon: const Icon(Icons.tune),
+                        onPressed: () => showIssueFilterSheet(
+                          context,
+                          ref,
+                          workQueryProvider(scope),
+                          staffMode: true,
+                          baseQuery: base,
+                        ),
+                      ),
                     ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: Gap.screenPadding,
+                child: IssueFilterBar(
+                  provider: workQueryProvider(scope),
+                  total: state.pagination.total,
+                  loading: state.isLoading,
+                  staffMode: true,
+                  baseQuery: base,
+                ),
+              ),
+              Gap.h4,
+            ],
+          ),
+          itemBuilder: (context, issue) => Padding(
+            padding: Gap.screenPadding,
+            child: IssueCard(
+              issue: issue,
+              showSla: true,
+              showPriority: true,
+              showAssignee: !mine,
+              showDepartment: false,
+              onTap: () => context.push(Routes.staffIssue(issue.id)),
+              footer: _actions(issue, me: user?.id, departmentId: user?.department?.id),
+            ),
+          ),
+          empty: Padding(
+            padding: Gap.screenPadding,
+            child: filterCount > 0
+                ? EmptyState(
+                    icon: Icons.filter_alt_off_outlined,
+                    title: 'Không có việc khớp bộ lọc',
+                    message: 'Thử bỏ bớt điều kiện lọc.',
+                    actionLabel: 'Xoá bộ lọc',
+                    onAction: resetFilters,
+                  )
+                : mine
+                    ? EmptyState(
+                        icon: Icons.assignment_ind_outlined,
+                        title: 'Bạn chưa nhận việc nào',
+                        message: 'Mở tab “Việc đơn vị” và bấm “Nhận việc” ở phiếu chưa có người phụ trách.',
+                        actionLabel: 'Xem việc đơn vị',
+                        onAction: () => showWorkScope(ref, WorkScope.department),
+                      )
+                    : EmptyState(
+                        icon: Icons.task_alt,
+                        title: 'Đơn vị chưa có việc nào',
+                        message: 'Việc được quản trị viên phân công cho đơn vị sẽ hiện ở đây.',
+                        actionLabel: 'Làm mới',
+                        onAction: _refresh,
+                      ),
+          ),
         ),
       ),
     );
@@ -617,10 +620,10 @@ class _WorkHero extends ConsumerWidget {
             child: Row(
               children: [
                 for (final (icon, label, route) in [
-                  (Icons.view_list_outlined, 'Sự cố công khai', Routes.issues),
-                  (Icons.insights_outlined, 'Thống kê', Routes.statistics),
-                  (Icons.videocam_outlined, 'Camera', Routes.cameras),
-                  (Icons.support_agent, 'Trợ lý AI', Routes.chatbot),
+                  (AppFeatures.issues.icon, 'Sự cố công khai', Routes.issues),
+                  (AppFeatures.statistics.icon, 'Thống kê', Routes.statistics),
+                  (AppFeatures.cameras.icon, 'Camera', Routes.cameras),
+                  (AppFeatures.chatbot.icon, 'Trợ lý AI', Routes.chatbot),
                 ]) ...[
                   // Nút "kính mờ" tự vẽ: ActionChip M3 bỏ qua nền trong suốt và
                   // tô trắng, làm chữ trắng biến mất trên header.

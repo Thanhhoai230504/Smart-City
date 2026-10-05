@@ -76,7 +76,7 @@ void main() {
   testWidgets('chip trạng thái có đủ 3 kênh: màu + icon + nhãn chữ (design system 6.1)', (tester) async {
     await pumpScreen(tester, const Scaffold(body: Center(child: StatusChip(IssueStatus.processing))));
     expect(find.text('Đang xử lý'), findsOneWidget);
-    expect(find.byIcon(Icons.engineering), findsOneWidget);
+    expect(find.byIcon(Icons.handyman_outlined), findsOneWidget);
     expect(find.bySemanticsLabel('Trạng thái: Đang xử lý'), findsOneWidget);
   });
 

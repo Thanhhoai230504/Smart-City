@@ -425,7 +425,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final meta = ref.watch(metaProvider);
     final palette = context.palette;
     final textTheme = Theme.of(context).textTheme;
-    final light = palette.brightness == Brightness.light;
     final online = ref.watch(isOnlineProvider);
     final pending = ref.watch(offlineQueueProvider.select((s) => s.count));
 
@@ -451,8 +450,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         : const <EnvironmentReading>[];
     final routePoints = [for (final (lat, lng) in _route?.points ?? const <(double, double)>[]) LatLng(lat, lng)];
 
+    // Giờ/pin nằm trên tile bản đồ — luôn là nền sáng, kể cả ở theme tối.
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: light ? SystemUiOverlayStyle.dark : SystemUiOverlayStyle.light,
+      value: SystemUiOverlayStyle.dark,
       child: Scaffold(
         body: Stack(
           children: [
@@ -475,8 +475,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       point: _radiusCenter,
                       radius: _layers.radiusKm * 1000.0,
                       useRadiusInMeter: true,
-                      color: palette.primary.withValues(alpha: 0.06),
-                      borderColor: palette.primary.withValues(alpha: 0.5),
+                      color: mapPalette.primary.withValues(alpha: 0.06),
+                      borderColor: mapPalette.primary.withValues(alpha: 0.5),
                       borderStrokeWidth: 1.5,
                     ),
                   ]),
@@ -489,7 +489,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         point: LatLng(i.latitude, i.longitude),
                         radius: 180,
                         useRadiusInMeter: true,
-                        color: palette.accent.withValues(alpha: 0.16),
+                        color: mapPalette.accent.withValues(alpha: 0.16),
                         borderStrokeWidth: 0,
                       ),
                   ]),
@@ -498,7 +498,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     Polyline(
                       points: routePoints,
                       strokeWidth: 6,
-                      color: palette.primary,
+                      color: mapPalette.primary,
                       borderColor: Colors.white,
                       borderStrokeWidth: 2,
                     ),
@@ -511,7 +511,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       height: 32,
                       child: GestureDetector(
                         onTap: () => _openPlace(p),
-                        child: MapPin(color: palette.secondary, icon: AppIcons.placeType(p.type), size: 32),
+                        child: MapPin(color: mapPalette.secondary, icon: AppIcons.placeType(p.type), size: 32),
                       ),
                     ),
                   for (final e in environment)
@@ -533,15 +533,15 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       ),
                     ),
                   if (_routeStart != null)
-                    Marker(point: _routeStart!, width: 22, height: 22, child: _Dot(color: palette.success.text)),
+                    Marker(point: _routeStart!, width: 22, height: 22, child: _Dot(color: mapPalette.success.text)),
                   if (_routeEnd != null)
                     Marker(
                       point: _routeEnd!,
                       width: 36,
                       height: 36,
-                      child: MapPin(color: palette.error, icon: Icons.flag, size: 36),
+                      child: MapPin(color: mapPalette.error, icon: Icons.flag, size: 36),
                     ),
-                  if (_me != null) Marker(point: _me!, width: 24, height: 24, child: _Dot(color: palette.primary, halo: true)),
+                  if (_me != null) Marker(point: _me!, width: 24, height: 24, child: _Dot(color: mapPalette.primary, halo: true)),
                 ]),
                 mapAttribution(),
               ],
@@ -775,14 +775,14 @@ class _IssuePin extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final palette = context.palette;
     final c = ref.watch(metaProvider).category(issue.category);
-    final tone = CategoryTone.of(hexColor(c.color), palette);
-    final status = palette.statusColors(issue.status);
+    final status = mapPalette.statusColors(issue.status);
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        Positioned.fill(child: MapPin(color: tone.ink, icon: AppIcons.category(issue.category), size: 44)),
+        Positioned.fill(
+          child: MapPin(color: mapPinColor(hexColor(c.color)), icon: AppIcons.category(issue.category), size: 44),
+        ),
         Positioned(
           right: -1,
           top: -1,
@@ -792,7 +792,7 @@ class _IssuePin extends ConsumerWidget {
             decoration: BoxDecoration(
               color: status.text,
               shape: BoxShape.circle,
-              border: Border.all(color: palette.surface, width: 2),
+              border: Border.all(color: mapPalette.surface, width: 2),
             ),
           ),
         ),
