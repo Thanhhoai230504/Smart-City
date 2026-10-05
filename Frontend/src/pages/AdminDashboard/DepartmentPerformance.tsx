@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import axios from 'axios';
 import {
   Alert,
   Avatar,
@@ -29,19 +28,9 @@ import DepartmentDetailDialog from './performance/DepartmentDetailDialog';
 import PeriodPicker from './performance/PeriodPicker';
 import ScoreCriteria from './performance/ScoreCriteria';
 import { exportRankingWorkbook } from './performance/exportDepartmentPerformance';
-
-interface ApiErrorResponse {
-  message?: string;
-}
+import { getApiErrorMessage } from '../../utils/apiError';
 
 const numberFormatter = new Intl.NumberFormat('vi-VN');
-
-const getErrorMessage = (error: unknown) => {
-  if (!axios.isAxiosError<ApiErrorResponse>(error)) {
-    return 'Không thể tải bảng hiệu suất đơn vị.';
-  }
-  return error.response?.data?.message || 'Không thể tải bảng hiệu suất đơn vị.';
-};
 
 const SummaryCard: React.FC<{
   icon: React.ReactElement;
@@ -100,7 +89,7 @@ const DepartmentPerformance: React.FC = () => {
       });
       setData(response.data);
     } catch (requestError) {
-      setError(getErrorMessage(requestError));
+      setError(getApiErrorMessage(requestError, 'Không thể tải bảng hiệu suất đơn vị.'));
     } finally {
       setLoading(false);
     }

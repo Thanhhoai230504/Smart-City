@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { environmentApi } from '../../api/environmentApi';
 import { EnvironmentData } from '../../types';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 interface EnvState {
   environmentData: EnvironmentData[];
@@ -18,8 +19,8 @@ export const fetchEnvironment = createAsyncThunk('env/fetchEnvironment', async (
   try {
     const { data } = await environmentApi.getEnvironmentData();
     return data.data;
-  } catch (err: any) {
-    return rejectWithValue(err.response?.data?.message || 'Lỗi tải dữ liệu môi trường');
+  } catch (err: unknown) {
+    return rejectWithValue(getApiErrorMessage(err, 'Không tải được dữ liệu môi trường.'));
   }
 });
 

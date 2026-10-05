@@ -43,6 +43,8 @@ describe('G13 — chấm điểm không còn là ngõ cụt', () => {
     getIO.mockReturnValue(mockIO);
     Notification.create.mockResolvedValue({ _id: 'n1' });
     User.find.mockReturnValue({ select: jest.fn().mockResolvedValue([{ _id: 'admin1' }]) });
+    // Điểm được ghi bằng một lệnh có điều kiện (chưa có điểm + đúng trạng thái).
+    Issue.findOneAndUpdate.mockImplementation((filter, update) => mockQuery({ _id: filter._id, rating: update.$set.rating }));
   });
 
   // Trước đây ratingService chỉ ghi rồi save(): không import Notification, không
@@ -113,8 +115,8 @@ describe('G13 — chấm điểm không còn là ngõ cụt', () => {
     Notification.create.mockRejectedValue(new Error('db down'));
     jest.spyOn(console, 'warn').mockImplementation(() => {});
 
-    await expect(ratingService.rateIssue('i1', 'reporter1', { score: 1 })).resolves.toBeTruthy();
-    expect(issue.save).toHaveBeenCalled();
+    await expect(ratingService.rateIssue('i1', 'reporter1', { score: 1 })).resolves.toMatchObject({ rating: { score: 1 } });
+    expect(Issue.findOneAndUpdate).toHaveBeenCalled();
     console.warn.mockRestore();
   });
 });
@@ -135,6 +137,10 @@ describe('G14 — thu hồi phân công không còn im lặng', () => {
     jest.clearAllMocks();
     getIO.mockReturnValue(mockIO);
     Notification.create.mockResolvedValue({ _id: 'n1' });
+    // Thu hồi giờ là một lệnh ghi có điều kiện; trả bản sau khi thu hồi.
+    Issue.findOneAndUpdate.mockImplementation((filter, update) => Promise.resolve({
+      _id: filter._id, title: 'Ổ gà', status: filter.status, ...update.$set,
+    }));
   });
 
   it('tells the staff member their work was taken away', async () => {
@@ -171,8 +177,8 @@ describe('G14 — thu hồi phân công không còn im lặng', () => {
     Notification.create.mockRejectedValue(new Error('db down'));
     jest.spyOn(console, 'warn').mockImplementation(() => {});
 
-    await expect(assignmentService.unassignIssue('i1', {}, { id: 'admin1' })).resolves.toBeTruthy();
-    expect(issue.departmentId).toBeNull();
+    await expect(assignmentService.unassignIssue('i1', {}, { id: 'admin1' }))
+      .resolves.toMatchObject({ departmentId: null, assigneeId: null });
     console.warn.mockRestore();
   });
 });

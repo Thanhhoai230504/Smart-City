@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import axios from 'axios';
 import {
   Alert, Box, Button, Chip, CircularProgress, Dialog, DialogContent, DialogTitle, Divider, IconButton,
   LinearProgress, Link, Skeleton, Stack, Tab, Table, TableBody, TableCell, TableContainer, TableHead,
@@ -24,6 +23,7 @@ import EvaluationHistory from '../../../components/evaluation/EvaluationHistory'
 import ScoreChip from './ScoreChip';
 import EvaluationFormDialog from './EvaluationFormDialog';
 import { exportDetailWorkbook } from './exportDepartmentPerformance';
+import { getApiErrorMessage } from '../../../utils/apiError';
 
 const DANGER = '#B3261E';
 const STAR = '#7D4F05';
@@ -32,10 +32,6 @@ const CHART = { assigned: '#397DA5', closed: '#2F7D64', onTime: '#B26A00' };
 const fmt = new Intl.NumberFormat('vi-VN');
 const dash = '—';
 const hours = (h: number | null) => (h === null ? dash : `${h.toLocaleString('vi-VN')} giờ`);
-
-const getErrorMessage = (error: unknown) => (axios.isAxiosError<{ message?: string }>(error)
-  ? error.response?.data?.message || 'Không tải được chi tiết đơn vị.'
-  : 'Không tải được chi tiết đơn vị.');
 
 const pad = (n: number) => String(n).padStart(2, '0');
 /**
@@ -229,7 +225,7 @@ const DepartmentDetailDialog: React.FC<{
         setDetail(data.data);
         setNow(Date.now());
       })
-      .catch((e) => { if (!cancelled) setError(getErrorMessage(e)); })
+      .catch((e) => { if (!cancelled) setError(getApiErrorMessage(e, 'Không tải được chi tiết đơn vị.')); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [departmentId, fromIso, toIso, reloadKey]);

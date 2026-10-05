@@ -13,14 +13,14 @@ const getNearbyCameras = async (req, res, next) => {
   try {
     const { lat, lng, radius = 2000 } = req.query;
     if (!lat || !lng) {
-      return res.status(400).json({ success: false, message: 'lat and lng are required' });
+      return res.status(400).json({ success: false, message: 'Thiếu toạ độ (lat, lng)' });
     }
 
     const parsedLat = parseFloat(lat);
     const parsedLng = parseFloat(lng);
     const parsedRadius = parseInt(radius, 10);
     if (Number.isNaN(parsedLat) || Number.isNaN(parsedLng) || Number.isNaN(parsedRadius)) {
-      return res.status(400).json({ success: false, message: 'lat, lng and radius must be numbers' });
+      return res.status(400).json({ success: false, message: 'lat, lng và radius phải là số' });
     }
 
     const data = cameraService.getNearbyCameras(parsedLat, parsedLng, parsedRadius);

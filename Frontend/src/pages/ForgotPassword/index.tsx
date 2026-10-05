@@ -4,6 +4,7 @@ import {
   Box, Container, Paper, Typography, TextField, Button, Alert, Link, Stack,
 } from '@mui/material';
 import { authApi } from '../../api/authApi';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 /**
  * Quên mật khẩu.
@@ -27,8 +28,8 @@ const ForgotPasswordPage: React.FC = () => {
     try {
       await authApi.forgotPassword(email.trim());
       setSent(true);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Không gửi được yêu cầu. Vui lòng thử lại.');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Không gửi được yêu cầu. Vui lòng thử lại.'));
     }
     setSubmitting(false);
   };

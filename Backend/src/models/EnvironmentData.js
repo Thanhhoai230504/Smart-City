@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const environmentDataSchema = new mongoose.Schema({
   location: {
     type: String,
-    required: [true, 'Location name is required'],
+    required: [true, 'Thiếu tên khu vực'],
     trim: true
   },
   source: {
@@ -13,11 +13,11 @@ const environmentDataSchema = new mongoose.Schema({
   },
   temperature: {
     type: Number,
-    required: [true, 'Temperature is required']
+    required: [true, 'Thiếu nhiệt độ']
   },
   humidity: {
     type: Number,
-    required: [true, 'Humidity is required'],
+    required: [true, 'Thiếu độ ẩm'],
     min: 0,
     max: 100
   },
@@ -28,13 +28,13 @@ const environmentDataSchema = new mongoose.Schema({
   },
   latitude: {
     type: Number,
-    required: [true, 'Latitude is required'],
+    required: [true, 'Thiếu vĩ độ của vị trí'],
     min: -90,
     max: 90
   },
   longitude: {
     type: Number,
-    required: [true, 'Longitude is required'],
+    required: [true, 'Thiếu kinh độ của vị trí'],
     min: -180,
     max: 180
   }

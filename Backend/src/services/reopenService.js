@@ -6,6 +6,7 @@ const { getIO } = require('../config/socket');
 const { checkCanReopen } = require('../utils/reopenConfig');
 const { calculateDueAt } = require('../utils/slaConfig');
 const { enqueuePriorityRecalculation } = require('./priorityService');
+const { buildRoundArchive, resetRoundFields } = require('../utils/issueRounds');
 
 /**
  * Gửi thông báo in-app; lỗi Socket/DB không được làm hỏng thao tác đã ghi thành công.
@@ -51,42 +52,72 @@ const reopenIssue = async (issueId, userId, { reason }) => {
 
   const now = new Date();
   const trimmedReason = reason.trim();
+  const previousReopenCount = issue.reopenCount || 0;
 
-  issue.status = 'processing';
-  issue.reopenCount = (issue.reopenCount || 0) + 1;
-  issue.lastReopenedAt = now;
-  // Phiếu không còn là "đã xử lý xong" nữa. Để nguyên resolvedAt sẽ làm sai thống
-  // kê thời gian xử lý trung bình; lần đóng sau sẽ gán lại mốc mới.
-  issue.resolvedAt = null;
+  const update = {
+    $set: {
+      status: 'processing',
+      lastReopenedAt: now,
+      // Lượt mới: resolvedAt về null (để nguyên sẽ làm sai thống kê thời gian xử
+      // lý; lần đóng sau gán mốc mới), ảnh minh chứng + đánh giá của lượt cũ được
+      // cất vào previousRounds — xem utils/issueRounds.js.
+      ...resetRoundFields(),
+    },
+    $inc: { reopenCount: 1 },
+    $push: {
+      statusHistory: {
+        status: 'processing',
+        changedBy: userId,
+        changedAt: now,
+        note: `Người dân mở lại: ${trimmedReason}`,
+      },
+      previousRounds: buildRoundArchive(issue, { reopenedAt: now, reopenedBy: userId, reason: trimmedReason }),
+    },
+  };
 
   // SLA được cấp chu kỳ mới: đơn vị nhận lại việc nên cần một hạn có nghĩa.
   // Giữ nguyên dueAt cũ (đã quá hạn từ lâu) thì phiếu lập tức "quá hạn" mà cron
   // lại không nhắc nữa vì escalationLevel đã ở mức cuối. Người dân là bên khởi
   // xướng nên đơn vị không thể dùng đường này để tự reset đồng hồ của mình.
   if (issue.departmentId) {
-    issue.dueAt = calculateDueAt(issue.category, issue.departmentId.slaHours, now);
-    issue.escalationLevel = 0;
-    issue.lastReminderAt = null;
+    update.$set.dueAt = calculateDueAt(issue.category, issue.departmentId.slaHours, now);
+    update.$set.escalationLevel = 0;
+    update.$set.lastReminderAt = null;
   }
 
-  issue.statusHistory.push({
-    status: 'processing',
-    changedBy: userId,
-    changedAt: now,
-    note: `Người dân mở lại: ${trimmedReason}`,
-  });
+  // Ghi CÓ ĐIỀU KIỆN: phiếu còn đúng trạng thái đóng và đúng số lần mở lại như lúc
+  // kiểm tra. Bấm "Mở lại" hai lần cùng lúc thì chỉ một lần được ghi — trước đây
+  // cả hai cùng qua kiểm tra rồi cùng save (2 dòng lịch sử, 2 lượt thông báo).
+  // Phiếu cũ chưa có field reopenCount: `null` khớp cả trường hợp field vắng mặt.
+  const reopened = await Issue.findOneAndUpdate(
+    {
+      _id: issue._id,
+      isDeleted: false,
+      mergedInto: null,
+      status: issue.status,
+      reopenCount: previousReopenCount || { $in: [0, null] },
+    },
+    update,
+    { new: true, runValidators: true }
+  ).populate('departmentId', 'name slaHours');
 
-  await issue.save();
-  enqueuePriorityRecalculation(issue._id);
+  if (!reopened) {
+    throw ApiError.conflictWithCode(
+      'Sự cố vừa được cập nhật bởi người khác. Vui lòng tải lại trang rồi thử lại.',
+      'STATUS_CONFLICT'
+    );
+  }
+
+  enqueuePriorityRecalculation(reopened._id);
 
   // Báo cho đúng người đang chịu trách nhiệm, và luôn báo admin vì đây là tín
   // hiệu chất lượng xử lý chứ không chỉ là một việc cần làm.
   const recipientIds = new Map();
-  if (issue.assigneeId) {
-    recipientIds.set(issue.assigneeId.toString(), issue.assigneeId);
-  } else if (issue.departmentId) {
+  if (reopened.assigneeId) {
+    recipientIds.set(reopened.assigneeId.toString(), reopened.assigneeId);
+  } else if (reopened.departmentId) {
     const staff = await User.find({
-      departmentId: issue.departmentId._id,
+      departmentId: reopened.departmentId._id,
       role: 'staff',
       isActive: true,
     }).select('_id');
@@ -99,12 +130,12 @@ const reopenIssue = async (issueId, userId, { reason }) => {
     await notify(recipientId, {
       type: 'issue_reopened',
       title: '🔄 Người dân mở lại sự cố',
-      message: `Sự cố "${issue.title}" được mở lại (lần ${issue.reopenCount}): ${trimmedReason}`,
-      issueId: issue._id,
+      message: `Sự cố "${reopened.title}" được mở lại (lần ${reopened.reopenCount}): ${trimmedReason}`,
+      issueId: reopened._id,
     });
   }
 
-  return issue;
+  return reopened;
 };
 
 module.exports = { reopenIssue };

@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import {
   Alert,
@@ -40,10 +39,7 @@ import {
 } from '../../types';
 import { formatDate } from '../../utils/helpers';
 import { cellSx, GlassCard, headCellSx } from './types';
-
-interface ApiErrorResponse {
-  message?: string;
-}
+import { getApiErrorMessage } from '../../utils/apiError';
 
 const PAGE_SIZE = 15;
 const EMPTY_PAGINATION: Pagination = {
@@ -89,13 +85,6 @@ const ACTION_COLORS: Record<AuditAction, string> = {
   'department.evaluation_revoked': '#8C1D16',
 };
 
-const getErrorMessage = (error: unknown) => {
-  if (!axios.isAxiosError<ApiErrorResponse>(error)) {
-    return 'Không thể tải nhật ký hoạt động.';
-  }
-  return error.response?.data?.message || 'Không thể tải nhật ký hoạt động.';
-};
-
 const formatMetadata = (metadata: Record<string, unknown>) => {
   const entries = Object.entries(metadata || {});
   if (entries.length === 0) return '—';
@@ -136,7 +125,7 @@ const AuditLogManagement: React.FC = () => {
         pages: Math.max(1, data.data.pagination.pages),
       });
     } catch (requestError) {
-      setError(getErrorMessage(requestError));
+      setError(getApiErrorMessage(requestError, 'Không thể tải nhật ký hoạt động.'));
     } finally {
       setLoading(false);
     }

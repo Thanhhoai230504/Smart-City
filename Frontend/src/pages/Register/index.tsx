@@ -8,6 +8,7 @@ import {
   Alert, InputAdornment, IconButton, CircularProgress, Link, Divider,
 } from '@mui/material';
 import { Person, Email, Lock, Visibility, VisibilityOff, PersonAdd } from '@mui/icons-material';
+import { getPasswordLengthError, PASSWORD_HINT } from '../../utils/password';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -27,6 +28,14 @@ const RegisterPage: React.FC = () => {
     e.preventDefault();
     setLocalError('');
     dispatch(clearError());
+
+    // Báo sớm thay vì để server từ chối: trước đây màn hình ghi "tối thiểu 6 ký tự"
+    // trong khi backend đòi 8, người dùng làm đúng hướng dẫn vẫn bị từ chối.
+    const passwordError = getPasswordLengthError(password);
+    if (passwordError) {
+      setLocalError(passwordError);
+      return;
+    }
 
     if (password !== confirmPwd) {
       setLocalError('Mật khẩu xác nhận không khớp');
@@ -98,7 +107,8 @@ const RegisterPage: React.FC = () => {
                 InputProps={{ startAdornment: <InputAdornment position="start"><Email sx={{ color: 'text.secondary' }} /></InputAdornment> }} />
               <TextField fullWidth label="Mật khẩu" type={showPass ? 'text' : 'password'}
                 value={password} onChange={(e) => setPassword(e.target.value)}
-                required helperText="Tối thiểu 6 ký tự" sx={{ mb: 2.5 }}
+                required helperText={PASSWORD_HINT} sx={{ mb: 2.5 }}
+                error={password.length > 0 && getPasswordLengthError(password) !== null}
                 InputProps={{
                   startAdornment: <InputAdornment position="start"><Lock sx={{ color: 'text.secondary' }} /></InputAdornment>,
                   endAdornment: <InputAdornment position="end"><IconButton aria-label={showPass ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'} onClick={() => setShowPass(!showPass)} edge="end">{showPass ? <VisibilityOff /> : <Visibility />}</IconButton></InputAdornment>,

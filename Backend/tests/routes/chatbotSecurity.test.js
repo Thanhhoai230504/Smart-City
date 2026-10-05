@@ -55,7 +55,8 @@ describe('POST /api/chatbot/message hardening', () => {
     const res = await postJson(buildApp(), '/api/chatbot/message', { message: 'hi', history });
 
     expect(res.status).toBe(400);
-    expect(res.body.message).toBe('Validation failed');
+    expect(res.body.code).toBe('VALIDATION_ERROR');
+    expect(res.body.message).toBe(res.body.errors[0].message);
     expect(res.body.errors[0].field).toBe('history');
     expect(chatbotService.chat).not.toHaveBeenCalled();
   });

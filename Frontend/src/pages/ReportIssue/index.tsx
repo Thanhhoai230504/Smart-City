@@ -20,6 +20,7 @@ import { CATEGORY_MAP, DA_NANG_CENTER, DEFAULT_ZOOM } from '../../utils/constant
 import { issueApi } from '../../api/issueApi';
 import { DuplicateCandidate, DuplicateCandidateMeta } from '../../types';
 import { geoApi } from '../../api/geoApi';
+import { isValidPhone, normalizePhone, PHONE_FORMAT_HINT } from '../../utils/phone';
 
 // Hình dạng gợi ý địa chỉ. Backend proxy giữ nguyên hình dạng `predictions` của
 // Goong nên phần render không phải sửa. Các interface mô tả response thô của
@@ -153,6 +154,8 @@ const ReportIssuePage: React.FC = () => {
   const [images, setImages] = useState<SelectedIssueImage[]>([]);
   const objectUrlsRef = useRef<Set<string>>(new Set());
   const [phone, setPhone] = useState('');
+  // Chỉ báo lỗi sau khi rời ô (hoặc bấm Gửi): đang gõ dở "09" chưa phải là sai.
+  const [phoneTouched, setPhoneTouched] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
@@ -443,6 +446,13 @@ const ReportIssuePage: React.FC = () => {
     setError('');
 
     if (!lat || !lng) { setError('Vui lòng tìm kiếm địa chỉ hoặc chọn vị trí trên bản đồ'); return; }
+    // Cùng luật với validator backend — trước đây sai định dạng thì bấm Gửi mới bị
+    // server chặn, kèm thông báo tiếng Anh "Validation failed".
+    if (phone.trim() && !isValidPhone(phone)) {
+      setPhoneTouched(true);
+      setError(PHONE_FORMAT_HINT);
+      return;
+    }
 
     const formData = new FormData();
     formData.append('title', title);
@@ -451,7 +461,7 @@ const ReportIssuePage: React.FC = () => {
     formData.append('location', location);
     formData.append('latitude', String(lat));
     formData.append('longitude', String(lng));
-    if (phone.trim()) formData.append('phone', phone.trim());
+    if (phone.trim()) formData.append('phone', normalizePhone(phone));
     images.forEach(({ file }) => formData.append('images', file));
 
     const result = await dispatch(createIssue(formData));
@@ -462,6 +472,8 @@ const ReportIssuePage: React.FC = () => {
       setError(result.payload as string || 'Có lỗi xảy ra');
     }
   };
+
+  const phoneInvalid = phoneTouched && phone.trim().length > 0 && !isValidPhone(phone);
 
   const markerIcon = L.divIcon({
     html: '<div style="background:#EF4444;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;border:3px solid white;box-shadow:0 2px 12px rgba(239,68,68,0.5)">📍</div>',
@@ -662,8 +674,11 @@ const ReportIssuePage: React.FC = () => {
 
               <TextField
                 label="Số điện thoại liên hệ"
+                type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
+                onBlur={() => setPhoneTouched(true)}
+                error={phoneInvalid}
                 placeholder="VD: 0901234567"
                 InputProps={{
                   startAdornment: (
@@ -672,7 +687,9 @@ const ReportIssuePage: React.FC = () => {
                     </InputAdornment>
                   ),
                 }}
-                helperText="Không bắt buộc — giúp cơ quan chức năng liên hệ nhanh hơn"
+                helperText={phoneInvalid
+                  ? PHONE_FORMAT_HINT
+                  : 'Không bắt buộc — giúp cơ quan chức năng liên hệ nhanh hơn'}
               />
 
               <Divider />

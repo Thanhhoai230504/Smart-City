@@ -18,10 +18,16 @@ typedef FakeHandler = FutureOr<FakeResponse> Function(RequestOptions options);
 
 /// Thay tầng HTTP của Dio — test đi qua đủ interceptor thật mà không cần mạng.
 class FakeAdapter implements HttpClientAdapter {
-  FakeAdapter(this.handler);
+  FakeAdapter(this.handler, {this.captureBodies = false});
 
   FakeHandler handler;
   final List<RequestOptions> requests = [];
+
+  /// Đọc thân request đúng như dio đẩy ra mạng (multipart đã ghép đủ ảnh) vào
+  /// [bodies], cùng chỉ số với [requests]. Mặc định tắt để các test sẵn có giữ
+  /// nguyên hành vi.
+  final bool captureBodies;
+  final List<List<int>> bodies = [];
 
   int countPath(String path) => requests.where((r) => r.path == path).length;
 
@@ -32,6 +38,9 @@ class FakeAdapter implements HttpClientAdapter {
     Future<void>? cancelFuture,
   ) async {
     requests.add(options);
+    if (captureBodies) {
+      bodies.add(requestStream == null ? const [] : await requestStream.expand((chunk) => chunk).toList());
+    }
     final response = await handler(options);
     if (response.delay > Duration.zero) await Future<void>.delayed(response.delay);
     if (options.cancelToken?.isCancelled ?? false) {

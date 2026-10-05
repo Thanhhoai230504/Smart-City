@@ -119,7 +119,7 @@ describe('PlaceService', () => {
     it('should throw if place not found', async () => {
       Place.findById.mockResolvedValue(null);
 
-      await expect(placeService.getPlaceById('nonexistent')).rejects.toThrow('Place not found.');
+      await expect(placeService.getPlaceById('nonexistent')).rejects.toThrow('Không tìm thấy địa điểm.');
     });
 
     it('should return place if found', async () => {
@@ -157,7 +157,7 @@ describe('PlaceService', () => {
 
       await expect(
         placeService.updatePlace('nonexistent', { name: 'Updated' })
-      ).rejects.toThrow('Place not found.');
+      ).rejects.toThrow('Không tìm thấy địa điểm.');
     });
 
     it('should update and return place', async () => {
@@ -227,7 +227,7 @@ describe('PlaceService', () => {
     it('should throw if place not found', async () => {
       Place.findByIdAndDelete.mockResolvedValue(null);
 
-      await expect(placeService.deletePlace('nonexistent')).rejects.toThrow('Place not found.');
+      await expect(placeService.deletePlace('nonexistent')).rejects.toThrow('Không tìm thấy địa điểm.');
     });
 
     it('should delete and return place', async () => {

@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import axios from 'axios';
 import {
   Alert,
   Avatar,
@@ -42,6 +41,7 @@ import {
 } from '@mui/icons-material';
 import { departmentApi, DepartmentPayload } from '../../api/departmentApi';
 import { CATEGORY_MAP } from '../../utils/constants';
+import { getApiErrorMessage } from '../../utils/apiError';
 import { Department, DepartmentStaff, IssueCategory } from '../../types';
 import { cellSx, GlassCard, headCellSx } from './types';
 
@@ -52,11 +52,6 @@ interface DepartmentForm {
   phone: string;
   categories: IssueCategory[];
   slaHours: string;
-}
-
-interface ApiErrorResponse {
-  message?: string;
-  errors?: Array<{ field: string; message: string }>;
 }
 
 type FormErrors = Partial<Record<keyof DepartmentForm, string>>;
@@ -80,13 +75,6 @@ const createEmptyForm = (): DepartmentForm => ({
   categories: [],
   slaHours: '',
 });
-
-const getErrorMessage = (error: unknown, fallback: string) => {
-  if (!axios.isAxiosError<ApiErrorResponse>(error)) return fallback;
-  return error.response?.data?.errors?.[0]?.message
-    || error.response?.data?.message
-    || fallback;
-};
 
 const DepartmentManagement: React.FC = () => {
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -117,7 +105,7 @@ const DepartmentManagement: React.FC = () => {
     } catch (error) {
       setSnack({
         open: true,
-        message: getErrorMessage(error, 'Không thể tải danh sách đơn vị.'),
+        message: getApiErrorMessage(error, 'Không thể tải danh sách đơn vị.'),
         severity: 'error',
       });
     } finally {
@@ -224,7 +212,7 @@ const DepartmentManagement: React.FC = () => {
       setForm(createEmptyForm());
       await loadDepartments();
     } catch (error) {
-      setFormApiError(getErrorMessage(error, 'Không thể lưu đơn vị.'));
+      setFormApiError(getApiErrorMessage(error, 'Không thể lưu đơn vị.'));
     } finally {
       setSaving(false);
     }
@@ -249,7 +237,7 @@ const DepartmentManagement: React.FC = () => {
       setSnack({
         open: true,
         // Giữ nguyên thông báo backend, bao gồm số sự cố chưa xử lý.
-        message: getErrorMessage(error, 'Không thể vô hiệu hoá đơn vị.'),
+        message: getApiErrorMessage(error, 'Không thể vô hiệu hoá đơn vị.'),
         severity: 'error',
       });
     } finally {
@@ -270,7 +258,7 @@ const DepartmentManagement: React.FC = () => {
     } catch (error) {
       setSnack({
         open: true,
-        message: getErrorMessage(error, 'Không thể kích hoạt lại đơn vị.'),
+        message: getApiErrorMessage(error, 'Không thể kích hoạt lại đơn vị.'),
         severity: 'error',
       });
     } finally {
@@ -287,7 +275,7 @@ const DepartmentManagement: React.FC = () => {
       const { data } = await departmentApi.getStaff(department._id);
       setStaff(data.data.staff);
     } catch (error) {
-      setStaffError(getErrorMessage(error, 'Không thể tải danh sách cán bộ.'));
+      setStaffError(getApiErrorMessage(error, 'Không thể tải danh sách cán bộ.'));
     } finally {
       setStaffLoading(false);
     }

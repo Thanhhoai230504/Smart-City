@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from 'react';
-import axios from 'axios';
 import {
   Alert,
   Box,
@@ -25,19 +24,8 @@ import { departmentApi } from '../api/departmentApi';
 import { DepartmentStaff, DepartmentSuggestion, Issue } from '../types';
 import { CATEGORY_MAP } from '../utils/constants';
 import { getAssignedDepartmentId, getAssigneeId } from '../utils/assignment';
+import { getApiErrorMessage } from '../utils/apiError';
 import PriorityBadge from './PriorityBadge';
-
-interface ApiErrorResponse {
-  message?: string;
-  errors?: Array<{ field: string; message: string }>;
-}
-
-const getErrorMessage = (error: unknown, fallback: string) => {
-  if (!axios.isAxiosError<ApiErrorResponse>(error)) return fallback;
-  return error.response?.data?.errors?.[0]?.message
-    || error.response?.data?.message
-    || fallback;
-};
 
 interface Props {
   /** Sự cố cần phân công; `null` = đóng hộp thoại. */
@@ -88,7 +76,7 @@ const AssignIssueDialog: React.FC<Props> = ({ issue, onClose, onAssigned }) => {
         setSelectedAssigneeId(preselectAssigneeId);
       }
     } catch (error) {
-      if (seq === requestSeq.current) setStaffError(getErrorMessage(error, 'Không thể tải cán bộ của đơn vị.'));
+      if (seq === requestSeq.current) setStaffError(getApiErrorMessage(error, 'Không thể tải cán bộ của đơn vị.'));
     } finally {
       if (seq === requestSeq.current) setStaffLoading(false);
     }
@@ -121,7 +109,7 @@ const AssignIssueDialog: React.FC<Props> = ({ issue, onClose, onAssigned }) => {
           await loadStaff(preselect._id, getAssigneeId(issue));
         }
       } catch (error) {
-        if (seq === requestSeq.current) setSuggestionError(getErrorMessage(error, 'Không thể lấy gợi ý đơn vị.'));
+        if (seq === requestSeq.current) setSuggestionError(getApiErrorMessage(error, 'Không thể lấy gợi ý đơn vị.'));
       } finally {
         if (seq === requestSeq.current) setSuggestionsLoading(false);
       }
@@ -154,7 +142,7 @@ const AssignIssueDialog: React.FC<Props> = ({ issue, onClose, onAssigned }) => {
       });
       onAssigned();
     } catch (error) {
-      setSubmitError(getErrorMessage(error, 'Không thể phân công sự cố.'));
+      setSubmitError(getApiErrorMessage(error, 'Không thể phân công sự cố.'));
     } finally {
       setAssigning(false);
     }

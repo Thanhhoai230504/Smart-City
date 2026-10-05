@@ -70,7 +70,7 @@ const getPlaces = async ({ type, isActive, bounds, page, limit } = {}) => {
 const getPlaceById = async (id) => {
   const place = await Place.findById(id);
   if (!place) {
-    throw ApiError.notFound('Place not found.');
+    throw ApiError.notFound('Không tìm thấy địa điểm.');
   }
   return place;
 };
@@ -90,7 +90,7 @@ const updatePlace = async (id, data) => {
   // Dùng document.save() để hook đồng bộ GeoJSON chạy khi toạ độ thay đổi.
   const place = await Place.findById(id);
   if (!place) {
-    throw ApiError.notFound('Place not found.');
+    throw ApiError.notFound('Không tìm thấy địa điểm.');
   }
   UPDATABLE_FIELDS.forEach(field => {
     if (data[field] !== undefined) place[field] = data[field];
@@ -102,7 +102,7 @@ const updatePlace = async (id, data) => {
 const deletePlace = async (id) => {
   const place = await Place.findByIdAndDelete(id);
   if (!place) {
-    throw ApiError.notFound('Place not found.');
+    throw ApiError.notFound('Không tìm thấy địa điểm.');
   }
   return place;
 };

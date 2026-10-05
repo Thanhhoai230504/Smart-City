@@ -152,9 +152,11 @@ class ProfileScreen extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Đăng xuất?'),
+        // Phiếu chờ gắn với tài khoản (ReportDraft.ownerId): người khác đăng nhập
+        // trên máy này không thấy và không gửi được chúng.
         content: Text(pending > 0
-            ? 'Bạn còn $pending báo cáo chưa gửi. Chúng vẫn được giữ trên máy và sẽ gửi khi '
-                'bạn đăng nhập lại.'
+            ? 'Bạn còn $pending báo cáo chưa gửi. Chúng vẫn được giữ trên máy và sẽ tự gửi khi '
+                'bạn đăng nhập lại bằng chính tài khoản này.'
             : 'Chỉ đăng xuất trên thiết bị này.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Huỷ')),

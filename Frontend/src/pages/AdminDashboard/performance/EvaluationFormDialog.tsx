@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
 import {
   Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControl,
   FormControlLabel, FormHelperText, FormLabel, Radio, RadioGroup, Stack, TextField, Typography,
@@ -21,10 +20,7 @@ import {
 } from '../../../utils/evaluation';
 import { formatPeriod, PeriodRange } from '../../../utils/period';
 import ScoreChip from './ScoreChip';
-
-const getErrorMessage = (error: unknown) => (axios.isAxiosError<{ message?: string }>(error)
-  ? error.response?.data?.message || 'Không ghi được quyết định.'
-  : 'Không ghi được quyết định.');
+import { getApiErrorMessage } from '../../../utils/apiError';
 
 const emptyForm = (score: DepartmentScore): EvaluationFormValue => ({
   decision: suggestedDecision(score.label),
@@ -87,7 +83,7 @@ const EvaluationFormDialog: React.FC<{
       onSaved();
       onClose();
     } catch (err) {
-      setServerError(getErrorMessage(err));
+      setServerError(getApiErrorMessage(err, 'Không ghi được quyết định.'));
     } finally {
       setSaving(false);
     }

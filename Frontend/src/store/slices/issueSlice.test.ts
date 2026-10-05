@@ -109,6 +109,19 @@ describe('issueSlice — chống phản hồi cũ ghi đè', () => {
     expect(state.error).toBe('Mất kết nối');
   });
 
+  // Lỗi tải chi tiết là object { message, status } để trang chi tiết phân biệt 404
+  // với lỗi mạng (đọc qua unwrap); field `error` dùng chung chỉ giữ câu thông báo.
+  it('keeps only the message of a detail failure and ignores an aborted detail request', () => {
+    let state = reducer(initial, pending(fetchIssueById, 'detail-1'));
+    state = reducer(state, rejected(fetchIssueById, 'detail-1', { message: 'Không tải được sự cố.', status: 503 }));
+    expect(state.error).toBe('Không tải được sự cố.');
+    expect(state.loading).toBe(false);
+
+    let aborted = reducer(initial, pending(fetchIssueById, 'detail-2'));
+    aborted = reducer(aborted, rejected(fetchIssueById, 'detail-2', undefined, true));
+    expect(aborted.error).toBeNull();
+  });
+
   // Danh sách và chi tiết dùng hai bộ đếm riêng, nên mở chi tiết không được làm
   // mất kết quả danh sách đang hiển thị.
   it('tracks list and detail requests independently', () => {

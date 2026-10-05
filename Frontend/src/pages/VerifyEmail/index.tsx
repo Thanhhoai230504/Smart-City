@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { Link as RouterLink, useSearchParams } from 'react-router-dom';
-import axios from 'axios';
 import {
   Alert,
   Box,
@@ -14,6 +13,7 @@ import {
 } from '@mui/material';
 import { Login, MarkEmailRead, Refresh } from '@mui/icons-material';
 import { authApi } from '../../api/authApi';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 const VerifyEmailPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -37,10 +37,7 @@ const VerifyEmailPage: React.FC = () => {
         if (active) setVerified(true);
       } catch (err: unknown) {
         if (!active) return;
-        const message = axios.isAxiosError<{ message?: string }>(err)
-          ? err.response?.data?.message
-          : null;
-        setError(message || 'Liên kết xác thực không hợp lệ hoặc đã hết hạn.');
+        setError(getApiErrorMessage(err, 'Liên kết xác thực không hợp lệ hoặc đã hết hạn.'));
       } finally {
         if (active) setVerifying(false);
       }
@@ -73,10 +70,7 @@ const VerifyEmailPage: React.FC = () => {
       setResendMessage(data.message || 'Email xác thực mới đã được gửi.');
       setCooldown(60);
     } catch (err: unknown) {
-      const message = axios.isAxiosError<{ message?: string }>(err)
-        ? err.response?.data?.message
-        : null;
-      setError(message || 'Không thể gửi lại email xác thực. Vui lòng thử lại.');
+      setError(getApiErrorMessage(err, 'Không thể gửi lại email xác thực. Vui lòng thử lại.'));
     } finally {
       setResending(false);
     }

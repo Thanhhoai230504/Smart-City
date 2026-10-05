@@ -4,6 +4,7 @@ import { Box } from '@mui/material';
 import Header from './Header';
 import Footer from './Footer';
 import WorkspaceSidebar from './WorkspaceSidebar';
+import { WORKSPACE_SIDEBAR_WIDTH } from './workspaceNav';
 const ChatbotWidget = lazy(() => import('../components/ChatbotWidget'));
 
 const MainLayout: React.FC = () => {
@@ -42,8 +43,14 @@ const MainLayout: React.FC = () => {
             flexGrow: 1,
             minWidth: 0,
             position: 'relative',
+            // Từ 900 px thanh điều hướng luôn hiện (900–1199 px ở dạng icon), nên nội
+            // dung chừa lề tương ứng; dưới 900 px dùng ngăn kéo menu của Header.
             ml: isWorkspace
-              ? { xs: 0, lg: sidebarCollapsed ? '76px' : '236px' }
+              ? {
+                xs: 0,
+                md: `${WORKSPACE_SIDEBAR_WIDTH.compact}px`,
+                lg: `${sidebarCollapsed ? WORKSPACE_SIDEBAR_WIDTH.compact : WORKSPACE_SIDEBAR_WIDTH.expanded}px`,
+              }
               : 0,
             transition: 'margin-left 220ms ease',
           }}

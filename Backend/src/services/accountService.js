@@ -42,7 +42,7 @@ const anonymizedEmail = (email) => {
  */
 const deleteAccount = async (userId, { password }) => {
   const user = await User.findById(userId).select('+password');
-  if (!user) throw ApiError.notFound('User not found');
+  if (!user) throw ApiError.notFound('Không tìm thấy người dùng.');
 
   // Tài khoản local phải xác nhận bằng mật khẩu: xoá tài khoản là hành động
   // không hoàn tác được, và access token có thể đã bị đánh cắp.

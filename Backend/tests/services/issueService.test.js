@@ -175,7 +175,7 @@ describe('IssueService', () => {
     it('should throw 404 if issue not found', async () => {
       Issue.findOne.mockReturnValue(mockQuery(null));
 
-      await expect(issueService.getIssueById('nonexistent')).rejects.toThrow('Issue not found.');
+      await expect(issueService.getIssueById('nonexistent')).rejects.toThrow('Không tìm thấy sự cố.');
     });
 
     it('should return issue if found and not soft-deleted', async () => {
@@ -183,8 +183,53 @@ describe('IssueService', () => {
       Issue.findOne.mockReturnValue(mockQuery(mockIssue));
 
       const result = await issueService.getIssueById('1');
-      expect(result).toEqual(mockIssue);
+      expect(result).toMatchObject(mockIssue);
       expect(Issue.findOne).toHaveBeenCalledWith({ _id: '1', isDeleted: false });
+    });
+
+    // Route chi tiết là công khai: không ai được gom danh sách người ủng hộ /
+    // theo dõi của người khác, hay đọc metadata vận hành của embedding.
+    describe('public detail payload', () => {
+      const stored = () => ({
+        _id: '1',
+        title: 'Ổ gà',
+        votes: ['u1', 'u2', 'u3'],
+        followers: ['u2', 'reporter'],
+        embedding: { model: 'gemini-embedding-001', sourceHash: 'abc', lastError: 'quota' },
+        lastReminderAt: new Date(),
+        intakeReminderAt: null,
+        isDeleted: false,
+        deletedBy: null,
+      });
+
+      it('guest: no voter/follower ids, no embedding, no internal fields', async () => {
+        Issue.findOne.mockReturnValue(mockQuery(stored()));
+
+        const result = await issueService.getIssueById('1');
+
+        expect(result).toMatchObject({ votes: [], followers: [], hasVoted: false, isFollowing: false });
+        expect(result).not.toHaveProperty('embedding');
+        expect(result).not.toHaveProperty('lastReminderAt');
+        expect(result).not.toHaveProperty('isDeleted');
+      });
+
+      it('signed-in citizen: only their own id comes back (old clients keep working)', async () => {
+        Issue.findOne.mockReturnValue(mockQuery(stored()));
+
+        const result = await issueService.getIssueById('1', { id: 'u2', role: 'user' });
+
+        expect(result).toMatchObject({ votes: ['u2'], followers: ['u2'], hasVoted: true, isFollowing: true });
+      });
+
+      it('admin keeps internal SLA fields but still gets no voter list or embedding', async () => {
+        Issue.findOne.mockReturnValue(mockQuery(stored()));
+
+        const result = await issueService.getIssueById('1', { id: 'admin1', role: 'admin' });
+
+        expect(result.votes).toEqual([]);
+        expect(result).not.toHaveProperty('embedding');
+        expect(result).toHaveProperty('lastReminderAt');
+      });
     });
 
     it('should hide the reporter phone and user emails from an anonymous visitor', async () => {
@@ -213,14 +258,69 @@ describe('IssueService', () => {
       expect(query.populate).toHaveBeenCalledWith('userId', 'name');
     });
 
-    it.each(['admin', 'staff'])('should expose contact details to %s', async (role) => {
+    it('should expose contact details to an admin', async () => {
       const query = mockQuery({ _id: '1' });
       Issue.findOne.mockReturnValue(query);
 
-      await issueService.getIssueById('1', { id: 'x', role });
+      await issueService.getIssueById('1', { id: 'x', role: 'admin' });
 
       expect(query.select).not.toHaveBeenCalledWith('-phone');
       expect(query.populate).toHaveBeenCalledWith('userId', 'name email');
+    });
+
+    // Cán bộ chỉ thấy SĐT/email người báo cáo trên phiếu của ĐÚNG đơn vị mình.
+    // Trước đây mọi cán bộ đều thấy — kể cả phiếu của đơn vị khác và phiếu chưa giao.
+    describe('staff contact scope', () => {
+      const staff = { id: 's1', role: 'staff', departmentId: 'deptA' };
+
+      const loadAsStaff = async (issueDepartmentId) => {
+        const scopeQuery = mockQuery({ _id: '1', departmentId: issueDepartmentId });
+        const mainQuery = mockQuery({ _id: '1' });
+        Issue.findOne.mockReturnValueOnce(scopeQuery).mockReturnValueOnce(mainQuery);
+        await issueService.getIssueById('1', staff);
+        // Bọc trong object: query giả có then() nên trả thẳng sẽ bị await "mở" ra.
+        return { query: mainQuery };
+      };
+
+      it('same department → sees phone and emails', async () => {
+        const { query } = await loadAsStaff('deptA');
+
+        expect(query.select).not.toHaveBeenCalledWith('-phone');
+        expect(query.populate).toHaveBeenCalledWith('userId', 'name email');
+        expect(query.populate).toHaveBeenCalledWith('statusHistory.changedBy', 'name email');
+      });
+
+      it('another department → name only, no phone', async () => {
+        const { query } = await loadAsStaff('deptB');
+
+        expect(query.select).toHaveBeenCalledWith('-phone');
+        expect(query.populate).toHaveBeenCalledWith('userId', 'name');
+        expect(query.populate).toHaveBeenCalledWith('statusHistory.changedBy', 'name');
+      });
+
+      it('unassigned issue → name only, no phone', async () => {
+        const { query } = await loadAsStaff(null);
+
+        expect(query.select).toHaveBeenCalledWith('-phone');
+        expect(query.populate).toHaveBeenCalledWith('userId', 'name');
+      });
+
+      it('missing issue → 404 from the scope lookup', async () => {
+        Issue.findOne.mockReturnValueOnce(mockQuery(null));
+
+        await expect(issueService.getIssueById('missing', staff)).rejects.toMatchObject({ statusCode: 404 });
+      });
+    });
+
+    it('canSeeIssueContact: admin always, staff only for its own department', () => {
+      const { canSeeIssueContact } = issueService;
+      expect(canSeeIssueContact({ role: 'admin' }, null)).toBe(true);
+      expect(canSeeIssueContact({ role: 'staff', departmentId: 'd1' }, 'd1')).toBe(true);
+      expect(canSeeIssueContact({ role: 'staff', departmentId: 'd1' }, { _id: 'd1' })).toBe(true);
+      expect(canSeeIssueContact({ role: 'staff', departmentId: 'd1' }, 'd2')).toBe(false);
+      expect(canSeeIssueContact({ role: 'staff', departmentId: null }, 'd1')).toBe(false);
+      expect(canSeeIssueContact({ role: 'user' }, 'd1')).toBe(false);
+      expect(canSeeIssueContact(null, 'd1')).toBe(false);
     });
 
     it('should keep the public department contact for everyone', async () => {
@@ -245,11 +345,11 @@ describe('IssueService', () => {
       expect(query.populate).toHaveBeenCalledWith('statusHistory.changedBy', 'name');
     });
 
-    it.each(['admin', 'staff'])('should populate statusHistory.changedBy with email for %s', async (role) => {
+    it('should populate statusHistory.changedBy with email for an admin', async () => {
       const query = mockQuery({ _id: '1' });
       Issue.findOne.mockReturnValue(query);
 
-      await issueService.getIssueById('1', { id: 'x', role });
+      await issueService.getIssueById('1', { id: 'x', role: 'admin' });
 
       expect(query.populate).toHaveBeenCalledWith('statusHistory.changedBy', 'name email');
     });
@@ -348,7 +448,7 @@ describe('IssueService', () => {
     it('should throw for invalid status', async () => {
       await expect(
         issueService.updateIssueStatus('issue1', { status: 'invalid', adminUser: { id: 'admin1', role: 'admin' } })
-      ).rejects.toThrow('Status must be one of');
+      ).rejects.toThrow('Trạng thái không hợp lệ.');
     });
 
     it('should throw if issue not found', async () => {
@@ -356,7 +456,7 @@ describe('IssueService', () => {
 
       await expect(
         issueService.updateIssueStatus('nonexistent', { status: 'processing', adminUser: { id: 'admin1', role: 'admin' } })
-      ).rejects.toThrow('Issue not found.');
+      ).rejects.toThrow('Không tìm thấy sự cố.');
     });
 
     it('should update status and notify reporter', async () => {
@@ -366,7 +466,7 @@ describe('IssueService', () => {
         userId: { _id: 'user1' },
       };
       Issue.findOne.mockReturnValue(mockQuery({ _id: 'issue1', status: 'reported', resolutionImages: [] }));
-      Issue.findByIdAndUpdate.mockReturnValue(mockQuery(mockIssue));
+      Issue.findOneAndUpdate.mockReturnValue(mockQuery(mockIssue));
       Notification.create.mockResolvedValue({ _id: 'notif1' });
 
       const result = await issueService.updateIssueStatus('issue1', {
@@ -378,6 +478,60 @@ describe('IssueService', () => {
       expect(result._id).toBe('issue1');
       expect(Notification.create).toHaveBeenCalled();
       expect(mockIO.to).toHaveBeenCalledWith('user_user1');
+    });
+
+    // Hai cán bộ bấm cùng lúc / bấm đúp: lệnh ghi phải kèm trạng thái vừa đọc, nếu
+    // không cả hai cùng qua bước kiểm tra luật rồi cùng ghi.
+    it('writes only if the issue is still in the status it was checked against', async () => {
+      Issue.findOne.mockReturnValue(mockQuery({ _id: 'issue1', status: 'reported', resolutionImages: [] }));
+      Issue.findOneAndUpdate.mockReturnValue(mockQuery({ _id: 'issue1', title: 'T', userId: { _id: 'u1' } }));
+      Notification.create.mockResolvedValue({ _id: 'n1' });
+
+      await issueService.updateIssueStatus('issue1', { status: 'processing', adminUser: { id: 'a1', role: 'admin' } });
+
+      expect(Issue.findOneAndUpdate.mock.calls[0][0]).toEqual({
+        _id: 'issue1', isDeleted: false, mergedInto: null, status: 'reported',
+      });
+    });
+
+    it('returns 409 STATUS_CONFLICT when someone else changed the issue in between', async () => {
+      Issue.findOne.mockReturnValue(mockQuery({
+        _id: 'issue1', status: 'processing', resolutionImages: [{ url: 'x' }],
+      }));
+      Issue.findOneAndUpdate.mockReturnValue(mockQuery(null));
+
+      await expect(
+        issueService.updateIssueStatus('issue1', { status: 'resolved', adminUser: { id: 'a1', role: 'admin' } })
+      ).rejects.toMatchObject({ statusCode: 409, code: 'STATUS_CONFLICT' });
+      expect(Notification.create).not.toHaveBeenCalled();
+    });
+
+    // Người theo dõi là bất kỳ ai đã bấm "đây là cùng một sự cố" — không được nhận
+    // SĐT/email qua socket.
+    it('sends followers a summary without phone or emails', async () => {
+      Issue.findOne.mockReturnValue(mockQuery({ _id: 'issue1', status: 'reported', resolutionImages: [] }));
+      Issue.findOneAndUpdate.mockReturnValue(mockQuery({
+        _id: 'issue1',
+        title: 'Ổ gà',
+        status: 'processing',
+        category: 'pothole',
+        phone: '0905123456',
+        userId: { _id: 'reporter1', name: 'Dân', email: 'dan@example.com' },
+        adminId: { _id: 'staff1', name: 'Cán bộ', email: 'canbo@example.com' },
+        followers: ['follower1'],
+      }));
+      Notification.create.mockResolvedValue({ _id: 'n1', message: 'm' });
+
+      await issueService.updateIssueStatus('issue1', { status: 'processing', adminUser: { id: 'a1', role: 'admin' } });
+
+      const issueEvents = mockIO.emit.mock.calls.filter(([event]) => event === 'issue:updated');
+      expect(issueEvents).toHaveLength(2); // reporter + follower
+      for (const [, payload] of issueEvents) {
+        expect(payload.issue).toEqual({
+          _id: 'issue1', title: 'Ổ gà', status: 'processing', category: 'pothole', resolvedAt: null, updatedAt: null,
+        });
+        expect(JSON.stringify(payload)).not.toMatch(/0905123456|@example\.com/);
+      }
     });
 
     // Ảnh minh chứng là căn cứ cho điểm đánh giá của người dân, nên không cho
@@ -404,7 +558,7 @@ describe('IssueService', () => {
         status: 'processing',
         resolutionImages: [{ url: 'https://cloud/after.jpg' }],
       }));
-      Issue.findByIdAndUpdate.mockReturnValue(mockQuery(mockIssue));
+      Issue.findOneAndUpdate.mockReturnValue(mockQuery(mockIssue));
       Notification.create.mockResolvedValue({ _id: 'notif1' });
 
       await issueService.updateIssueStatus('issue1', {
@@ -412,8 +566,10 @@ describe('IssueService', () => {
         adminUser: { id: 'admin1', role: 'admin' },
       });
 
-      const updateCall = Issue.findByIdAndUpdate.mock.calls[0][1];
-      expect(updateCall.resolvedAt).toBeInstanceOf(Date);
+      const [guard, updateCall] = Issue.findOneAndUpdate.mock.calls[0];
+      expect(updateCall.$set.resolvedAt).toBeInstanceOf(Date);
+      // Ảnh minh chứng phải còn ĐÚNG lúc ghi (một lượt mở lại chen giữa sẽ xoá chúng).
+      expect(guard['resolutionImages.0']).toEqual({ $exists: true });
     });
 
     // ─── E5: state machine trạng thái ───
@@ -442,7 +598,7 @@ describe('IssueService', () => {
         })
       ).rejects.toThrow(/Không thể chuyển từ/);
 
-      expect(Issue.findByIdAndUpdate).not.toHaveBeenCalled();
+      expect(Issue.findOneAndUpdate).not.toHaveBeenCalled();
     });
 
     it('tags the refused transition with a machine-readable code', async () => {
@@ -491,7 +647,7 @@ describe('IssueService', () => {
       Issue.findOne.mockReturnValue(mockQuery({
         _id: 'issue1', status: 'resolved', resolutionImages: [{ url: 'x' }],
       }));
-      Issue.findByIdAndUpdate.mockReturnValue(mockQuery({
+      Issue.findOneAndUpdate.mockReturnValue(mockQuery({
         _id: 'issue1', title: 'Fixed', userId: { _id: 'user1' },
       }));
       Notification.create.mockResolvedValue({ _id: 'notif1' });
@@ -503,6 +659,59 @@ describe('IssueService', () => {
       });
 
       expect(result._id).toBe('issue1');
+    });
+
+    // Mở lại phiếu đã đóng = lượt mới: ảnh minh chứng + đánh giá cũ được cất đi,
+    // nên phải chụp minh chứng MỚI trước khi báo xong lần nữa.
+    it('reopening a resolved issue archives the round and clears evidence + rating', async () => {
+      const resolvedAt = new Date('2026-10-01T03:00:00Z');
+      Issue.findOne.mockReturnValue(mockQuery({
+        _id: 'issue1',
+        status: 'resolved',
+        resolvedAt,
+        resolutionImages: [{ url: 'https://cloud/after.jpg', publicId: 'p1', uploadedBy: 'staff1', uploadedAt: resolvedAt }],
+        rating: { score: 1, comment: 'Chưa sửa xong', ratedAt: resolvedAt },
+        statusHistory: [],
+      }));
+      Issue.findOneAndUpdate.mockReturnValue(mockQuery({ _id: 'issue1', title: 'T', userId: { _id: 'u1' } }));
+      Notification.create.mockResolvedValue({ _id: 'n1' });
+
+      await issueService.updateIssueStatus('issue1', {
+        status: 'processing',
+        note: 'Mở lại để làm tiếp',
+        adminUser: { id: 'staff1', role: 'admin' },
+      });
+
+      const [guard, update] = Issue.findOneAndUpdate.mock.calls[0];
+      expect(guard.status).toBe('resolved');
+      expect(update.$set).toMatchObject({
+        status: 'processing',
+        resolvedAt: null,
+        resolutionImages: [],
+        rating: { score: null, comment: null, ratedAt: null },
+      });
+      expect(update.$push.previousRounds).toMatchObject({
+        closedStatus: 'resolved',
+        closedAt: resolvedAt,
+        resolutionImages: [{ url: 'https://cloud/after.jpg', publicId: 'p1' }],
+        rating: { score: 1, comment: 'Chưa sửa xong' },
+        reopenedBy: 'staff1',
+        reopenReason: 'Mở lại để làm tiếp',
+      });
+    });
+
+    it('a normal processing -> resolved change does not touch previous rounds', async () => {
+      Issue.findOne.mockReturnValue(mockQuery({
+        _id: 'issue1', status: 'processing', resolutionImages: [{ url: 'x' }],
+      }));
+      Issue.findOneAndUpdate.mockReturnValue(mockQuery({ _id: 'issue1', title: 'T', userId: { _id: 'u1' } }));
+      Notification.create.mockResolvedValue({ _id: 'n1' });
+
+      await issueService.updateIssueStatus('issue1', { status: 'resolved', adminUser: { id: 'a1', role: 'admin' } });
+
+      const [, update] = Issue.findOneAndUpdate.mock.calls[0];
+      expect(update.$push.previousRounds).toBeUndefined();
+      expect(update.$set.rating).toBeUndefined();
     });
 
     // Quyền phải kiểm tra TRƯỚC trạng thái: cán bộ sai đơn vị không được học
@@ -525,11 +734,47 @@ describe('IssueService', () => {
     });
   });
 
+  describe('addResolutionImages()', () => {
+    const files = (n) => Array.from({ length: n }, (_, i) => ({ path: `https://cdn.test/after-${i}.jpg`, filename: `after/${i}` }));
+    const staff = { id: 'staff1', role: 'staff', departmentId: 'deptA' };
+
+    it('adds the photos with ONE conditional write (count checked atomically)', async () => {
+      Issue.findOne.mockReturnValue(mockQuery({ _id: 'i1', status: 'processing', departmentId: 'deptA', resolutionImages: [{ url: 'x' }] }));
+      Issue.findOneAndUpdate.mockReturnValue(mockQuery({ resolutionImages: [{ url: 'x' }, { url: 'a' }, { url: 'b' }] }));
+
+      const result = await issueService.addResolutionImages('i1', files(2), staff);
+
+      const [filter, update] = Issue.findOneAndUpdate.mock.calls[0];
+      // Phần tử thứ (5 − 2) = 3 chưa tồn tại ⇔ mảng đang có tối đa 3 ảnh.
+      expect(filter).toMatchObject({ _id: 'i1', isDeleted: false, mergedInto: null, 'resolutionImages.3': { $exists: false } });
+      expect(filter.status).toEqual({ $nin: ['resolved', 'rejected'] });
+      expect(update.$push.resolutionImages.$each).toHaveLength(2);
+      expect(result).toHaveLength(3);
+    });
+
+    it('a parallel upload that would exceed 5 photos is refused and its files rolled back', async () => {
+      Issue.findOne.mockReturnValue(mockQuery({ _id: 'i1', status: 'processing', departmentId: 'deptA', resolutionImages: [] }));
+      Issue.findOneAndUpdate.mockReturnValue(mockQuery(null));
+
+      await expect(issueService.addResolutionImages('i1', files(3), staff)).rejects.toThrow(/tối đa 5 ảnh/);
+      expect(cloudinary.uploader.destroy).toHaveBeenCalledTimes(3);
+    });
+
+    it('refuses new evidence on a closed issue (ISSUE_CLOSED) — reopen first', async () => {
+      Issue.findOne.mockReturnValue(mockQuery({ _id: 'i1', status: 'resolved', departmentId: 'deptA', resolutionImages: [{ url: 'x' }] }));
+
+      await expect(issueService.addResolutionImages('i1', files(1), staff))
+        .rejects.toMatchObject({ statusCode: 400, code: 'ISSUE_CLOSED' });
+      expect(Issue.findOneAndUpdate).not.toHaveBeenCalled();
+      expect(cloudinary.uploader.destroy).toHaveBeenCalledWith('after/0');
+    });
+  });
+
   describe('deleteIssue()', () => {
     it('should throw if issue not found', async () => {
       Issue.findOneAndUpdate.mockResolvedValue(null);
 
-      await expect(issueService.deleteIssue('nonexistent')).rejects.toThrow('Issue not found.');
+      await expect(issueService.deleteIssue('nonexistent')).rejects.toThrow('Không tìm thấy sự cố.');
     });
 
     it('should soft delete instead of removing the document', async () => {
@@ -598,7 +843,7 @@ describe('IssueService', () => {
     it('should throw if issue not found', async () => {
       Issue.findOne.mockResolvedValue(null);
 
-      await expect(issueService.deleteMyIssue('nonexistent', 'user1')).rejects.toThrow('Issue not found.');
+      await expect(issueService.deleteMyIssue('nonexistent', 'user1')).rejects.toThrow('Không tìm thấy sự cố.');
     });
 
     it('should throw if user is not the owner', async () => {
@@ -608,7 +853,7 @@ describe('IssueService', () => {
         status: 'reported',
       });
 
-      await expect(issueService.deleteMyIssue('issue1', 'user1')).rejects.toThrow('You can only delete your own issues.');
+      await expect(issueService.deleteMyIssue('issue1', 'user1')).rejects.toThrow('Bạn chỉ được xoá sự cố do chính mình báo cáo.');
     });
 
     it('should throw if status is not "reported"', async () => {
@@ -619,7 +864,7 @@ describe('IssueService', () => {
       });
 
       await expect(issueService.deleteMyIssue('issue1', { toString: () => 'user1' }))
-        .rejects.toThrow('Only issues with status "reported" can be deleted.');
+        .rejects.toThrow('Chỉ xoá được sự cố còn ở trạng thái "Mới báo cáo".');
     });
 
     it('should soft delete and clean up the image if owner and status is reported', async () => {
@@ -647,7 +892,7 @@ describe('IssueService', () => {
     it('should throw if issue not found', async () => {
       Issue.findOne.mockResolvedValue(null);
 
-      await expect(issueService.updateMyIssue('nonexistent', 'user1', {})).rejects.toThrow('Issue not found.');
+      await expect(issueService.updateMyIssue('nonexistent', 'user1', {})).rejects.toThrow('Không tìm thấy sự cố.');
     });
 
     it('should throw if not the owner', async () => {
@@ -657,7 +902,7 @@ describe('IssueService', () => {
       });
 
       await expect(issueService.updateMyIssue('issue1', { toString: () => 'user1' }, { title: 'New' }))
-        .rejects.toThrow('You can only edit your own issues.');
+        .rejects.toThrow('Bạn chỉ được sửa sự cố do chính mình báo cáo.');
     });
 
     it('should throw if status is not reported', async () => {
@@ -667,7 +912,7 @@ describe('IssueService', () => {
       });
 
       await expect(issueService.updateMyIssue('issue1', { toString: () => 'user1' }, { title: 'New' }))
-        .rejects.toThrow('Only issues with status "reported" can be edited.');
+        .rejects.toThrow('Chỉ sửa được sự cố còn ở trạng thái "Mới báo cáo".');
     });
 
     it('should update title and description', async () => {

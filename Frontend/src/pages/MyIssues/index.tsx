@@ -12,6 +12,7 @@ import {
 import { LocationOn, AccessTime, Delete, Edit } from '@mui/icons-material';
 import { CATEGORY_MAP, STATUS_MAP } from '../../utils/constants';
 import { timeAgo } from '../../utils/helpers';
+import { getApiErrorMessage } from '../../utils/apiError';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { toast } from 'react-toastify';
 import { SOCKET_RECONNECTED, useSocket } from '../../hooks/useSocket';
@@ -60,8 +61,8 @@ const MyIssuesPage: React.FC = () => {
       await issueApi.deleteMyIssue(issueId);
       toast.success('Đã xóa sự cố');
       loadIssues();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Không thể xóa');
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, 'Không thể xóa sự cố.'));
     }
   };
 
@@ -81,8 +82,8 @@ const MyIssuesPage: React.FC = () => {
       toast.success('Đã cập nhật sự cố');
       setEditOpen(false);
       loadIssues();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Không thể cập nhật');
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, 'Không thể cập nhật sự cố.'));
     }
     setSaving(false);
   };

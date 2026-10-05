@@ -30,7 +30,7 @@ describe('AuthService', () => {
 
       await expect(
         authService.registerUser({ name: 'Test', email: 'test@test.com', password: '123456' })
-      ).rejects.toThrow('Email already registered.');
+      ).rejects.toThrow('Email này đã được đăng ký.');
     });
 
     it('should create and return new user', async () => {
@@ -88,7 +88,7 @@ describe('AuthService', () => {
 
       await expect(
         authService.loginUser({ email: 'none@test.com', password: '123456' })
-      ).rejects.toThrow('Invalid email or password.');
+      ).rejects.toThrow('Email hoặc mật khẩu không đúng.');
     });
 
     it('should throw if account is deactivated', async () => {
@@ -98,7 +98,7 @@ describe('AuthService', () => {
 
       await expect(
         authService.loginUser({ email: 'test@test.com', password: '123456' })
-      ).rejects.toThrow('Account has been deactivated.');
+      ).rejects.toThrow('Tài khoản đã bị khoá.');
     });
 
     it('should throw if password does not match', async () => {
@@ -109,7 +109,7 @@ describe('AuthService', () => {
 
       await expect(
         authService.loginUser({ email: 'test@test.com', password: 'wrong' })
-      ).rejects.toThrow('Invalid email or password.');
+      ).rejects.toThrow('Email hoặc mật khẩu không đúng.');
     });
 
     it('should return tokens and user on success', async () => {
@@ -329,7 +329,7 @@ describe('AuthService', () => {
       User.findOne.mockReturnValue({ select: jest.fn().mockResolvedValue(lockableUser()) });
 
       await expect(authService.loginUser({ email: 'test@test.com', password: 'wrong' }))
-        .rejects.toThrow('Invalid email or password.');
+        .rejects.toThrow('Email hoặc mật khẩu không đúng.');
 
       expect(User.findByIdAndUpdate).toHaveBeenCalledWith(
         'user123',
@@ -409,13 +409,13 @@ describe('AuthService', () => {
       });
 
       await expect(authService.loginUser({ email: 'test@test.com', password: 'wrong' }))
-        .rejects.toThrow('Invalid email or password.');
+        .rejects.toThrow('Email hoặc mật khẩu không đúng.');
     });
   });
 
   describe('refreshAccessToken()', () => {
     it('should throw if no refresh token provided', async () => {
-      await expect(authService.refreshAccessToken(null)).rejects.toThrow('No refresh token provided.');
+      await expect(authService.refreshAccessToken(null)).rejects.toThrow('Không có phiên đăng nhập để làm mới.');
     });
 
     // Token đã rotate hoặc đã thu hồi thì không còn phiên nào khớp.
@@ -423,7 +423,7 @@ describe('AuthService', () => {
       jwt.verify.mockReturnValue({ id: 'user123' });
       sessionService.findActiveSession.mockResolvedValue(null);
 
-      await expect(authService.refreshAccessToken('old-token')).rejects.toThrow('Invalid refresh token.');
+      await expect(authService.refreshAccessToken('old-token')).rejects.toThrow('Phiên đăng nhập không hợp lệ hoặc đã hết hạn.');
     });
 
     it('should throw when the session belongs to a different user', async () => {
@@ -432,7 +432,7 @@ describe('AuthService', () => {
         _id: 's1', userId: 'someoneElse', deviceType: 'web',
       });
 
-      await expect(authService.refreshAccessToken('tok')).rejects.toThrow('Invalid refresh token.');
+      await expect(authService.refreshAccessToken('tok')).rejects.toThrow('Phiên đăng nhập không hợp lệ hoặc đã hết hạn.');
     });
 
     it('should return new access token on valid refresh', async () => {
@@ -471,7 +471,7 @@ describe('AuthService', () => {
       });
       User.findById.mockResolvedValue({ _id: 'user123', isActive: false });
 
-      await expect(authService.refreshAccessToken('tok')).rejects.toThrow('Invalid refresh token.');
+      await expect(authService.refreshAccessToken('tok')).rejects.toThrow('Phiên đăng nhập không hợp lệ hoặc đã hết hạn.');
     });
   });
 
@@ -497,7 +497,7 @@ describe('AuthService', () => {
     it('should throw if user not found', async () => {
       User.findById.mockReturnValue(queryResolving(null));
 
-      await expect(authService.getProfile('invalid')).rejects.toThrow('User not found.');
+      await expect(authService.getProfile('invalid')).rejects.toThrow('Không tìm thấy người dùng.');
     });
 
     it('should return user profile', async () => {
@@ -524,7 +524,7 @@ describe('AuthService', () => {
 
   describe('updateProfile()', () => {
     it('should throw if nothing to update', async () => {
-      await expect(authService.updateProfile('user123', { name: '' })).rejects.toThrow('Nothing to update');
+      await expect(authService.updateProfile('user123', { name: '' })).rejects.toThrow('Không có thông tin nào để cập nhật.');
     });
 
     it('should update and return user', async () => {
@@ -548,7 +548,7 @@ describe('AuthService', () => {
   describe('changePassword()', () => {
     it('should throw if currentPassword or newPassword missing', async () => {
       await expect(authService.changePassword('user123', { currentPassword: '', newPassword: '' }))
-        .rejects.toThrow('Current password and new password are required');
+        .rejects.toThrow('Vui lòng nhập mật khẩu hiện tại và mật khẩu mới.');
     });
 
     // Chính sách mật khẩu giờ nằm ở utils/passwordPolicy.js và áp cho MỌI đường
@@ -569,7 +569,7 @@ describe('AuthService', () => {
 
       await expect(
         authService.changePassword('user123', { currentPassword: 'wrong', newPassword: 'bongden-hong-2026' })
-      ).rejects.toThrow('Current password is incorrect');
+      ).rejects.toThrow('Mật khẩu hiện tại không đúng.');
     });
 
     it('should change password successfully', async () => {

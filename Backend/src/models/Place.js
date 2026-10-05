@@ -3,16 +3,16 @@ const mongoose = require('mongoose');
 const placeSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: [true, 'Place name is required'],
+    required: [true, 'Vui lòng nhập tên địa điểm'],
     trim: true,
-    maxlength: [200, 'Name cannot exceed 200 characters']
+    maxlength: [200, 'Tên không quá 200 ký tự']
   },
   type: {
     type: String,
-    required: [true, 'Place type is required'],
+    required: [true, 'Vui lòng chọn loại địa điểm'],
     enum: {
       values: ['hospital', 'school', 'bus_stop', 'park', 'police'],
-      message: 'Type must be one of: hospital, school, bus_stop, park, police'
+      message: 'Loại địa điểm không hợp lệ'
     }
   },
   address: {
@@ -22,13 +22,13 @@ const placeSchema = new mongoose.Schema({
   },
   latitude: {
     type: Number,
-    required: [true, 'Latitude is required'],
+    required: [true, 'Thiếu vĩ độ của vị trí'],
     min: -90,
     max: 90
   },
   longitude: {
     type: Number,
-    required: [true, 'Longitude is required'],
+    required: [true, 'Thiếu kinh độ của vị trí'],
     min: -180,
     max: 180
   },

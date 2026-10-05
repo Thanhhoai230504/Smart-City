@@ -42,7 +42,7 @@ describe('Auth Middleware', () => {
       expect(res.status).toHaveBeenCalledWith(401);
       expect(res.json).toHaveBeenCalledWith({
         success: false,
-        message: 'Access denied. No token provided.',
+        message: 'Bạn cần đăng nhập để thực hiện thao tác này.',
       });
       expect(mockNext).not.toHaveBeenCalled();
     });
@@ -65,7 +65,7 @@ describe('Auth Middleware', () => {
       expect(res.status).toHaveBeenCalledWith(401);
       expect(res.json).toHaveBeenCalledWith({
         success: false,
-        message: 'Invalid token.',
+        message: 'Phiên đăng nhập không hợp lệ.',
       });
     });
 
@@ -107,7 +107,7 @@ describe('Auth Middleware', () => {
       expect(res.status).toHaveBeenCalledWith(401);
       expect(res.json).toHaveBeenCalledWith({
         success: false,
-        message: 'User not found or account deactivated.',
+        message: 'Tài khoản không tồn tại hoặc đã bị khoá.',
       });
     });
 
@@ -169,7 +169,7 @@ describe('Auth Middleware', () => {
       expect(res.status).toHaveBeenCalledWith(403);
       expect(res.json).toHaveBeenCalledWith({
         success: false,
-        message: 'Access denied. Admin privileges required.',
+        message: 'Chỉ quản trị viên mới được thực hiện thao tác này.',
       });
     });
 

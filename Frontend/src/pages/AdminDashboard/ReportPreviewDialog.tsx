@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
 import {
   Alert,
   Box,
@@ -16,6 +15,7 @@ import {
 } from '@mui/material';
 import { Email } from '@mui/icons-material';
 import { dashboardApi } from '../../api/dashboardApi';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 type ReportType = 'weekly' | 'monthly';
 
@@ -31,11 +31,6 @@ interface ReportPreviewDialogProps {
   onClose: () => void;
   onSent: (message: string) => void;
 }
-
-const getErrorMessage = (error: unknown, fallback: string) => {
-  if (!axios.isAxiosError<{ message?: string }>(error)) return fallback;
-  return error.response?.data?.message || fallback;
-};
 
 /**
  * Xem trước báo cáo rồi mới gửi.
@@ -72,7 +67,7 @@ const ReportPreviewDialog: React.FC<ReportPreviewDialogProps> = ({ open, onClose
         setStats(data.data.stats);
       })
       .catch((err) => {
-        if (!stale) setError(getErrorMessage(err, 'Không thể tạo bản xem trước báo cáo.'));
+        if (!stale) setError(getApiErrorMessage(err, 'Không thể tạo bản xem trước báo cáo.'));
       })
       .finally(() => {
         if (!stale) setLoading(false);
@@ -89,7 +84,7 @@ const ReportPreviewDialog: React.FC<ReportPreviewDialogProps> = ({ open, onClose
       onSent(data.message || 'Đã gửi báo cáo đến email quản trị.');
       onClose();
     } catch (err) {
-      setError(getErrorMessage(err, 'Không thể gửi báo cáo. Vui lòng thử lại.'));
+      setError(getApiErrorMessage(err, 'Không thể gửi báo cáo. Vui lòng thử lại.'));
     } finally {
       setSending(false);
     }

@@ -40,6 +40,45 @@ const resendVerification = async (req, res, next) => {
   }
 };
 
+const REFRESH_COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Thuộc tính cookie refresh — MỘT chỗ cho mọi nơi set và xoá cookie (xoá phải
+ * khớp thuộc tính lúc set thì trình duyệt mới xoá).
+ *
+ * Production: web (vercel.app) và API (onrender.com) là HAI site khác nhau — cả
+ * hai tên miền nằm trong Public Suffix List — nên mọi request từ web sang API đều
+ * là cross-site. Trước đây cookie đặt `SameSite=Strict`: trình duyệt chặn cả lúc
+ * set lẫn lúc gửi, /auth/refresh không bao giờ nhận được cookie, nên hết 15 phút
+ * access token là người dùng bị đẩy về trang đăng nhập (đăng nhập Google cũng
+ * dính sau lần xoay vòng token đầu tiên, vì lần xoay vòng đi qua hàm này).
+ * `None` bắt buộc đi kèm `Secure`.
+ *
+ * Dev: web và API cùng `localhost` (khác cổng vẫn là cùng site) nên `Lax` là đủ
+ * và không cần https.
+ *
+ * `None` không mở ra CSRF đáng kể: /auth/refresh chỉ trả access token trong
+ * body, mà CORS chỉ cho đúng CLIENT_URL đọc response. Giới hạn còn lại: Safari
+ * (ITP) chặn mọi cookie bên thứ ba bất kể SameSite — muốn triệt để thì đưa API về
+ * cùng site với web (tên miền riêng, hoặc rewrite /api trên Vercel).
+ */
+const refreshCookieOptions = () => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  return {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+  };
+};
+
+const setRefreshCookie = (res, refreshToken) => {
+  res.cookie('refreshToken', refreshToken, { ...refreshCookieOptions(), maxAge: REFRESH_COOKIE_MAX_AGE });
+};
+
+const clearRefreshCookie = (res) => {
+  res.clearCookie('refreshToken', refreshCookieOptions());
+};
+
 /**
  * Gắn refresh token theo đúng kiểu client.
  *
@@ -50,12 +89,7 @@ const resendVerification = async (req, res, next) => {
 const attachRefreshToken = (res, result) => {
   if (result.tokenInBody) return { refreshToken: result.refreshToken };
 
-  res.cookie('refreshToken', result.refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 7 * 24 * 60 * 60 * 1000
-  });
+  setRefreshCookie(res, result.refreshToken);
   return {};
 };
 
@@ -66,7 +100,7 @@ const login = async (req, res, next) => {
 
     res.json({
       success: true,
-      message: 'Login successful.',
+      message: 'Đăng nhập thành công.',
       data: { accessToken: result.accessToken, user: result.user, ...bodyToken }
     });
   } catch (error) {
@@ -84,7 +118,7 @@ const refresh = async (req, res, next) => {
     res.json({ success: true, data: { accessToken: result.accessToken, ...bodyToken } });
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({ success: false, message: 'Refresh token expired. Please login again.' });
+      return res.status(401).json({ success: false, message: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.' });
     }
     next(error);
   }
@@ -95,13 +129,9 @@ const logout = async (req, res, next) => {
     const token = req.cookies?.refreshToken || req.body?.refreshToken;
     await authService.logoutUser(req.user.id, token);
 
-    res.clearCookie('refreshToken', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict'
-    });
+    clearRefreshCookie(res);
 
-    res.json({ success: true, message: 'Logout successful.' });
+    res.json({ success: true, message: 'Đã đăng xuất.' });
   } catch (error) {
     next(error);
   }
@@ -119,7 +149,7 @@ const getProfile = async (req, res, next) => {
 const updateProfile = async (req, res, next) => {
   try {
     const user = await authService.updateProfile(req.user.id, req.body);
-    res.json({ success: true, message: 'Profile updated', data: { user } });
+    res.json({ success: true, message: 'Đã cập nhật hồ sơ.', data: { user } });
   } catch (error) {
     next(error);
   }
@@ -128,7 +158,7 @@ const updateProfile = async (req, res, next) => {
 const changePassword = async (req, res, next) => {
   try {
     await authService.changePassword(req.user.id, req.body);
-    res.json({ success: true, message: 'Password changed successfully' });
+    res.json({ success: true, message: 'Đổi mật khẩu thành công.' });
   } catch (error) {
     next(error);
   }
@@ -170,11 +200,7 @@ const deleteAccount = async (req, res, next) => {
     const result = await accountService.deleteAccount(req.user.id, { password: req.body.password });
 
     // Dọn cookie phiên web; phiên mobile đã bị thu hồi phía server.
-    res.clearCookie('refreshToken', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-    });
+    clearRefreshCookie(res);
 
     res.json({
       success: true,
@@ -198,7 +224,7 @@ const googleIdTokenLogin = async (req, res, next) => {
 
     res.json({
       success: true,
-      message: 'Login successful.',
+      message: 'Đăng nhập thành công.',
       data: { accessToken: result.accessToken, user: result.user, ...bodyToken }
     });
   } catch (error) {
@@ -210,12 +236,7 @@ const googleCallback = async (req, res) => {
   try {
     const result = await authService.generateTokensForUser(req.user);
 
-    res.cookie('refreshToken', result.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    setRefreshCookie(res, result.refreshToken);
 
     const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
     // KHÔNG đưa access token vào URL (lỗ hổng L8). URL đi vào lịch sử trình
@@ -243,5 +264,6 @@ module.exports = {
   resetPassword,
   deleteAccount,
   googleIdTokenLogin,
-  googleCallback
+  googleCallback,
+  refreshCookieOptions,
 };

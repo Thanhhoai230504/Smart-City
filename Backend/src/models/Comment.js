@@ -4,19 +4,19 @@ const commentSchema = new mongoose.Schema({
   issueId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Issue',
-    required: [true, 'Issue ID is required'],
+    required: [true, 'Thiếu mã sự cố'],
     index: true
   },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: [true, 'User ID is required']
+    required: [true, 'Thiếu mã người dùng']
   },
   content: {
     type: String,
-    required: [true, 'Content is required'],
+    required: [true, 'Vui lòng nhập nội dung'],
     trim: true,
-    maxlength: [1000, 'Comment cannot exceed 1000 characters']
+    maxlength: [1000, 'Bình luận không quá 1000 ký tự']
   },
   // ─── Kiểm duyệt (G16) ───
   // Trước đây model KHÔNG có field này, và routes/comments.js chỉ có GET + POST —

@@ -201,6 +201,14 @@ class RefreshInterceptor extends Interceptor {
   Future<Response<dynamic>> _retry(RequestOptions options, String token) {
     options.headers['Authorization'] = 'Bearer $token';
     options.extra[RequestFlags.retried] = true;
+    // Thân multipart (ảnh báo cáo, ảnh minh chứng, ảnh gửi AI) chỉ gửi được MỘT
+    // lần: lần gửi đầu dio đã "finalize" FormData, gửi lại đúng object đó thì dio
+    // ném StateError ngay trên máy — lỗi không có response nên bị map thành "Không
+    // có kết nối mạng" và phiếu kẹt trong hàng đợi dù mạng vẫn tốt. `clone()` dựng
+    // lại thân từ cùng dữ liệu, cùng boundary; MultipartFile `fromBytes` (cách app
+    // tạo ảnh) đọc lại được nhiều lần nên bản clone gửi đủ ảnh.
+    final data = options.data;
+    if (data is FormData) options.data = data.clone();
     return _dio.fetch<dynamic>(options);
   }
 }

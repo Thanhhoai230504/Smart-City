@@ -28,9 +28,13 @@ void main() {
   late List<String> sent;
   late Map<String, AppException> failures;
 
+  /// Tài khoản đang đăng nhập (`null` = khách) — engine hỏi lại ở mỗi phiếu.
+  String? owner;
+
   OfflineQueueEngine engine() => OfflineQueueEngine(
         store: store,
         clock: () => now,
+        currentOwner: () => owner,
         send: (payload, images) async {
           final failure = failures[payload.title];
           if (failure != null) throw failure;
@@ -51,6 +55,7 @@ void main() {
     now = DateTime(2026, 10, 2, 8);
     sent = [];
     failures = {};
+    owner = 'u1';
   });
 
   test('kịch bản demo: lưu khi offline → có mạng → tự đẩy hết theo đúng thứ tự', () async {
@@ -72,6 +77,7 @@ void main() {
     final e = OfflineQueueEngine(
       store: store,
       clock: () => now,
+      currentOwner: () => owner,
       send: (p, images) async {
         received.add(images);
         return Issue.fromJson({'_id': 'x'});
@@ -166,6 +172,7 @@ void main() {
     final e = OfflineQueueEngine(
       store: store,
       clock: () => now,
+      currentOwner: () => owner,
       send: (p, _) async {
         inFlight++;
         maxInFlight = inFlight > maxInFlight ? inFlight : maxInFlight;
@@ -190,6 +197,7 @@ void main() {
       payload: _payload('A'),
       createdAt: DateTime.utc(2026, 10, 2, 1),
       imageCount: 2,
+      ownerId: 'u1',
       attempts: 3,
       lastError: 'x',
       state: DraftState.needsAttention,
@@ -198,8 +206,160 @@ void main() {
     final back = ReportDraft.fromJson(d.toJson());
     expect(back.payload.title, 'A');
     expect(back.imageCount, 2);
+    expect(back.ownerId, 'u1');
     expect(back.attempts, 3);
     expect(back.state, DraftState.needsAttention);
     expect(back.nextAttemptAt?.toUtc(), DateTime.utc(2026, 10, 2, 2));
+  });
+
+  test('bản ghi cũ (chưa có khoá ownerId) vẫn đọc được — chủ là null', () {
+    final json = ReportDraft(id: 'old', payload: _payload('A'), createdAt: now, imageCount: 1).toJson()
+      ..remove('ownerId');
+    final back = ReportDraft.fromJson(json);
+    expect(back.ownerId, isNull);
+    expect(back.payload.title, 'A');
+  });
+
+  group('phiếu chờ thuộc về tài khoản đã soạn', () {
+    Future<void> enqueueAs(OfflineQueueEngine e, String who, List<String> titles) async {
+      owner = who;
+      await enqueue(e, titles);
+    }
+
+    test('lưu phiếu ghi chủ là người đang đăng nhập; chỉ chủ thấy và gửi được phiếu của mình', () async {
+      final e = engine();
+      await enqueueAs(e, 'u1', ['A1']);
+      await enqueueAs(e, 'u2', ['B1', 'B2']);
+      expect((await store.all()).map((d) => d.ownerId), ['u1', 'u2', 'u2']);
+
+      owner = 'u2';
+      expect((await e.pending()).map((d) => d.payload.title), ['B1', 'B2']);
+      await e.flush();
+      expect(sent, ['B1', 'B2'], reason: 'phiếu của u1 không được gửi bằng phiên của u2');
+
+      owner = 'u1';
+      expect((await e.pending()).map((d) => d.payload.title), ['A1']);
+      await e.flush();
+      expect(sent, ['B1', 'B2', 'A1']);
+    });
+
+    test('khách (đã đăng xuất): không liệt kê, không gửi — phiếu vẫn nằm trên máy chờ chủ', () async {
+      final e = engine();
+      await enqueueAs(e, 'u1', ['A']);
+      owner = null;
+
+      expect(await e.pending(), isEmpty);
+      expect((await e.flush()).skipped, isTrue);
+      expect(sent, isEmpty);
+      expect(await store.all(), hasLength(1));
+    });
+
+    test('không ai đăng nhập thì không lưu được phiếu vô chủ', () async {
+      owner = null;
+      await expectLater(engine().enqueue(_payload('A'), const []), throwsStateError);
+      expect(await store.all(), isEmpty);
+    });
+
+    test('đổi tài khoản GIỮA lượt gửi → dừng ngay, phần còn lại không đi bằng phiên người mới', () async {
+      final e = OfflineQueueEngine(
+        store: store,
+        clock: () => now,
+        currentOwner: () => owner,
+        send: (p, _) async {
+          sent.add(p.title);
+          owner = 'u2'; // u1 đăng xuất, u2 đăng nhập trong lúc phiếu đầu đang lên
+          return Issue.fromJson({'_id': p.title});
+        },
+      );
+      await enqueueAs(e, 'u1', ['A', 'B']);
+
+      final result = await e.flush();
+
+      expect(sent, ['A']);
+      expect(result.stoppedBy, AppErrorKind.cancelled);
+      expect((await store.all()).single.ownerId, 'u1', reason: 'phiếu B vẫn chờ chủ của nó');
+    });
+
+    test('xoá tài khoản → xoá mọi phiếu + ảnh của tài khoản đó, phiếu người khác giữ nguyên', () async {
+      final e = engine();
+      await enqueueAs(e, 'u1', ['A1', 'A2']);
+      await enqueueAs(e, 'u2', ['B1']);
+
+      expect(await e.purgeOwner('u1'), 2);
+
+      final left = await store.all();
+      expect(left.single.payload.title, 'B1');
+      expect(store.imageData.keys, [left.single.id], reason: 'ảnh của phiếu đã xoá cũng bị xoá');
+    });
+
+    /// Xoá phiếu theo tiêu đề ngay giữa lúc engine đang gửi — như người dùng bấm
+    /// "Xoá" trên màn phiếu chờ, hay xoá tài khoản, khi lượt gửi đang chạy.
+    Future<void> removeTitled(String title) async {
+      for (final d in await store.all()) {
+        if (d.payload.title == title) await store.remove(d.id);
+      }
+    }
+
+    test('phiếu bị xoá khi lượt gửi đang chạy thì KHÔNG bị gửi (danh sách của lượt là ảnh chụp cũ)', () async {
+      final e = OfflineQueueEngine(
+        store: store,
+        clock: () => now,
+        currentOwner: () => owner,
+        send: (p, _) async {
+          if (p.title == 'A') await removeTitled('B');
+          sent.add(p.title);
+          return Issue.fromJson({'_id': p.title});
+        },
+      );
+      await enqueue(e, ['A', 'B', 'C']);
+
+      await e.flush();
+
+      expect(sent, ['A', 'C']);
+      expect(await store.all(), isEmpty);
+    });
+
+    test('phiếu bị xoá trong lúc chính nó đang gửi rồi lỗi mạng → không bị dựng lại', () async {
+      final e = OfflineQueueEngine(
+        store: store,
+        clock: () => now,
+        currentOwner: () => owner,
+        send: (p, _) async {
+          await removeTitled(p.title);
+          throw _err(AppErrorKind.network);
+        },
+      );
+      await enqueue(e, ['A']);
+
+      final result = await e.flush();
+
+      expect(result.stoppedBy, AppErrorKind.network);
+      expect(await store.all(), isEmpty, reason: 'ghi lại số lần thử lúc này là hồi sinh phiếu đã xoá');
+    });
+
+    test('phiếu vô chủ của bản cũ: mở app có phiên → giao cho tài khoản đó; mở app là khách → xoá kèm ảnh', () async {
+      // Cũ hơn mọi phiếu khác trong test để thứ tự `all()` cố định.
+      Future<void> saveLegacy(String title) => store.save(
+            ReportDraft(
+              id: 'legacy-$title',
+              payload: _payload(title),
+              createdAt: now.subtract(const Duration(minutes: 1)),
+              imageCount: 1,
+            ),
+            images: [Uint8List(1)],
+          );
+
+      await saveLegacy('L1');
+      await enqueueAs(engine(), 'u2', ['B']);
+      expect(await engine().settleLegacy('u1'), 1);
+      expect((await store.all()).map((d) => (d.payload.title, d.ownerId)), [('L1', 'u1'), ('B', 'u2')]);
+      expect(store.imageData['legacy-L1'], hasLength(1), reason: 'giao chủ không làm mất ảnh');
+
+      await saveLegacy('L2');
+      expect(await engine().settleLegacy(null), 1);
+      expect(await store.contains('legacy-L2'), isFalse);
+      expect(store.imageData.containsKey('legacy-L2'), isFalse);
+      expect(await store.all(), hasLength(2), reason: 'phiếu đã có chủ không bị đụng tới');
+    });
   });
 }

@@ -1,7 +1,16 @@
+/**
+ * Thêm một loạt sự cố mẫu NGẪU NHIÊN vào database có sẵn user — CHỈ trên máy cục bộ:
+ *
+ *   SEED_MONGODB_URI=mongodb://127.0.0.1:27017/smartcity_dev node src/seeds/seedIssues.js
+ *
+ * Trước đây script đọc MONGODB_URI (Atlas thật) nên chạy nhầm là trộn phiếu giả
+ * vào dữ liệu của hệ thống đang chạy, gán cho người dùng thật. Rào chắn chung ở
+ * localDbGuard.js (giống `npm run seed`).
+ */
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const path = require('path');
-const { configureDnsServers } = require('../config/dns');
+const { assertLocalMongoUri } = require('./localDbGuard');
 
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
@@ -10,9 +19,13 @@ const Issue = require('../models/Issue');
 
 const seedIssues = async () => {
   try {
-    configureDnsServers();
-    await mongoose.connect(process.env.MONGODB_URI);
-    console.log('✅ Connected to MongoDB');
+    const uri = process.env.SEED_MONGODB_URI;
+    const { db } = assertLocalMongoUri(uri, {
+      envName: 'SEED_MONGODB_URI',
+      example: 'mongodb://127.0.0.1:27017/smartcity_dev',
+    });
+    await mongoose.connect(uri);
+    console.log(`✅ Kết nối MongoDB cục bộ, database "${db}"`);
 
     // Lấy users hiện có
     const users = await User.find({}).select('_id role');

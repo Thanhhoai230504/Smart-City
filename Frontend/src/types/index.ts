@@ -276,6 +276,17 @@ export interface ResolutionImage extends IssueImage {
   uploadedAt?: string;
 }
 
+/** Một lượt xử lý đã khép lại (đã xử lý / từ chối) rồi bị mở lại. */
+export interface PreviousRound {
+  closedStatus?: 'resolved' | 'rejected' | null;
+  closedAt?: string | null;
+  resolutionImages?: ResolutionImage[];
+  rating?: { score?: number | null; comment?: string | null; ratedAt?: string | null } | null;
+  reopenedAt?: string | null;
+  reopenedBy?: { _id: string; name?: string } | string | null;
+  reopenReason?: string | null;
+}
+
 export interface StatusHistoryEntry {
   status: IssueStatus;
   changedBy: { _id: string; name: string; email: string } | string;
@@ -302,8 +313,14 @@ export interface Issue {
   adminId: { _id: string; name: string; email?: string } | null;
   resolvedAt: string | null;
   statusHistory?: StatusHistoryEntry[];
+  /**
+   * API chi tiết chỉ trả id của CHÍNH người xem (nếu đã ủng hộ / theo dõi) — không
+   * còn danh sách của người khác. Dùng `hasVoted` / `isFollowing` cho rõ nghĩa.
+   */
   votes?: string[];
   followers?: string[];
+  hasVoted?: boolean;
+  isFollowing?: boolean;
   voteCount?: number;
   rating?: {
     score: number | null;
@@ -315,6 +332,12 @@ export interface Issue {
   images?: IssueImage[];
   /** Ảnh minh chứng đơn vị chụp sau khi xử lý xong */
   resolutionImages?: ResolutionImage[];
+  /**
+   * Các lượt xử lý đã khép lại rồi bị mở lại (chỉ có ở API chi tiết). Mỗi lần mở
+   * lại, ảnh minh chứng + đánh giá của lượt cũ được cất vào đây — xem
+   * Backend/src/utils/issueRounds.js.
+   */
+  previousRounds?: PreviousRound[];
 
   // ─── Phân công ───
   /** Đơn vị được phân công. null = chưa phân công */

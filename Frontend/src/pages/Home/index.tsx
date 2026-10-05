@@ -553,7 +553,9 @@ const HomePage: React.FC = () => {
                 <Button
                   variant="contained"
                   size="large"
-                  onClick={() => navigate(isAuthenticated ? '/report' : '/login')}
+                  // Khách cũng đi thẳng tới /report: ProtectedRoute chuyển sang đăng nhập kèm
+                  // `from`, đăng nhập xong quay lại đúng form báo cáo thay vì về trang chủ.
+                  onClick={() => navigate('/report')}
                   sx={{
                     position: 'relative', overflow: 'hidden',
                     px: 4, py: 1.8, borderRadius: 1, fontWeight: 700,

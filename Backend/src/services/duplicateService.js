@@ -43,44 +43,57 @@ const notifyMergedFollowers = async ({ source, target }) => {
   }
 };
 
+const OPEN_STATUSES = ['reported', 'processing'];
+const OPEN_ISSUE_FILTER = { isDeleted: false, mergedInto: null, status: { $in: OPEN_STATUSES } };
+
 /**
  * Người dân xác nhận một báo cáo gần đó chính là sự cố họ định gửi.
  * Thao tác idempotent: gọi lại không làm tăng vote hoặc follower lần nữa.
+ *
+ * Lượt ủng hộ + theo dõi được ghi bằng MỘT lệnh có điều kiện (`votes: {$ne}`)
+ * thay vì đọc → sửa mảng → save: hai request cùng lúc (bấm đúp) trước đây có thể
+ * cùng thêm một người vào `votes` và làm `voteCount` lệch với số người thật.
  */
 const confirmDuplicate = async (issueId, userId) => {
-  const issue = await Issue.findOne({
-    _id: issueId,
-    isDeleted: false,
-    mergedInto: null,
-    status: { $in: ['reported', 'processing'] },
-  });
-  if (!issue) {
+  const added = await Issue.findOneAndUpdate(
+    { _id: issueId, ...OPEN_ISSUE_FILTER, votes: { $ne: userId } },
+    { $addToSet: { votes: userId, followers: userId }, $inc: { voteCount: 1 } },
+    { new: true }
+  ).select('voteCount');
+
+  if (added) {
+    enqueuePriorityRecalculation(added._id);
+    recordDuplicateConfirmation();
+    return { issueId: added._id, voteCount: added.voteCount, alreadyConfirmed: false };
+  }
+
+  // Không ghi được lượt ủng hộ: hoặc người này đã ủng hộ từ trước (vẫn bảo đảm họ
+  // đang theo dõi), hoặc phiếu không còn mở.
+  const existing = await Issue.findOneAndUpdate(
+    { _id: issueId, ...OPEN_ISSUE_FILTER },
+    { $addToSet: { followers: userId } },
+    { new: true }
+  ).select('voteCount');
+  if (!existing) {
     throw ApiError.notFound('Sự cố không còn mở hoặc đã được gộp vào báo cáo khác');
   }
 
-  const alreadyConfirmed = (issue.votes || [])
-    .some((id) => getId(id).toString() === userId.toString());
-  if (!alreadyConfirmed) issue.votes.push(userId);
-
-  const alreadyFollowing = (issue.followers || [])
-    .some((id) => getId(id).toString() === userId.toString());
-  if (!alreadyFollowing) issue.followers.push(userId);
-
-  issue.voteCount = issue.votes.length;
-  await issue.save();
-  enqueuePriorityRecalculation(issue._id);
-  if (!alreadyConfirmed) recordDuplicateConfirmation();
-
-  return {
-    issueId: issue._id,
-    voteCount: issue.voteCount,
-    alreadyConfirmed,
-  };
+  return { issueId: existing._id, voteCount: existing.voteCount, alreadyConfirmed: true };
 };
 
 /**
  * Admin gộp `sourceIssueId` (bản trùng) vào `targetIssueId` (bản gốc).
  * Giữ nguyên bản trùng để audit, nhưng mọi danh sách nghiệp vụ lọc `mergedInto: null`.
+ *
+ * Cả hai phiếu phải đang mở: gộp một báo cáo mới vào phiếu ĐÃ ĐÓNG (đã xử lý /
+ * từ chối) thì báo cáo đó không bao giờ được xử lý — nếu sự cố tái diễn, phải
+ * xử lý như một phiếu riêng. Gộp một phiếu đã đóng thì xoá nó khỏi số liệu.
+ *
+ * Không dùng transaction (MongoDB chạy đơn lẻ trên máy dev không hỗ trợ) mà ghi
+ * theo hai bước CÓ ĐIỀU KIỆN + hoàn tác: (1) "nhận" phiếu phụ chỉ khi nó còn mở
+ * và chưa gộp; (2) cộng dồn vào phiếu gốc chỉ khi phiếu gốc còn mở và chưa gộp —
+ * hỏng bước (2) thì trả phiếu phụ về như cũ. Nhờ vậy hai admin gộp chéo A→B và
+ * B→A cùng lúc không thể tạo vòng (mỗi phiếu trỏ vào phiếu kia và cùng biến mất).
  */
 const mergeIssue = async (sourceIssueId, targetIssueId, actor) => {
   if (sourceIssueId.toString() === targetIssueId.toString()) {
@@ -100,35 +113,72 @@ const mergeIssue = async (sourceIssueId, targetIssueId, actor) => {
   if (target.mergedInto) {
     throw ApiError.badRequest('Sự cố đích cũng là bản trùng; hãy chọn sự cố gốc');
   }
+  if (!OPEN_STATUSES.includes(source.status)) {
+    throw ApiError.badRequestWithCode(
+      'Chỉ gộp được báo cáo đang mở. Báo cáo này đã được xử lý hoặc từ chối.',
+      'MERGE_SOURCE_CLOSED'
+    );
+  }
+  if (!OPEN_STATUSES.includes(target.status)) {
+    throw ApiError.badRequestWithCode(
+      'Sự cố gốc đã đóng (đã xử lý hoặc từ chối). Hãy xử lý báo cáo này như một sự cố riêng.',
+      'MERGE_TARGET_CLOSED'
+    );
+  }
 
-  target.votes = uniqueIds([
-    ...(target.votes || []),
-    ...(source.votes || []),
-  ]);
-  target.followers = uniqueIds([
+  const mergedAt = new Date();
+  const conflict = () => ApiError.conflictWithCode(
+    'Một trong hai phiếu vừa thay đổi (đã gộp, đã đóng hoặc đã xoá). Vui lòng tải lại rồi thử lại.',
+    'MERGE_CONFLICT'
+  );
+
+  // (1) Nhận phiếu phụ.
+  const claimedSource = await Issue.findOneAndUpdate(
+    { _id: source._id, ...OPEN_ISSUE_FILTER },
+    { $set: { mergedInto: target._id, mergedAt, mergedBy: actor.id } },
+    { new: true }
+  );
+  if (!claimedSource) throw conflict();
+
+  // (2) Dồn lượt ủng hộ + người theo dõi về phiếu gốc.
+  const newFollowers = uniqueIds([
     target.userId,
-    ...(target.followers || []),
-    source.userId,
-    ...(source.followers || []),
-    ...(source.votes || []),
+    claimedSource.userId,
+    ...(claimedSource.followers || []),
+    ...(claimedSource.votes || []),
   ]);
-  target.voteCount = target.votes.length;
-  target.duplicateCount = (target.duplicateCount || 0) + 1 + (source.duplicateCount || 0);
+  const updatedTarget = await Issue.findOneAndUpdate(
+    { _id: target._id, ...OPEN_ISSUE_FILTER },
+    {
+      $addToSet: {
+        votes: { $each: uniqueIds(claimedSource.votes || []) },
+        followers: { $each: newFollowers },
+      },
+      $inc: { duplicateCount: 1 + (claimedSource.duplicateCount || 0) },
+    },
+    { new: true }
+  );
+  if (!updatedTarget) {
+    await Issue.updateOne(
+      { _id: source._id, mergedInto: target._id },
+      { $set: { mergedInto: null, mergedAt: null, mergedBy: null } }
+    );
+    throw conflict();
+  }
 
-  source.mergedInto = target._id;
-  source.mergedAt = new Date();
-  source.mergedBy = actor.id;
+  // voteCount tính lại từ chính mảng votes trong cùng một lệnh (update pipeline)
+  // — $addToSet không cho biết đã thêm bao nhiêu người mới.
+  await Issue.updateOne({ _id: target._id }, [{ $set: { voteCount: { $size: '$votes' } } }]);
+  updatedTarget.voteCount = (updatedTarget.votes || []).length;
 
-  await target.save();
-  await source.save();
-  enqueuePriorityRecalculation(target._id);
-  enqueuePriorityRecalculation(source._id);
+  enqueuePriorityRecalculation(updatedTarget._id);
+  enqueuePriorityRecalculation(claimedSource._id);
   recordDuplicateMerge();
-  await notifyMergedFollowers({ source, target });
+  await notifyMergedFollowers({ source: claimedSource, target: updatedTarget });
 
   return {
-    sourceIssueId: source._id,
-    targetIssue: target,
+    sourceIssueId: claimedSource._id,
+    targetIssue: updatedTarget,
   };
 };
 

@@ -5,15 +5,16 @@ import { RootState, AppDispatch } from '../store/store';
 import { logoutThunk } from '../store/slices/authSlice';
 import {
   AppBar, Toolbar, Typography, Button, Box, IconButton, Drawer,
-  List, ListItem, ListItemButton, ListItemIcon, ListItemText,
+  List, ListItem, ListItemButton, ListItemIcon, ListItemText, ListSubheader,
   Avatar, Menu, MenuItem, Divider, useMediaQuery, useTheme,
   Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material';
 import {
   Menu as MenuIcon, Map as MapIcon, ReportProblem, Home, ListAlt,
   Login, PersonAdd, Person, Logout, Add, Dashboard,
-  BarChart as BarChartIcon, AssignmentInd, LocationOnOutlined, PeopleAltOutlined, Videocam,
+  BarChart as BarChartIcon, AssignmentInd, Videocam,
 } from '@mui/icons-material';
+import { ADMIN_WORKSPACE_ITEMS, STAFF_WORKSPACE_ITEMS, isWorkspaceItemActive } from './workspaceNav';
 
 const NotificationCenter = lazy(() => import('../components/NotificationCenter'));
 import { UserRole } from '../types';
@@ -50,6 +51,15 @@ const Header: React.FC = () => {
   const roleNavItems = user
     ? ROLE_NAV_ITEMS.filter((item) => item.roles.includes(user.role))
     : [];
+  // Ngăn kéo menu (< 900 px) là lối điều hướng DUY NHẤT trên điện thoại, nên phải có
+  // đủ các trang làm việc như thanh bên — trước đây quản trị viên chỉ thấy 3 trang lẻ
+  // (thiếu các tab của bảng điều hành), cán bộ chỉ thấy một mục "Cán bộ".
+  const publicPaths = new Set(NAV_ITEMS.map((item) => item.path));
+  const workspaceItems = user?.role === 'admin'
+    ? ADMIN_WORKSPACE_ITEMS
+    : user?.role === 'staff'
+      ? STAFF_WORKSPACE_ITEMS.filter((item) => !publicPaths.has(item.path))
+      : [];
 
   const handleLogout = async () => {
     setLogoutOpen(false);
@@ -183,7 +193,8 @@ const Header: React.FC = () => {
             </Box>
           ) : (
             <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
-              <Button component={RouterLink} to="/login" startIcon={<Login />} sx={{ color: 'text.secondary', whiteSpace: 'nowrap', minWidth: 'auto', px: { xs: 1, sm: 2 }, '& .MuiButton-startIcon': { mr: { xs: 0, sm: 1 } } }}>
+              {/* Mang theo trang đang xem: đăng nhập xong quay lại đúng chỗ (VD: đang đọc một sự cố). */}
+              <Button component={RouterLink} to="/login" state={{ from: location }} startIcon={<Login />} sx={{ color: 'text.secondary', whiteSpace: 'nowrap', minWidth: 'auto', px: { xs: 1, sm: 2 }, '& .MuiButton-startIcon': { mr: { xs: 0, sm: 1 } } }}>
                 <Box sx={{ display: { xs: 'none', sm: 'inline' } }}>Đăng nhập</Box>
               </Button>
               <Button component={RouterLink} to="/register" variant="contained" size="small" startIcon={<PersonAdd />} sx={{ whiteSpace: 'nowrap', minWidth: 'auto', px: { xs: 1, sm: 2 }, '& .MuiButton-startIcon': { mr: { xs: 0, sm: 1 } } }}>
@@ -221,37 +232,38 @@ const Header: React.FC = () => {
               </ListItemButton>
             </ListItem>
           )}
-          {roleNavItems.map((item) => (
-            <ListItem key={item.path} disablePadding>
-              <ListItemButton onClick={() => { setDrawerOpen(false); navigate(item.path); }}
-                selected={location.pathname === item.path}>
-                <ListItemIcon sx={{ color: location.pathname === item.path ? 'primary.main' : 'text.secondary' }}>{item.icon}</ListItemIcon>
-                <ListItemText primary={item.label} />
-              </ListItemButton>
-            </ListItem>
-          ))}
-          {user?.role === 'admin' && (
-            <>
-              {[
-                { label: 'Quản lý sự cố', path: '/admin/issues', icon: <ReportProblem /> },
-                { label: 'Người dùng & cán bộ', path: '/admin/users', icon: <PeopleAltOutlined /> },
-                { label: 'Quản lý địa điểm', path: '/admin/places', icon: <LocationOnOutlined /> },
-              ].map((item) => (
-                <ListItem key={item.path} disablePadding>
-                  <ListItemButton
-                    onClick={() => { setDrawerOpen(false); navigate(item.path); }}
-                    selected={location.pathname === item.path}
-                  >
-                    <ListItemIcon sx={{ color: location.pathname === item.path ? 'primary.main' : 'text.secondary' }}>
-                      {item.icon}
-                    </ListItemIcon>
-                    <ListItemText primary={item.label} />
-                  </ListItemButton>
-                </ListItem>
-              ))}
-            </>
-          )}
         </List>
+        {workspaceItems.length > 0 && (
+          <>
+            <Divider sx={{ borderColor: '#E4ECEE' }} />
+            <List
+              aria-label={user?.role === 'admin' ? 'Trang quản trị' : 'Trang cán bộ'}
+              subheader={(
+                <ListSubheader disableSticky sx={{ lineHeight: '36px', fontWeight: 700, color: 'text.secondary' }}>
+                  {user?.role === 'admin' ? 'Quản trị' : 'Cán bộ'}
+                </ListSubheader>
+              )}
+            >
+              {workspaceItems.map((item) => {
+                const selected = isWorkspaceItemActive(item, location.pathname, location.search);
+                const { Icon } = item;
+                return (
+                  <ListItem key={item.path} disablePadding>
+                    <ListItemButton
+                      onClick={() => { setDrawerOpen(false); navigate(item.path); }}
+                      selected={selected}
+                    >
+                      <ListItemIcon sx={{ color: selected ? 'primary.main' : 'text.secondary' }}>
+                        <Icon />
+                      </ListItemIcon>
+                      <ListItemText primary={item.label} />
+                    </ListItemButton>
+                  </ListItem>
+                );
+              })}
+            </List>
+          </>
+        )}
       </Drawer>
 
       {/* Logout confirmation dialog */}

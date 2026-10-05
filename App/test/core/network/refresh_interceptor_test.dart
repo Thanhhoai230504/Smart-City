@@ -1,10 +1,26 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:smart_city_app/core/network/api_client.dart';
 import 'package:smart_city_app/core/network/app_exception.dart';
 import 'package:smart_city_app/core/network/token_store.dart';
+import 'package:smart_city_app/data/repositories/issue_repository.dart';
 
 import '../../helpers/fake_http.dart';
+
+/// [needle] có nằm liền một khối trong [haystack] không.
+bool _containsBytes(List<int> haystack, List<int> needle) {
+  for (var i = 0; i + needle.length <= haystack.length; i++) {
+    var j = 0;
+    while (j < needle.length && haystack[i + j] == needle[j]) {
+      j++;
+    }
+    if (j == needle.length) return true;
+  }
+  return false;
+}
 
 /// Nghiệm thu task 0.4: "3 request 401 đồng thời → **chỉ 1** lần gọi refresh,
 /// cả 3 được retry". Refresh có rotation nên refresh song song = một lời gọi
@@ -181,5 +197,133 @@ void main() {
 
     await expectLater(dio.get<Object?>('/issues/work'), throwsA(isA<DioException>()));
     expect(adapter.countPath('/auth/refresh'), 0);
+  });
+
+  /// Hồi quy: thân multipart (FormData) chỉ gửi được một lần — trước đây lần gửi
+  /// lại sau refresh ném StateError ngay trên máy, bị map thành "Không có kết nối
+  /// mạng", phiếu báo cáo kẹt trong hàng đợi và cán bộ không tải được ảnh minh chứng.
+  group('ảnh (multipart) gặp 401 → refresh → gửi lại', () {
+    final photo = Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x7F]);
+    const payload = ReportPayload(
+      title: 'Ổ gà trước chợ Hàn',
+      description: 'Ổ gà sâu khoảng 20cm',
+      category: 'pothole',
+      location: 'Bạch Đằng, Hải Châu',
+      latitude: 16.07,
+      longitude: 108.22,
+    );
+
+    /// Server giả: token hợp lệ là `fresh-1`; tạo phiếu trả phiếu mới. Ghi lại
+    /// header `Authorization` của từng lần tạo phiếu ngay lúc gửi — lần gửi lại
+    /// dùng lại (và sửa tại chỗ) chính RequestOptions của lần đầu.
+    (FakeAdapter, List<Object?>) server() {
+      final auth = <Object?>[];
+      final adapter = FakeAdapter(
+        (o) {
+          if (o.path == '/auth/refresh') {
+            return const FakeResponse(
+              200,
+              {'success': true, 'data': {'accessToken': 'fresh-1', 'refreshToken': 'refresh-2'}},
+            );
+          }
+          if (o.path == '/issues') auth.add(o.headers['Authorization']);
+          if (o.headers['Authorization'] != 'Bearer fresh-1') {
+            return const FakeResponse(401, {'success': false, 'message': 'Token expired.', 'code': 'TOKEN_EXPIRED'});
+          }
+          return const FakeResponse(
+            201,
+            {'success': true, 'data': {'issue': {'_id': 'issue-moi', 'title': 'Ổ gà trước chợ Hàn', 'status': 'reported'}}},
+          );
+        },
+        captureBodies: true,
+      );
+      return (adapter, auth);
+    }
+
+    /// Chỉ số các lần gọi tới [path] trong `adapter.requests`.
+    List<int> callsTo(FakeAdapter adapter, String path) =>
+        [for (var i = 0; i < adapter.requests.length; i++) if (adapter.requests[i].path == path) i];
+
+    void expectPhotoDelivered(FakeAdapter adapter) {
+      final uploads = callsTo(adapter, '/issues');
+      expect(uploads, hasLength(2), reason: 'lần đầu 401, lần gửi lại phải tới được server');
+      final body = adapter.bodies[uploads.last];
+      expect(_containsBytes(body, photo), isTrue, reason: 'đủ byte ảnh trong lần gửi lại');
+      final text = utf8.decode(body, allowMalformed: true);
+      expect(text, contains('name="images"; filename="photo.jpg"'));
+      expect(text, contains('Ổ gà trước chợ Hàn'), reason: 'các trường của phiếu đi cùng');
+      expect(adapter.countPath('/auth/refresh'), 1);
+      expect(sessionExpired, 0);
+    }
+
+    test('access token hết hạn (sau 15 phút) → tạo phiếu thành công, server nhận lại đủ ảnh', () async {
+      final (adapter, auth) = server();
+
+      final issue = await IssueRepository(build(adapter).dio).create(payload, [UploadImage(photo)]);
+
+      expect(issue.id, 'issue-moi');
+      expect(auth, ['Bearer expired-access', 'Bearer fresh-1']);
+      expectPhotoDelivered(adapter);
+    });
+
+    test('mở app: access token chưa có trong RAM → refresh rồi gửi lại, không báo "mất mạng"', () async {
+      tokens.accessToken = null;
+      final (adapter, auth) = server();
+
+      final issue = await IssueRepository(build(adapter).dio).create(payload, [UploadImage(photo)]);
+
+      expect(issue.id, 'issue-moi');
+      expect(auth, [null, 'Bearer fresh-1']);
+      expectPhotoDelivered(adapter);
+    });
+
+    test('ảnh minh chứng của cán bộ đi cùng đường → cũng gửi lại được', () async {
+      final adapter = FakeAdapter(
+        (o) => switch (o.path) {
+          '/auth/refresh' => const FakeResponse(
+              200,
+              {'success': true, 'data': {'accessToken': 'fresh-1', 'refreshToken': 'refresh-2'}},
+            ),
+          _ when o.headers['Authorization'] != 'Bearer fresh-1' =>
+            const FakeResponse(401, {'success': false, 'code': 'TOKEN_EXPIRED'}),
+          _ => const FakeResponse(200, {
+              'success': true,
+              'data': {
+                'resolutionImages': [
+                  {'url': 'https://res.cloudinary.com/demo/after.jpg', 'publicId': 'after'},
+                ],
+              },
+            }),
+        },
+        captureBodies: true,
+      );
+
+      final images = await IssueRepository(build(adapter).dio)
+          .uploadResolutionImages('issue-1', [UploadImage(photo, filename: 'photo_1.jpg')]);
+
+      expect(images.single.url, 'https://res.cloudinary.com/demo/after.jpg');
+      final uploads = callsTo(adapter, '/issues/issue-1/resolution-images');
+      expect(uploads, hasLength(2));
+      expect(_containsBytes(adapter.bodies[uploads.last], photo), isTrue);
+    });
+
+    test('đối chứng: request JSON vẫn gửi lại đúng thân sau refresh', () async {
+      final adapter = FakeAdapter(
+        (o) => o.path == '/auth/refresh'
+            ? const FakeResponse(200, {'success': true, 'data': {'accessToken': 'fresh-1', 'refreshToken': 'refresh-2'}})
+            : o.headers['Authorization'] != 'Bearer fresh-1'
+                ? const FakeResponse(401, {'success': false, 'code': 'TOKEN_EXPIRED'})
+                : const FakeResponse(200, {'success': true, 'data': {'issue': {'_id': 'x', 'title': 'Tiêu đề mới'}}}),
+        captureBodies: true,
+      );
+
+      final issue = await IssueRepository(build(adapter).dio)
+          .updateMine('x', title: 'Tiêu đề mới', description: 'Mô tả mới');
+
+      expect(issue.title, 'Tiêu đề mới');
+      final puts = callsTo(adapter, '/issues/x/my');
+      expect(puts, hasLength(2));
+      expect(jsonDecode(utf8.decode(adapter.bodies[puts.last])), {'title': 'Tiêu đề mới', 'description': 'Mô tả mới'});
+    });
   });
 }

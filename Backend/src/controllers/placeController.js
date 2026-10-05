@@ -21,7 +21,7 @@ const getPlaceById = async (req, res, next) => {
 const createPlace = async (req, res, next) => {
   try {
     const place = await placeService.createPlace(req.body);
-    res.status(201).json({ success: true, message: 'Place created successfully.', data: { place } });
+    res.status(201).json({ success: true, message: 'Đã thêm địa điểm.', data: { place } });
   } catch (error) {
     next(error);
   }
@@ -30,7 +30,7 @@ const createPlace = async (req, res, next) => {
 const updatePlace = async (req, res, next) => {
   try {
     const place = await placeService.updatePlace(req.params.id, req.body);
-    res.json({ success: true, message: 'Place updated successfully.', data: { place } });
+    res.json({ success: true, message: 'Đã cập nhật địa điểm.', data: { place } });
   } catch (error) {
     next(error);
   }
@@ -39,7 +39,7 @@ const updatePlace = async (req, res, next) => {
 const deletePlace = async (req, res, next) => {
   try {
     await placeService.deletePlace(req.params.id);
-    res.json({ success: true, message: 'Place deleted successfully.' });
+    res.json({ success: true, message: 'Đã xoá địa điểm.' });
   } catch (error) {
     next(error);
   }

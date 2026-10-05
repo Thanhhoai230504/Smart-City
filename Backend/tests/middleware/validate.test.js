@@ -39,8 +39,8 @@ describe('Validate Middleware', () => {
     validationResult.mockReturnValue({
       isEmpty: () => false,
       array: () => [
-        { path: 'email', msg: 'Email is required' },
-        { path: 'password', msg: 'Password must be at least 6 characters' },
+        { path: 'email', msg: 'Vui lòng nhập email' },
+        { path: 'password', msg: 'Mật khẩu phải có từ 8 đến 128 ký tự' },
       ],
     });
 
@@ -52,10 +52,13 @@ describe('Validate Middleware', () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
       success: false,
-      message: 'Validation failed',
+      // Câu tiếng Việt của lỗi đầu tiên — không còn chuỗi cố định "Validation
+      // failed" mà client chỉ đọc `message` sẽ hiện nguyên cho người dùng.
+      message: 'Vui lòng nhập email',
+      code: 'VALIDATION_ERROR',
       errors: [
-        { field: 'email', message: 'Email is required' },
-        { field: 'password', message: 'Password must be at least 6 characters' },
+        { field: 'email', message: 'Vui lòng nhập email' },
+        { field: 'password', message: 'Mật khẩu phải có từ 8 đến 128 ký tự' },
       ],
     });
     expect(mockNext).not.toHaveBeenCalled();

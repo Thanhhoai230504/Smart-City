@@ -2,7 +2,7 @@ const rateLimit = require('express-rate-limit');
 
 const tooManyRequests = {
   success: false,
-  message: 'Too many requests, please try again later.'
+  message: 'Bạn thao tác quá nhanh. Vui lòng thử lại sau ít phút.'
 };
 
 /**

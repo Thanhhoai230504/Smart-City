@@ -72,7 +72,7 @@ const registerUser = async ({ name, email, password }) => {
   const normalizedEmail = email.trim().toLowerCase();
   const existingUser = await User.findOne({ email: normalizedEmail });
   if (existingUser) {
-    throw ApiError.badRequest('Email already registered.');
+    throw ApiError.badRequest('Email này đã được đăng ký.');
   }
 
   const strength = checkPasswordStrength(password);
@@ -111,11 +111,11 @@ const loginUser = async ({ email, password, deviceType, deviceName }) => {
   const user = await User.findOne({ email: email.trim().toLowerCase() })
     .select('+password +failedLoginAttempts +lockUntil');
   if (!user) {
-    throw ApiError.unauthorized('Invalid email or password.');
+    throw ApiError.unauthorized('Email hoặc mật khẩu không đúng.');
   }
 
   if (!user.isActive) {
-    throw ApiError.forbidden('Account has been deactivated.');
+    throw ApiError.forbidden('Tài khoản đã bị khoá.');
   }
 
   // Khoá theo TÀI KHOẢN, bổ sung cho rate limiter theo IP. Limiter dùng
@@ -143,7 +143,7 @@ const loginUser = async ({ email, password, deviceType, deviceName }) => {
       throw error;
     }
     // Không tiết lộ còn bao nhiêu lần thử — thông tin đó giúp kẻ dò căn nhịp.
-    throw ApiError.unauthorized('Invalid email or password.');
+    throw ApiError.unauthorized('Email hoặc mật khẩu không đúng.');
   }
 
   // Đăng nhập đúng thì xoá bộ đếm; chuỗi sai phải LIÊN TIẾP mới dẫn tới khoá.
@@ -189,7 +189,7 @@ const loginUser = async ({ email, password, deviceType, deviceName }) => {
  */
 const refreshAccessToken = async (refreshToken) => {
   if (!refreshToken) {
-    throw ApiError.unauthorized('No refresh token provided.');
+    throw ApiError.unauthorized('Không có phiên đăng nhập để làm mới.');
   }
 
   const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
@@ -198,12 +198,12 @@ const refreshAccessToken = async (refreshToken) => {
   // thu hồi (đổi mật khẩu, đăng xuất) sẽ không tìm thấy phiên nào.
   const session = await sessionService.findActiveSession(refreshToken);
   if (!session || session.userId.toString() !== decoded.id.toString()) {
-    throw ApiError.unauthorized('Invalid refresh token.');
+    throw ApiError.unauthorized('Phiên đăng nhập không hợp lệ hoặc đã hết hạn.');
   }
 
   const user = await User.findById(decoded.id);
   if (!user || !user.isActive) {
-    throw ApiError.unauthorized('Invalid refresh token.');
+    throw ApiError.unauthorized('Phiên đăng nhập không hợp lệ hoặc đã hết hạn.');
   }
   if (user.provider === 'local' && user.isVerified === false) {
     throw ApiError.unauthorized('Email chưa được xác thực.');
@@ -393,7 +393,7 @@ const PROFILE_DEPARTMENT_FIELDS = 'name code';
 const getProfile = async (userId) => {
   const user = await User.findById(userId).populate('departmentId', PROFILE_DEPARTMENT_FIELDS);
   if (!user) {
-    throw ApiError.notFound('User not found.');
+    throw ApiError.notFound('Không tìm thấy người dùng.');
   }
   return user;
 };
@@ -404,25 +404,25 @@ const updateProfile = async (userId, { name, watchedDistricts }) => {
 
   if (watchedDistricts !== undefined) {
     if (!Array.isArray(watchedDistricts)) {
-      throw ApiError.badRequest('watchedDistricts must be an array');
+      throw ApiError.badRequest('Danh sách khu vực theo dõi không hợp lệ.');
     }
     const valid = watchedDistricts.filter(d => DA_NANG_DISTRICTS.includes(d));
     updateData.watchedDistricts = valid;
   }
 
   if (Object.keys(updateData).length === 0) {
-    throw ApiError.badRequest('Nothing to update');
+    throw ApiError.badRequest('Không có thông tin nào để cập nhật.');
   }
 
   const user = await User.findByIdAndUpdate(userId, updateData, { new: true, runValidators: true })
     .populate('departmentId', PROFILE_DEPARTMENT_FIELDS);
-  if (!user) throw ApiError.notFound('User not found');
+  if (!user) throw ApiError.notFound('Không tìm thấy người dùng.');
   return user;
 };
 
 const changePassword = async (userId, { currentPassword, newPassword }) => {
   if (!currentPassword || !newPassword) {
-    throw ApiError.badRequest('Current password and new password are required');
+    throw ApiError.badRequest('Vui lòng nhập mật khẩu hiện tại và mật khẩu mới.');
   }
   const strength = checkPasswordStrength(newPassword);
   if (!strength.ok) {
@@ -430,10 +430,10 @@ const changePassword = async (userId, { currentPassword, newPassword }) => {
   }
 
   const user = await User.findById(userId).select('+password');
-  if (!user) throw ApiError.notFound('User not found');
+  if (!user) throw ApiError.notFound('Không tìm thấy người dùng.');
 
   const isMatch = await user.comparePassword(currentPassword);
-  if (!isMatch) throw ApiError.badRequest('Current password is incorrect');
+  if (!isMatch) throw ApiError.badRequest('Mật khẩu hiện tại không đúng.');
 
   user.password = newPassword;
   await user.save();

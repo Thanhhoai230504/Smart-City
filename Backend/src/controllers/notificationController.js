@@ -30,7 +30,7 @@ const markAsRead = async (req, res, next) => {
 const markAllAsRead = async (req, res, next) => {
   try {
     await notificationService.markAllAsRead(req.user.id);
-    res.json({ success: true, message: 'All notifications marked as read' });
+    res.json({ success: true, message: 'Đã đánh dấu tất cả thông báo là đã đọc.' });
   } catch (error) {
     next(error);
   }

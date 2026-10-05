@@ -13,6 +13,7 @@ const { parsePagination } = require('../utils/pagination');
 const { enqueuePriorityRecalculation } = require('./priorityService');
 const { enqueueIssueEmbedding, markIssueEmbeddingPending } = require('./embeddingService');
 const { canTransition } = require('../utils/issueStatusConfig');
+const { CLOSED_STATUSES, buildRoundArchive, resetRoundFields } = require('../utils/issueRounds');
 
 // Chỉ lấy các field thực sự dùng trên card/danh sách. Các mảng lớn như
 // statusHistory, votes, followers, images và resolutionImages chỉ tải ở trang
@@ -40,9 +41,70 @@ const ALLOWED_CATEGORIES = new Set(['pothole', 'garbage', 'streetlight', 'floodi
 
 // Thông tin liên hệ (số điện thoại người báo cáo, email người dùng) chỉ dành cho
 // người có trách nhiệm xử lý. Khách và người dân thường chỉ thấy tên.
+// Dùng cho DANH SÁCH: ở đó cán bộ đã bị bó vào đơn vị mình (xem getIssues), nên
+// email trả về chỉ thuộc phiếu của đơn vị họ.
 const canSeeContactInfo = (requester) => (
   requester?.role === 'admin' || requester?.role === 'staff'
 );
+
+// Dùng cho MỘT phiếu: admin, hoặc cán bộ thuộc đúng đơn vị đang được giao phiếu.
+// Trước đây mọi cán bộ đều thấy — cán bộ đơn vị A đọc được SĐT/email người dân
+// trên phiếu của đơn vị B (và của phiếu chưa giao cho ai), trái với nguyên tắc
+// "cán bộ chỉ thấy việc của đơn vị mình".
+const canSeeIssueContact = (requester, issueDepartmentId) => {
+  if (requester?.role === 'admin') return true;
+  if (requester?.role !== 'staff' || !requester.departmentId || !issueDepartmentId) return false;
+  return String(requester.departmentId) === String(issueDepartmentId._id || issueDepartmentId);
+};
+
+// Field nội bộ (mốc nhắc hạn của cron, dấu vết xoá mềm) — chỉ người xử lý cần.
+const INTERNAL_DETAIL_FIELDS = ['intakeReminderAt', 'lastReminderAt', 'deletedAt', 'deletedBy', 'isDeleted', '__v'];
+
+/**
+ * Bản chi tiết trả ra API. Route chi tiết là CÔNG KHAI, nên:
+ * - `votes` / `followers` trước đây là danh sách id của MỌI người đã ủng hộ /
+ *   theo dõi — ai mở trang cũng gom được. Giờ chỉ còn id của CHÍNH người gọi
+ *   (nếu có): web và app vẫn tính "mình đã ủng hộ chưa" bằng `votes.includes(myId)`
+ *   như cũ, không phải đổi client; thêm `hasVoted` / `isFollowing` cho rõ nghĩa.
+ * - metadata embedding (`sourceHash`, `lastError`… — thông tin vận hành, không
+ *   phải nội dung) không ra khỏi server.
+ * - mốc nhắc hạn / xoá mềm chỉ trả cho admin và cán bộ.
+ */
+const toIssueDetail = (issue, requester) => {
+  const json = typeof issue.toJSON === 'function' ? issue.toJSON() : { ...issue };
+  const me = requester?.id ? String(requester.id) : null;
+  const includesMe = (list) => !!me && (list || []).some((value) => String(value?._id || value) === me);
+  const hasVoted = includesMe(issue.votes);
+  const isFollowing = includesMe(issue.followers);
+
+  json.votes = hasVoted ? [me] : [];
+  json.followers = isFollowing ? [me] : [];
+  json.hasVoted = hasVoted;
+  json.isFollowing = isFollowing;
+  delete json.embedding;
+  if (requester?.role !== 'admin' && requester?.role !== 'staff') {
+    INTERNAL_DETAIL_FIELDS.forEach((field) => { delete json[field]; });
+  }
+  return json;
+};
+
+/**
+ * Bản tóm tắt sự cố gửi qua Socket.IO cho người báo cáo và người theo dõi.
+ *
+ * Trước đây server đẩy NGUYÊN document — kèm `phone` người báo cáo và email của
+ * người báo cáo lẫn cán bộ — tới mọi người theo dõi, mà ai đăng nhập cũng tự thêm
+ * mình làm người theo dõi được (xác nhận "đây là cùng một sự cố"). Web và app chỉ
+ * dùng id trong sự kiện này để tải lại chi tiết qua API (API áp đúng quyền xem),
+ * nên chỉ cần vài field nhận diện.
+ */
+const toRealtimeIssueSummary = (issue) => ({
+  _id: issue._id,
+  title: issue.title,
+  status: issue.status,
+  category: issue.category,
+  resolvedAt: issue.resolvedAt || null,
+  updatedAt: issue.updatedAt || null,
+});
 
 const ALLOWED_SORTS = new Set([
   '-createdAt',
@@ -239,7 +301,16 @@ const getIssues = async ({
 // admin/cán bộ mới cần thông tin liên hệ để xử lý sự cố.
 // `requester` mặc định null để mọi caller quên truyền vẫn rơi vào nhánh an toàn.
 const getIssueById = async (id, requester = null) => {
-  const canSeeContact = canSeeContactInfo(requester);
+  let canSeeContact = requester?.role === 'admin';
+  if (requester?.role === 'staff') {
+    // Phải biết phiếu thuộc đơn vị nào TRƯỚC khi quyết định populate gì, để dữ
+    // liệu liên hệ không rời khỏi DB khi cán bộ không có quyền (truy vấn nhẹ theo _id).
+    const scope = await Issue.findOne({ _id: id, isDeleted: false }).select('departmentId').lean();
+    if (!scope) {
+      throw ApiError.notFound('Không tìm thấy sự cố.');
+    }
+    canSeeContact = canSeeIssueContact(requester, scope.departmentId);
+  }
   const userFields = canSeeContact ? 'name email' : 'name';
 
   const query = Issue.findOne({ _id: id, isDeleted: false })
@@ -254,7 +325,8 @@ const getIssueById = async (id, requester = null) => {
     // Timeline "ai làm gì": changedBy được ghi đầy đủ lúc tạo/đổi trạng thái/phân
     // công/thu hồi nhưng trước đây không populate, nên client nhận ObjectId thô.
     // Dùng đúng biến userFields — route chi tiết là công khai nên khách chỉ thấy tên.
-    .populate('statusHistory.changedBy', userFields);
+    .populate('statusHistory.changedBy', userFields)
+    .populate('previousRounds.reopenedBy', userFields);
 
   // Loại `phone` ngay ở tầng truy vấn thay vì xoá sau khi đọc, để dữ liệu cá
   // nhân không rời khỏi DB khi người gọi không có quyền thấy nó.
@@ -263,9 +335,9 @@ const getIssueById = async (id, requester = null) => {
   const issue = await query;
 
   if (!issue) {
-    throw ApiError.notFound('Issue not found.');
+    throw ApiError.notFound('Không tìm thấy sự cố.');
   }
-  return issue;
+  return toIssueDetail(issue, requester);
 };
 
 const createIssue = async ({
@@ -331,7 +403,7 @@ const createIssue = async ({
       }
 
       io.to('admins').emit('issue:created', {
-        message: `New issue reported: ${issue.title}`,
+        message: `Sự cố mới: ${issue.title}`,
         issue
       });
 
@@ -381,15 +453,16 @@ const updateIssueStatus = async (issueId, { status, note, adminUser }) => {
   const validStatuses = ['reported', 'processing', 'resolved', 'rejected'];
 
   if (!status || !validStatuses.includes(status)) {
-    throw ApiError.badRequest(`Status must be one of: ${validStatuses.join(', ')}`);
+    throw ApiError.badRequest('Trạng thái không hợp lệ.');
   }
 
   // Route này mở cho cả cán bộ, nên phải kiểm tra phạm vi đơn vị trước khi ghi:
   // cán bộ đơn vị A không được đổi trạng thái sự cố của đơn vị B.
+  // resolvedAt/rating/statusHistory: cần khi mở lại phiếu đã đóng (lưu lượt cũ).
   const current = await Issue.findOne({ _id: issueId, isDeleted: false })
-    .select('departmentId status resolutionImages mergedInto');
+    .select('departmentId status resolutionImages mergedInto resolvedAt rating statusHistory');
   if (!current) {
-    throw ApiError.notFound('Issue not found.');
+    throw ApiError.notFound('Không tìm thấy sự cố.');
   }
   if (current.mergedInto) {
     throw ApiError.badRequestWithCode(
@@ -430,29 +503,52 @@ const updateIssueStatus = async (issueId, { status, note, adminUser }) => {
     );
   }
 
+  const now = new Date();
   const updateData = {
-    status,
-    adminId: adminUser.id,
+    $set: { status, adminId: adminUser.id },
     $push: {
       statusHistory: {
         status,
         changedBy: adminUser.id,
-        changedAt: new Date(),
+        changedAt: now,
         note: note || ''
       }
     }
   };
 
   if (status === 'resolved') {
-    updateData.resolvedAt = new Date();
+    updateData.$set.resolvedAt = now;
   }
 
-  const issue = await Issue.findByIdAndUpdate(issueId, updateData, { new: true, runValidators: true })
+  // Phiếu đã đóng được chuyển lại "Đang xử lý" = bắt đầu lượt mới: cất ảnh minh
+  // chứng + đánh giá của lượt cũ (utils/issueRounds.js), nên đơn vị phải chụp
+  // minh chứng mới trước khi báo xong lần nữa và người dân được đánh giá lại.
+  if (CLOSED_STATUSES.includes(current.status) && status === 'processing') {
+    updateData.$push.previousRounds = buildRoundArchive(current, {
+      reopenedAt: now,
+      reopenedBy: adminUser.id,
+      reason: note,
+    });
+    Object.assign(updateData.$set, resetRoundFields());
+  }
+
+  // Ghi CÓ ĐIỀU KIỆN: phiếu phải còn đúng trạng thái vừa kiểm tra ở trên. Trước
+  // đây ghi theo mỗi _id — hai cán bộ bấm cùng lúc ("Đã xử lý" và "Từ chối"), hoặc
+  // một người bấm đúp, đều qua bước kiểm tra luật rồi cùng ghi: lịch sử ra
+  // "Đã xử lý → Từ chối" (luật cấm), resolvedAt bị ghi đè, người dân nhận 2 email.
+  const guard = { _id: issueId, isDeleted: false, mergedInto: null, status: current.status };
+  // Ảnh minh chứng cũng phải còn đúng lúc ghi — một lượt mở lại chen vào giữa sẽ xoá chúng.
+  if (status === 'resolved') guard['resolutionImages.0'] = { $exists: true };
+
+  const issue = await Issue.findOneAndUpdate(guard, updateData, { new: true, runValidators: true })
     .populate('userId', 'name email')
     .populate('adminId', 'name email');
 
   if (!issue) {
-    throw ApiError.notFound('Issue not found.');
+    throw ApiError.conflictWithCode(
+      'Sự cố vừa được người khác cập nhật. Vui lòng tải lại để xem trạng thái mới nhất.',
+      'STATUS_CONFLICT'
+    );
   }
 
   enqueuePriorityRecalculation(issue._id);
@@ -479,10 +575,13 @@ const updateIssueStatus = async (issueId, { status, note, adminUser }) => {
         issueId: issue._id
       });
       io.to(`user_${recipientId}`).emit('notification:new', notification);
-      io.to(`user_${recipientId}`).emit('issue:updated', { message: notification.message, issue });
+      // Người nhận là người báo cáo + người theo dõi (ai cũng có thể là người theo
+      // dõi) — chỉ gửi bản tóm tắt, không gửi SĐT/email.
+      const summary = toRealtimeIssueSummary(issue);
+      io.to(`user_${recipientId}`).emit('issue:updated', { message: notification.message, issue: summary });
 
       if (status === 'resolved') {
-        io.to(`user_${recipientId}`).emit('issue:resolved', { message: notification.message, issue });
+        io.to(`user_${recipientId}`).emit('issue:resolved', { message: notification.message, issue: summary });
       }
     }
   } catch (socketError) {
@@ -539,12 +638,14 @@ const destroyIssueImage = async (publicId) => {
 
 /**
  * Gom public_id của mọi ảnh thuộc một sự cố (ảnh đơn cũ, images[], ảnh minh
- * chứng) rồi dedupe — `imagePublicId` luôn trùng phần tử đầu của `images[]`.
+ * chứng của lượt hiện tại và các lượt đã lưu) rồi dedupe — `imagePublicId` luôn
+ * trùng phần tử đầu của `images[]`.
  */
 const collectPublicIds = (issue) => new Set([
   issue.imagePublicId,
   ...(issue.images || []).map((img) => img.publicId),
-  ...(issue.resolutionImages || []).map((img) => img.publicId)
+  ...(issue.resolutionImages || []).map((img) => img.publicId),
+  ...(issue.previousRounds || []).flatMap((round) => (round.resolutionImages || []).map((img) => img.publicId))
 ].filter(Boolean));
 
 /**
@@ -564,7 +665,7 @@ const addResolutionImages = async (issueId, files, user) => {
   try {
     const issue = await Issue.findOne({ _id: issueId, isDeleted: false })
       .select('departmentId status resolutionImages mergedInto');
-    if (!issue) throw ApiError.notFound('Issue not found.');
+    if (!issue) throw ApiError.notFound('Không tìm thấy sự cố.');
     if (issue.mergedInto) {
       throw ApiError.badRequestWithCode(
         'Báo cáo này đã được gộp; hãy tải ảnh lên sự cố gốc',
@@ -574,18 +675,47 @@ const addResolutionImages = async (issueId, files, user) => {
 
     assertCanHandleIssue(issue, user);
 
-    if (issue.resolutionImages.length + uploaded.length > Issue.MAX_ISSUE_IMAGES) {
-      throw ApiError.badRequest(
-        `Chỉ được tối đa ${Issue.MAX_ISSUE_IMAGES} ảnh minh chứng (hiện có ${issue.resolutionImages.length}).`
+    // Phiếu đã đóng thì bộ minh chứng của lượt đó đã được người dân xem và chấm
+    // điểm — thêm ảnh lúc này là sửa căn cứ sau khi đã đánh giá. Cần xử lý tiếp
+    // thì mở lại phiếu (lượt mới, xem utils/issueRounds.js).
+    if (CLOSED_STATUSES.includes(issue.status)) {
+      throw ApiError.badRequestWithCode(
+        'Sự cố đã đóng, không thể thêm ảnh minh chứng. Hãy mở lại sự cố nếu cần xử lý tiếp.',
+        'ISSUE_CLOSED'
       );
     }
 
-    issue.resolutionImages.push(
-      ...uploaded.map((img) => ({ ...img, uploadedBy: user.id, uploadedAt: new Date() }))
+    const tooMany = () => ApiError.badRequest(
+      `Chỉ được tối đa ${Issue.MAX_ISSUE_IMAGES} ảnh minh chứng (hiện có ${issue.resolutionImages.length}).`
     );
-    await issue.save();
+    if (issue.resolutionImages.length + uploaded.length > Issue.MAX_ISSUE_IMAGES) throw tooMany();
 
-    return issue.resolutionImages;
+    // Ghi CÓ ĐIỀU KIỆN: phần tử thứ (MAX − n) chưa tồn tại ⇔ mảng hiện có tối đa
+    // MAX − n ảnh — kiểm tra số lượng và thêm ảnh trong cùng một lệnh. Trước đây
+    // đọc → kiểm tra → save: hai lần tải song song cùng qua kiểm tra và đẩy mảng
+    // vượt 5 ảnh. Phiếu cũng phải còn mở đúng lúc ghi.
+    const lastAllowedIndex = Issue.MAX_ISSUE_IMAGES - uploaded.length;
+    const updated = await Issue.findOneAndUpdate(
+      {
+        _id: issueId,
+        isDeleted: false,
+        mergedInto: null,
+        status: { $nin: CLOSED_STATUSES },
+        [`resolutionImages.${lastAllowedIndex}`]: { $exists: false },
+      },
+      {
+        $push: {
+          resolutionImages: {
+            $each: uploaded.map((img) => ({ ...img, uploadedBy: user.id, uploadedAt: new Date() })),
+          },
+        },
+      },
+      { new: true, runValidators: true }
+    ).select('resolutionImages');
+
+    if (!updated) throw tooMany();
+
+    return updated.resolutionImages;
   } catch (error) {
     for (const img of uploaded) {
       await destroyIssueImage(img.publicId);
@@ -609,13 +739,14 @@ const deleteIssue = async (id, adminUser = null) => {
       imageUrl: null,
       imagePublicId: null,
       images: [],
-      resolutionImages: []
+      resolutionImages: [],
+      previousRounds: []
     },
     { new: false }
   );
 
   if (!issue) {
-    throw ApiError.notFound('Issue not found.');
+    throw ApiError.notFound('Không tìm thấy sự cố.');
   }
 
   for (const publicId of collectPublicIds(issue)) {
@@ -637,7 +768,9 @@ const getMyIssues = async ({ userId, status, page = 1, limit = 10 }) => {
   const [issues, total] = await Promise.all([
     Issue.find(filter)
       .select(ISSUE_LIST_FIELDS)
-      .populate('adminId', 'name email')
+      // Người dân chỉ cần biết tên người đã cập nhật phiếu của mình, không cần
+      // (và không nên có) email của cán bộ/quản trị viên.
+      .populate('adminId', 'name')
       .sort('-createdAt')
       .skip(skip)
       .limit(limitNum),
@@ -687,13 +820,13 @@ const getMyIssueSummary = async (userId) => {
 };
 const deleteMyIssue = async (issueId, userId) => {
   const issue = await Issue.findOne({ _id: issueId, isDeleted: false });
-  if (!issue) throw ApiError.notFound('Issue not found.');
+  if (!issue) throw ApiError.notFound('Không tìm thấy sự cố.');
 
   if (issue.userId.toString() !== userId.toString()) {
-    throw ApiError.forbidden('You can only delete your own issues.');
+    throw ApiError.forbidden('Bạn chỉ được xoá sự cố do chính mình báo cáo.');
   }
   if (issue.status !== 'reported') {
-    throw ApiError.badRequest('Only issues with status "reported" can be deleted.');
+    throw ApiError.badRequest('Chỉ xoá được sự cố còn ở trạng thái "Mới báo cáo".');
   }
 
   const publicIds = collectPublicIds(issue);
@@ -704,6 +837,7 @@ const deleteMyIssue = async (issueId, userId) => {
   issue.imagePublicId = null;
   issue.images = [];
   issue.resolutionImages = [];
+  issue.previousRounds = [];
   await issue.save();
 
   for (const publicId of publicIds) {
@@ -715,13 +849,13 @@ const deleteMyIssue = async (issueId, userId) => {
 
 const updateMyIssue = async (issueId, userId, { title, description }) => {
   const issue = await Issue.findOne({ _id: issueId, isDeleted: false });
-  if (!issue) throw ApiError.notFound('Issue not found.');
+  if (!issue) throw ApiError.notFound('Không tìm thấy sự cố.');
 
   if (issue.userId.toString() !== userId.toString()) {
-    throw ApiError.forbidden('You can only edit your own issues.');
+    throw ApiError.forbidden('Bạn chỉ được sửa sự cố do chính mình báo cáo.');
   }
   if (issue.status !== 'reported') {
-    throw ApiError.badRequest('Only issues with status "reported" can be edited.');
+    throw ApiError.badRequest('Chỉ sửa được sự cố còn ở trạng thái "Mới báo cáo".');
   }
 
   if (title) issue.title = title.trim();
@@ -804,5 +938,7 @@ module.exports = {
   deleteMyIssue,
   updateMyIssue,
   getNearbyIssues,
-  addResolutionImages
+  addResolutionImages,
+  canSeeIssueContact,
+  toRealtimeIssueSummary,
 };

@@ -3,17 +3,17 @@ const { body } = require('express-validator');
 const createPlaceValidator = [
   body('name')
     .trim()
-    .notEmpty().withMessage('Place name is required'),
+    .notEmpty().withMessage('Vui lòng nhập tên địa điểm'),
   body('type')
-    .notEmpty().withMessage('Place type is required')
+    .notEmpty().withMessage('Vui lòng chọn loại địa điểm')
     .isIn(['hospital', 'school', 'bus_stop', 'park', 'police'])
-    .withMessage('Invalid place type'),
+    .withMessage('Loại địa điểm không hợp lệ'),
   body('latitude')
-    .notEmpty().withMessage('Latitude is required')
-    .isFloat({ min: -90, max: 90 }).withMessage('Invalid latitude'),
+    .notEmpty().withMessage('Thiếu vĩ độ của vị trí')
+    .isFloat({ min: -90, max: 90 }).withMessage('Vĩ độ không hợp lệ'),
   body('longitude')
-    .notEmpty().withMessage('Longitude is required')
-    .isFloat({ min: -180, max: 180 }).withMessage('Invalid longitude')
+    .notEmpty().withMessage('Thiếu kinh độ của vị trí')
+    .isFloat({ min: -180, max: 180 }).withMessage('Kinh độ không hợp lệ')
 ];
 
 module.exports = { createPlaceValidator };

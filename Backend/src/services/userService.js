@@ -65,27 +65,27 @@ const getUsers = async ({
 
 const updateUserRole = async (targetId, role, currentUserId) => {
   if (!['user', 'admin'].includes(role)) {
-    throw ApiError.badRequest('Role must be user or admin');
+    throw ApiError.badRequest('Vai trò chỉ được là "Người dùng" hoặc "Quản trị viên".');
   }
 
   // So sánh qua String(): targetId là chuỗi từ req.params, currentUserId là ObjectId.
   if (String(targetId) === String(currentUserId)) {
-    throw ApiError.badRequest('Cannot change your own role');
+    throw ApiError.badRequest('Không thể tự đổi vai trò của chính mình.');
   }
 
   const user = await User.findByIdAndUpdate(targetId, { role }, { new: true });
-  if (!user) throw ApiError.notFound('User not found');
+  if (!user) throw ApiError.notFound('Không tìm thấy người dùng.');
   return user;
 };
 
 const toggleUserActive = async (targetId, currentUserId) => {
   // So sánh qua String(): targetId là chuỗi từ req.params, currentUserId là ObjectId.
   if (String(targetId) === String(currentUserId)) {
-    throw ApiError.badRequest('Cannot deactivate your own account');
+    throw ApiError.badRequest('Không thể tự khoá tài khoản của chính mình.');
   }
 
   const user = await User.findById(targetId);
-  if (!user) throw ApiError.notFound('User not found');
+  if (!user) throw ApiError.notFound('Không tìm thấy người dùng.');
 
   user.isActive = !user.isActive;
   await user.save();

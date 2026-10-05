@@ -9,6 +9,7 @@ const { buildAssignmentEmail } = require('../utils/emailTemplates');
 const { calculateDueAt, getSlaHours } = require('../utils/slaConfig');
 const { parsePagination } = require('../utils/pagination');
 const { enqueuePriorityRecalculation } = require('./priorityService');
+const { CLOSED_STATUSES } = require('../utils/issueRounds');
 
 const QUEUE_LIST_FIELDS = [
   'title', 'category', 'location', 'district', 'latitude', 'longitude',
@@ -123,34 +124,59 @@ const assignIssue = async (issueId, { departmentId, assigneeId = null, note = ''
   // Đơn vị cũ (nếu là phân công lại) — controller ghi vào nhật ký để đánh giá đơn vị
   // đếm được số lần bị lấy việc. $locals không lưu xuống database.
   const previousDepartmentId = issue.departmentId ? String(issue.departmentId) : null;
-  issue.departmentId = department._id;
-  issue.assigneeId = assignee?._id || null;
-  issue.assignedBy = actor.id;
-  issue.assignedAt = now;
-  issue.dueAt = calculateDueAt(issue.category, department.slaHours, now);
-  // Reset chu kỳ nhắc hạn cho lần phân công mới
-  issue.escalationLevel = 0;
-  issue.lastReminderAt = null;
-
   // Nhận việc thì coi như bắt đầu xử lý, khỏi bắt admin bấm 2 lần
-  if (issue.status === 'reported') {
-    issue.status = 'processing';
+  const nextStatus = issue.status === 'reported' ? 'processing' : issue.status;
+
+  // Ghi CÓ ĐIỀU KIỆN trên đúng tình trạng phân công vừa đọc. Trước đây đọc → sửa
+  // → save: hai admin phân công cùng lúc thì người sau ghi đè người trước (cả hai
+  // đơn vị đều nhận email "được giao việc"), và một cán bộ vừa nhận việc / đổi
+  // trạng thái giữa chừng cũng bị ghi đè mà không ai biết.
+  const updated = await Issue.findOneAndUpdate(
+    {
+      _id: issue._id,
+      isDeleted: false,
+      mergedInto: null,
+      status: issue.status,
+      departmentId: issue.departmentId || null,
+      assigneeId: issue.assigneeId || null,
+    },
+    {
+      $set: {
+        departmentId: department._id,
+        assigneeId: assignee?._id || null,
+        assignedBy: actor.id,
+        assignedAt: now,
+        dueAt: calculateDueAt(issue.category, department.slaHours, now),
+        // Reset chu kỳ nhắc hạn cho lần phân công mới
+        escalationLevel: 0,
+        lastReminderAt: null,
+        status: nextStatus,
+      },
+      $push: {
+        statusHistory: {
+          status: nextStatus,
+          changedBy: actor.id,
+          changedAt: now,
+          note: note || `Phân công cho ${department.name}${assignee ? ` — cán bộ ${assignee.name}` : ''}`,
+        },
+      },
+    },
+    { new: true, runValidators: true }
+  );
+  if (!updated) {
+    throw ApiError.conflictWithCode(
+      'Sự cố vừa được người khác cập nhật (phân công, nhận việc hoặc đổi trạng thái). Vui lòng tải lại rồi thử lại.',
+      'ASSIGNMENT_CONFLICT'
+    );
   }
-  issue.statusHistory.push({
-    status: issue.status,
-    changedBy: actor.id,
-    changedAt: now,
-    note: note || `Phân công cho ${department.name}${assignee ? ` — cán bộ ${assignee.name}` : ''}`,
-  });
 
-  await issue.save();
-  enqueuePriorityRecalculation(issue._id);
-  await issue.populate('userId', 'name email');
+  enqueuePriorityRecalculation(updated._id);
+  await updated.populate('userId', 'name email');
 
-  await notifyAssignment({ issue, department, assignee });
-  issue.$locals = { ...(issue.$locals || {}), previousDepartmentId };
+  await notifyAssignment({ issue: updated, department, assignee });
+  updated.$locals = { ...(updated.$locals || {}), previousDepartmentId };
 
-  return issue;
+  return updated;
 };
 
 /**
@@ -196,6 +222,14 @@ const unassignIssue = async (issueId, { note = '' }, actor) => {
   const issue = await Issue.findOne({ _id: issueId, isDeleted: false });
   if (!issue) throw ApiError.notFound('Sự cố không tồn tại');
   if (!issue.departmentId) throw ApiError.badRequest('Sự cố chưa được phân công');
+  // Phiếu đã đóng là kết quả công việc của đơn vị đã xử lý: thu hồi lúc này xoá
+  // đơn vị + hạn xử lý khỏi phiếu, phiếu rơi khỏi số liệu đánh giá đơn vị.
+  if (CLOSED_STATUSES.includes(issue.status)) {
+    throw ApiError.badRequestWithCode(
+      'Sự cố đã đóng, không thể thu hồi phân công. Hãy mở lại sự cố nếu cần chuyển đơn vị khác xử lý.',
+      'ISSUE_CLOSED'
+    );
+  }
 
   // Giữ lại người nhận TRƯỚC khi xoá, để còn báo cho họ biết việc đã bị lấy đi.
   // Trước đây thao tác này diễn ra hoàn toàn im lặng: audit có ghi, nhưng đơn vị
@@ -203,25 +237,48 @@ const unassignIssue = async (issueId, { note = '' }, actor) => {
   const previousDepartmentId = issue.departmentId;
   const previousAssigneeId = issue.assigneeId;
 
-  issue.departmentId = null;
-  issue.assigneeId = null;
-  issue.assignedBy = null;
-  issue.assignedAt = null;
-  issue.dueAt = null;
-  issue.escalationLevel = 0;
-  issue.lastReminderAt = null;
-  issue.statusHistory.push({
-    status: issue.status,
-    changedBy: actor.id,
-    changedAt: new Date(),
-    note: note || 'Thu hồi phân công',
-  });
+  // Ghi CÓ ĐIỀU KIỆN (cùng lý do với assignIssue): chỉ thu hồi đúng lần phân công
+  // vừa đọc, không đè lên một lần phân công / nhận việc / đổi trạng thái vừa xảy ra.
+  const updated = await Issue.findOneAndUpdate(
+    {
+      _id: issue._id,
+      isDeleted: false,
+      status: issue.status,
+      departmentId: issue.departmentId,
+      assigneeId: issue.assigneeId || null,
+    },
+    {
+      $set: {
+        departmentId: null,
+        assigneeId: null,
+        assignedBy: null,
+        assignedAt: null,
+        dueAt: null,
+        escalationLevel: 0,
+        lastReminderAt: null,
+      },
+      $push: {
+        statusHistory: {
+          status: issue.status,
+          changedBy: actor.id,
+          changedAt: new Date(),
+          note: note || 'Thu hồi phân công',
+        },
+      },
+    },
+    { new: true, runValidators: true }
+  );
+  if (!updated) {
+    throw ApiError.conflictWithCode(
+      'Sự cố vừa được người khác cập nhật (phân công, nhận việc hoặc đổi trạng thái). Vui lòng tải lại rồi thử lại.',
+      'ASSIGNMENT_CONFLICT'
+    );
+  }
 
-  await issue.save();
-  enqueuePriorityRecalculation(issue._id);
-  await notifyUnassignment({ issue, previousDepartmentId, previousAssigneeId, note });
-  issue.$locals = { ...(issue.$locals || {}), previousDepartmentId: previousDepartmentId ? String(previousDepartmentId) : null };
-  return issue;
+  enqueuePriorityRecalculation(updated._id);
+  await notifyUnassignment({ issue: updated, previousDepartmentId, previousAssigneeId, note });
+  updated.$locals = { ...(updated.$locals || {}), previousDepartmentId: previousDepartmentId ? String(previousDepartmentId) : null };
+  return updated;
 };
 
 /**

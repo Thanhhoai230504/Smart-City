@@ -6,11 +6,21 @@ const ApiError = require('../utils/apiError');
 const { getIO } = require('../config/socket');
 const { parsePagination } = require('../utils/pagination');
 
+// Route đọc bình luận là CÔNG KHAI (khách xem được), nên người viết chỉ lộ tên và
+// vai trò — vai trò để giao diện gắn nhãn "Cán bộ"/"Quản trị". Trước đây populate
+// cả `email`: ai mở trang sự cố cũng gom được email của mọi người đã bình luận.
+const COMMENT_AUTHOR_FIELDS = 'name role';
+
 const getComments = async (issueId, { page = 1, limit = 30 } = {}) => {
   const { pageNum, limitNum, skip } = parsePagination(
     { page, limit },
     { defaultLimit: 30, maxLimit: 100 }
   );
+
+  // Sự cố đã xoá (xoá mềm) thì trang chi tiết trả 404 — bình luận của nó cũng
+  // không được tiếp tục công khai qua đường gọi API trực tiếp.
+  const issueVisible = await Issue.exists({ _id: issueId, isDeleted: false });
+  if (!issueVisible) throw ApiError.notFound('Không tìm thấy sự cố.');
 
   // Bình luận đã ẩn không ra khỏi server. Giữ bản ghi để truy vết nếu có khiếu
   // nại về chính quyết định kiểm duyệt, nhưng nội dung thì không gửi đi nữa.
@@ -18,7 +28,7 @@ const getComments = async (issueId, { page = 1, limit = 30 } = {}) => {
 
   const [newestFirst, total] = await Promise.all([
     Comment.find(filter)
-      .populate('userId', 'name email role')
+      .populate('userId', COMMENT_AUTHOR_FIELDS)
       .sort('-createdAt')
       .skip(skip)
       .limit(limitNum),
@@ -40,11 +50,12 @@ const getComments = async (issueId, { page = 1, limit = 30 } = {}) => {
 
 const addComment = async (issueId, { content, user }) => {
   if (!content || !content.trim()) {
-    throw ApiError.badRequest('Content is required');
+    throw ApiError.badRequest('Vui lòng nhập nội dung bình luận.');
   }
 
-  const issue = await Issue.findOne({ _id: issueId, isDeleted: false }).populate('userId', 'name email');
-  if (!issue) throw ApiError.notFound('Issue not found');
+  // Chỉ cần _id người báo cáo để gửi thông báo — không kéo email ra khỏi DB.
+  const issue = await Issue.findOne({ _id: issueId, isDeleted: false }).populate('userId', 'name');
+  if (!issue) throw ApiError.notFound('Không tìm thấy sự cố.');
 
   const comment = await Comment.create({
     issueId,
@@ -52,7 +63,7 @@ const addComment = async (issueId, { content, user }) => {
     content: content.trim()
   });
 
-  await comment.populate('userId', 'name email role');
+  await comment.populate('userId', COMMENT_AUTHOR_FIELDS);
 
   // Notify the other party
   try {

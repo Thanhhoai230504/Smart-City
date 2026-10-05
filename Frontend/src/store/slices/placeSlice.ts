@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { placeApi } from '../../api/placeApi';
 import { Place } from '../../types';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 interface PlaceState {
   places: Place[];
@@ -14,8 +15,8 @@ export const fetchPlaces = createAsyncThunk('places/fetchAll', async (params: Re
   try {
     const { data } = await placeApi.getPlaces(params);
     return data.data;
-  } catch (err: any) {
-    return rejectWithValue(err.response?.data?.message || 'Lỗi tải địa điểm');
+  } catch (err: unknown) {
+    return rejectWithValue(getApiErrorMessage(err, 'Không tải được danh sách địa điểm.'));
   }
 });
 

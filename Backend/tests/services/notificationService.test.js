@@ -74,7 +74,7 @@ describe('NotificationService', () => {
 
       await expect(
         notificationService.markAsRead('nonexistent', 'user1')
-      ).rejects.toThrow('Notification not found');
+      ).rejects.toThrow('Không tìm thấy thông báo.');
     });
 
     it('should mark notification as read', async () => {

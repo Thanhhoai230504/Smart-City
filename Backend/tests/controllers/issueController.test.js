@@ -68,3 +68,77 @@ describe('IssueController — getMyIssues()', () => {
     expect(next).toHaveBeenCalledWith(error);
   });
 });
+
+describe('IssueController — toggleVote()', () => {
+  const Issue = require('../../src/models/Issue');
+  const { enqueuePriorityRecalculation } = require('../../src/services/priorityService');
+
+  /** Mock Mongoose Query: .select() trả về chính nó, await ra `result`. */
+  const mockQuery = (result) => {
+    const q = { then: (res, rej) => Promise.resolve(result).then(res, rej) };
+    q.select = jest.fn(() => q);
+    return q;
+  };
+  const callToggle = async (userId = 'u1') => {
+    const res = { json: jest.fn(), status: jest.fn() };
+    res.status.mockReturnValue(res);
+    const next = jest.fn();
+    await issueController.toggleVote({ params: { id: 'issue1' }, user: { id: userId } }, res, next);
+    expect(next).not.toHaveBeenCalled();
+    return res;
+  };
+
+  beforeEach(() => jest.clearAllMocks());
+
+  // Lệnh thêm chỉ khớp khi người này CHƯA ủng hộ → $inc luôn đi cùng đúng một
+  // thay đổi của mảng, hai người bấm cùng lúc không làm lệch voteCount.
+  it('adds a vote with one conditional write', async () => {
+    Issue.findOneAndUpdate.mockReturnValueOnce(mockQuery({ _id: 'issue1', voteCount: 4 }));
+
+    const res = await callToggle();
+
+    expect(Issue.findOneAndUpdate).toHaveBeenCalledWith(
+      { _id: 'issue1', isDeleted: false, mergedInto: null, votes: { $ne: 'u1' } },
+      { $addToSet: { votes: 'u1' }, $inc: { voteCount: 1 } },
+      { new: true }
+    );
+    expect(res.json).toHaveBeenCalledWith({ success: true, data: { voted: true, voteCount: 4 } });
+    expect(enqueuePriorityRecalculation).toHaveBeenCalledWith('issue1');
+  });
+
+  it('removes the vote when the user had already voted', async () => {
+    Issue.findOneAndUpdate
+      .mockReturnValueOnce(mockQuery(null))
+      .mockReturnValueOnce(mockQuery({ _id: 'issue1', voteCount: 3 }));
+
+    const res = await callToggle();
+
+    expect(Issue.findOneAndUpdate).toHaveBeenLastCalledWith(
+      { _id: 'issue1', isDeleted: false, mergedInto: null, votes: 'u1' },
+      { $pull: { votes: 'u1' }, $inc: { voteCount: -1 } },
+      { new: true }
+    );
+    expect(res.json).toHaveBeenCalledWith({ success: true, data: { voted: false, voteCount: 3 } });
+  });
+
+  it('404 for a missing issue, 400 for a merged one', async () => {
+    Issue.findOneAndUpdate.mockReturnValue(mockQuery(null));
+    Issue.findOne.mockReturnValueOnce(mockQuery(null));
+    const missing = await callToggle();
+    expect(missing.status).toHaveBeenCalledWith(404);
+
+    Issue.findOne.mockReturnValueOnce(mockQuery({ mergedInto: 'other', votes: [] }));
+    const merged = await callToggle();
+    expect(merged.status).toHaveBeenCalledWith(400);
+  });
+
+  it('returns the current state when a parallel request of the same user won the race', async () => {
+    Issue.findOneAndUpdate.mockReturnValue(mockQuery(null));
+    Issue.findOne.mockReturnValueOnce(mockQuery({ mergedInto: null, votes: ['u1'], voteCount: 7 }));
+
+    const res = await callToggle();
+
+    expect(res.json).toHaveBeenCalledWith({ success: true, data: { voted: true, voteCount: 7 } });
+    expect(enqueuePriorityRecalculation).not.toHaveBeenCalled();
+  });
+});

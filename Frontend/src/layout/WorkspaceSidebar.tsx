@@ -2,21 +2,9 @@ import React from 'react';
 import { useSelector } from 'react-redux';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
 import {
-  AssignmentTurnedIn,
   ChevronLeft,
   ChevronRight,
-  CorporateFare,
-  DashboardOutlined,
-  History,
-  Psychology,
   HomeOutlined,
-  Insights,
-  LocationOnOutlined,
-  MapOutlined,
-  PeopleAltOutlined,
-  ReportProblemOutlined,
-  VideocamOutlined,
-  WorkOutline,
 } from '@mui/icons-material';
 import {
   Box,
@@ -29,35 +17,16 @@ import {
   Stack,
   Tooltip,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import { RootState } from '../store/store';
-
-type WorkspaceItem = {
-  label: string;
-  path: string;
-  icon: React.ReactElement;
-  tab?: string;
-};
-
-const adminItems: WorkspaceItem[] = [
-  { label: 'Tổng quan', path: '/admin?tab=overview', tab: 'overview', icon: <DashboardOutlined /> },
-  { label: 'Quản lý sự cố', path: '/admin/issues', icon: <ReportProblemOutlined /> },
-  { label: 'Đơn vị xử lý', path: '/admin?tab=departments', tab: 'departments', icon: <CorporateFare /> },
-  { label: 'Người dùng & cán bộ', path: '/admin/users', icon: <PeopleAltOutlined /> },
-  { label: 'Quản lý địa điểm', path: '/admin/places', icon: <LocationOnOutlined /> },
-  { label: 'Phân công', path: '/admin?tab=assignments', tab: 'assignments', icon: <AssignmentTurnedIn /> },
-  { label: 'Công việc đơn vị', path: '/admin?tab=work', tab: 'work', icon: <WorkOutline /> },
-  { label: 'Hiệu suất', path: '/admin?tab=performance', tab: 'performance', icon: <Insights /> },
-  { label: 'Camera', path: '/admin?tab=cameras', tab: 'cameras', icon: <VideocamOutlined /> },
-  { label: 'Nhật ký hoạt động', path: '/admin?tab=audit', tab: 'audit', icon: <History /> },
-  { label: 'Minh bạch AI', path: '/admin?tab=ai', tab: 'ai', icon: <Psychology /> },
-];
-
-const staffItems: WorkspaceItem[] = [
-  { label: 'Công việc của đơn vị', path: '/staff', icon: <WorkOutline /> },
-  { label: 'Bản đồ đô thị', path: '/map', icon: <MapOutlined /> },
-  { label: 'Danh sách sự cố', path: '/issues', icon: <ReportProblemOutlined /> },
-];
+import {
+  ADMIN_WORKSPACE_ITEMS,
+  STAFF_WORKSPACE_ITEMS,
+  WORKSPACE_SIDEBAR_WIDTH,
+  isWorkspaceItemActive,
+} from './workspaceNav';
 
 interface WorkspaceSidebarProps {
   collapsed: boolean;
@@ -65,19 +34,25 @@ interface WorkspaceSidebarProps {
 }
 
 const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({ collapsed, onToggle }) => {
+  const theme = useTheme();
+  // 900–1199 px: menu hamburger của Header chỉ hiện dưới 900 px còn thanh này trước
+  // đây chỉ hiện từ 1200 px — quản trị viên ở khoảng giữa (laptop 1366 px phóng to
+  // 125%) không có lối nào tới Quản lý sự cố, Người dùng, Địa điểm. Giờ thanh hiện
+  // từ 900 px nhưng luôn ở dạng icon vì chưa đủ chỗ cho bản 236 px.
+  const forceCompact = useMediaQuery(theme.breakpoints.between('md', 'lg'), { noSsr: true });
+  const compact = collapsed || forceCompact;
   const { pathname, search } = useLocation();
   const user = useSelector((state: RootState) => state.auth.user);
   const isAdmin = pathname.startsWith('/admin');
-  const activeTab = new URLSearchParams(search).get('tab') || 'overview';
-  const items = isAdmin ? adminItems : staffItems;
+  const items = isAdmin ? ADMIN_WORKSPACE_ITEMS : STAFF_WORKSPACE_ITEMS;
 
   return (
     <Box
       component="aside"
       sx={{
-        display: { xs: 'none', lg: 'flex' },
+        display: { xs: 'none', md: 'flex' },
         flexDirection: 'column',
-        width: collapsed ? 76 : 236,
+        width: compact ? WORKSPACE_SIDEBAR_WIDTH.compact : WORKSPACE_SIDEBAR_WIDTH.expanded,
         position: 'fixed',
         top: 64,
         bottom: 0,
@@ -94,16 +69,16 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({ collapsed, onToggle
       <Box
         sx={{
           minHeight: 82,
-          px: collapsed ? 1.25 : 2.5,
+          px: compact ? 1.25 : 2.5,
           py: 1.75,
           display: 'flex',
           alignItems: 'center',
-          justifyContent: collapsed ? 'center' : 'space-between',
+          justifyContent: compact ? 'center' : 'space-between',
           gap: 1,
           flexShrink: 0,
         }}
       >
-        {!collapsed && (
+        {!compact && (
           <Box minWidth={0}>
             <Typography variant="overline" sx={{ color: 'rgba(255,255,255,0.54)', fontSize: '0.67rem' }}>
               {isAdmin ? 'Trung tâm điều hành' : 'Đơn vị xử lý'}
@@ -115,22 +90,25 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({ collapsed, onToggle
             </Typography>
           </Box>
         )}
-        <Tooltip title={collapsed ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'} placement="right">
-          <IconButton
-            onClick={onToggle}
-            aria-label={collapsed ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'}
-            size="small"
-            sx={{
-              flexShrink: 0,
-              color: '#B9D7E6',
-              border: '1px solid rgba(255,255,255,0.16)',
-              bgcolor: 'rgba(255,255,255,0.05)',
-              '&:hover': { bgcolor: 'rgba(255,255,255,0.12)', color: '#FFFFFF' },
-            }}
-          >
-            {collapsed ? <ChevronRight /> : <ChevronLeft />}
-          </IconButton>
-        </Tooltip>
+        {/* Ở 900–1199 px thanh luôn thu gọn nên nút mở rộng không có tác dụng — ẩn đi. */}
+        {!forceCompact && (
+          <Tooltip title={collapsed ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'} placement="right">
+            <IconButton
+              onClick={onToggle}
+              aria-label={collapsed ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'}
+              size="small"
+              sx={{
+                flexShrink: 0,
+                color: '#B9D7E6',
+                border: '1px solid rgba(255,255,255,0.16)',
+                bgcolor: 'rgba(255,255,255,0.05)',
+                '&:hover': { bgcolor: 'rgba(255,255,255,0.12)', color: '#FFFFFF' },
+              }}
+            >
+              {collapsed ? <ChevronRight /> : <ChevronLeft />}
+            </IconButton>
+          </Tooltip>
+        )}
       </Box>
 
       <Divider sx={{ borderColor: 'rgba(255,255,255,0.12)' }} />
@@ -143,7 +121,7 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({ collapsed, onToggle
           minHeight: 0,
           overflowY: 'auto',
           overflowX: 'hidden',
-          px: collapsed ? 0.75 : 1.25,
+          px: compact ? 0.75 : 1.25,
           py: 1.25,
           scrollbarWidth: 'thin',
           scrollbarColor: 'rgba(255,255,255,0.2) transparent',
@@ -155,9 +133,8 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({ collapsed, onToggle
         }}
       >
         {items.map((item) => {
-          const selected = item.tab
-            ? pathname === '/admin' && activeTab === item.tab
-            : pathname === item.path;
+          const selected = isWorkspaceItemActive(item, pathname, search);
+          const { Icon } = item;
 
           const itemButton = (
             <ListItemButton
@@ -168,26 +145,26 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({ collapsed, onToggle
               sx={{
                 minHeight: 44,
                 mb: 0.25,
-                px: collapsed ? 0 : 1.5,
-                justifyContent: collapsed ? 'center' : 'flex-start',
+                px: compact ? 0 : 1.5,
+                justifyContent: compact ? 'center' : 'flex-start',
                 borderRadius: 1,
                 color: selected ? '#FFFFFF' : 'rgba(255,255,255,0.7)',
                 '& .MuiListItemIcon-root': {
-                  minWidth: collapsed ? 0 : 36,
+                  minWidth: compact ? 0 : 36,
                   justifyContent: 'center',
                   color: selected ? '#8FC5DE' : 'rgba(255,255,255,0.54)',
                 },
                 '&.Mui-selected': {
                   bgcolor: 'rgba(255,255,255,0.11)',
                   borderLeft: '3px solid #74B7D5',
-                  pl: collapsed ? 0 : '9px',
+                  pl: compact ? 0 : '9px',
                 },
                 '&.Mui-selected:hover': { bgcolor: 'rgba(255,255,255,0.14)' },
                 '&:hover': { bgcolor: 'rgba(255,255,255,0.07)', color: '#FFFFFF' },
               }}
             >
-              <ListItemIcon>{item.icon}</ListItemIcon>
-              {!collapsed && (
+              <ListItemIcon><Icon /></ListItemIcon>
+              {!compact && (
                 <ListItemText
                   primary={item.label}
                   primaryTypographyProps={{ fontSize: 14, fontWeight: selected ? 700 : 550, noWrap: true }}
@@ -196,7 +173,7 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({ collapsed, onToggle
             </ListItemButton>
           );
 
-          return collapsed ? (
+          return compact ? (
             <Tooltip key={item.path} title={item.label} placement="right" arrow>
               {itemButton}
             </Tooltip>
@@ -204,9 +181,9 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({ collapsed, onToggle
         })}
       </List>
 
-      <Box sx={{ mt: 'auto', p: collapsed ? 0.75 : 1.25, flexShrink: 0 }}>
+      <Box sx={{ mt: 'auto', p: compact ? 0.75 : 1.25, flexShrink: 0 }}>
         <Divider sx={{ borderColor: 'rgba(255,255,255,0.12)', mb: 1 }} />
-        <Tooltip title={collapsed ? 'Về trang công khai' : ''} placement="right" arrow>
+        <Tooltip title={compact ? 'Về trang công khai' : ''} placement="right" arrow>
           <ListItemButton
             component={RouterLink}
             to="/"
@@ -214,27 +191,27 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({ collapsed, onToggle
               minHeight: 42,
               borderRadius: 1,
               color: 'rgba(255,255,255,0.68)',
-              px: collapsed ? 0 : 1.5,
-              justifyContent: collapsed ? 'center' : 'flex-start',
+              px: compact ? 0 : 1.5,
+              justifyContent: compact ? 'center' : 'flex-start',
             }}
           >
-            <ListItemIcon sx={{ minWidth: collapsed ? 0 : 36, justifyContent: 'center', color: 'rgba(255,255,255,0.54)' }}>
+            <ListItemIcon sx={{ minWidth: compact ? 0 : 36, justifyContent: 'center', color: 'rgba(255,255,255,0.54)' }}>
               <HomeOutlined />
             </ListItemIcon>
-            {!collapsed && <ListItemText primary="Về trang công khai" primaryTypographyProps={{ fontSize: 14 }} />}
+            {!compact && <ListItemText primary="Về trang công khai" primaryTypographyProps={{ fontSize: 14 }} />}
           </ListItemButton>
         </Tooltip>
         <Stack
           direction="row"
           alignItems="center"
-          justifyContent={collapsed ? 'center' : 'flex-start'}
+          justifyContent={compact ? 'center' : 'flex-start'}
           spacing={1.2}
-          sx={{ px: collapsed ? 0 : 1.5, pt: 1.25, pb: 0.5 }}
+          sx={{ px: compact ? 0 : 1.5, pt: 1.25, pb: 0.5 }}
         >
-          <Tooltip title={collapsed ? 'Hệ thống đang hoạt động' : ''} placement="right">
+          <Tooltip title={compact ? 'Hệ thống đang hoạt động' : ''} placement="right">
             <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#63B38D', flexShrink: 0 }} />
           </Tooltip>
-          {!collapsed && (
+          {!compact && (
             <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
               Hệ thống đang hoạt động
             </Typography>

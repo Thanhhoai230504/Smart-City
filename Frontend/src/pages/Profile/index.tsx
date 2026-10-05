@@ -19,6 +19,8 @@ import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RTooltip,
 } from 'recharts';
 import { formatDate } from '../../utils/helpers';
+import { getApiErrorMessage } from '../../utils/apiError';
+import { getPasswordLengthError, MIN_PASSWORD_LENGTH } from '../../utils/password';
 import { DA_NANG_DISTRICTS } from '../../utils/constants';
 import { IssueSummary } from '../../types';
 import LoadingSpinner from '../../components/LoadingSpinner';
@@ -94,14 +96,17 @@ const ProfilePage: React.FC = () => {
       dispatch(getProfileThunk());
       setEditMode(false);
       toast.success('Cập nhật tên thành công!');
-    } catch {
-      toast.error('Lỗi cập nhật');
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, 'Không cập nhật được tên.'));
     }
     setSaving(false);
   };
 
+  // Cùng quy tắc với backend (tối thiểu 8 ký tự) — trước đây ô nhập ghi 6.
+  const newPwError = newPw.length > 0 ? getPasswordLengthError(newPw) : null;
+
   const handleChangePw = async () => {
-    if (!currentPw || !newPw || changingPw) return;
+    if (!currentPw || !newPw || newPwError || changingPw) return;
     setChangingPw(true);
     try {
       await authApi.changePassword({ currentPassword: currentPw, newPassword: newPw });
@@ -109,8 +114,8 @@ const ProfilePage: React.FC = () => {
       setCurrentPw('');
       setNewPw('');
       toast.success('Đổi mật khẩu thành công!');
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Đổi mật khẩu thất bại');
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, 'Đổi mật khẩu thất bại.'));
     }
     setChangingPw(false);
   };
@@ -393,13 +398,14 @@ const ProfilePage: React.FC = () => {
           <Stack spacing={2} mt={1}>
             <TextField fullWidth size="small" type="password" label="Mật khẩu hiện tại"
               value={currentPw} onChange={(e) => setCurrentPw(e.target.value)} />
-            <TextField fullWidth size="small" type="password" label="Mật khẩu mới (tối thiểu 6 ký tự)"
-              value={newPw} onChange={(e) => setNewPw(e.target.value)} />
+            <TextField fullWidth size="small" type="password" label={`Mật khẩu mới (tối thiểu ${MIN_PASSWORD_LENGTH} ký tự)`}
+              value={newPw} onChange={(e) => setNewPw(e.target.value)}
+              error={Boolean(newPwError)} helperText={newPwError || ' '} />
           </Stack>
         </DialogContent>
         <DialogActions sx={{ p: 2.5, pt: 0 }}>
           <Button onClick={() => setPwDialog(false)} sx={{ borderRadius: '10px' }}>Hủy</Button>
-          <Button variant="contained" onClick={handleChangePw} disabled={!currentPw || !newPw || changingPw}
+          <Button variant="contained" onClick={handleChangePw} disabled={!currentPw || !newPw || Boolean(newPwError) || changingPw}
             sx={{ borderRadius: '10px' }}>Đổi mật khẩu</Button>
         </DialogActions>
       </Dialog>

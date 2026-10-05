@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import axios from 'axios';
 import { useSelector } from 'react-redux';
 import {
   AdminPanelSettings,
@@ -42,6 +41,7 @@ import { RootState } from '../../store/store';
 import { departmentApi } from '../../api/departmentApi';
 import { ManagedUser, userApi } from '../../api/userApi';
 import { Department, UserRole } from '../../types';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 const PAGE_SIZE = 12;
 
@@ -62,11 +62,6 @@ const getDepartmentId = (user: ManagedUser) => {
   return typeof user.departmentId === 'string'
     ? user.departmentId
     : user.departmentId._id;
-};
-
-const getErrorMessage = (error: unknown, fallback: string) => {
-  if (!axios.isAxiosError<{ message?: string }>(error)) return fallback;
-  return error.response?.data?.message || fallback;
 };
 
 const UserManagementPage: React.FC = () => {
@@ -108,7 +103,7 @@ const UserManagementPage: React.FC = () => {
     } catch (error) {
       setNotice({
         open: true,
-        message: getErrorMessage(error, 'Không thể tải danh sách tài khoản.'),
+        message: getApiErrorMessage(error, 'Không thể tải danh sách tài khoản.'),
         severity: 'error',
       });
     } finally {
@@ -130,7 +125,7 @@ const UserManagementPage: React.FC = () => {
         if (active) {
           setNotice({
             open: true,
-            message: getErrorMessage(error, 'Không thể tải danh sách đơn vị.'),
+            message: getApiErrorMessage(error, 'Không thể tải danh sách đơn vị.'),
             severity: 'error',
           });
         }
@@ -156,7 +151,7 @@ const UserManagementPage: React.FC = () => {
       setNotice({ open: true, message: `Đã chuyển tài khoản thành ${ROLE_LABELS[nextRole]}.`, severity: 'success' });
       await loadUsers();
     } catch (error) {
-      setNotice({ open: true, message: getErrorMessage(error, 'Không thể cập nhật vai trò.'), severity: 'error' });
+      setNotice({ open: true, message: getApiErrorMessage(error, 'Không thể cập nhật vai trò.'), severity: 'error' });
     } finally {
       setMutatingId('');
     }
@@ -175,7 +170,7 @@ const UserManagementPage: React.FC = () => {
       });
       await loadUsers();
     } catch (error) {
-      setNotice({ open: true, message: getErrorMessage(error, 'Không thể cập nhật đơn vị.'), severity: 'error' });
+      setNotice({ open: true, message: getApiErrorMessage(error, 'Không thể cập nhật đơn vị.'), severity: 'error' });
     } finally {
       setMutatingId('');
     }
@@ -192,7 +187,7 @@ const UserManagementPage: React.FC = () => {
       });
       await loadUsers();
     } catch (error) {
-      setNotice({ open: true, message: getErrorMessage(error, 'Không thể thay đổi trạng thái.'), severity: 'error' });
+      setNotice({ open: true, message: getApiErrorMessage(error, 'Không thể thay đổi trạng thái.'), severity: 'error' });
     } finally {
       setMutatingId('');
     }

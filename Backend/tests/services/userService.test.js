@@ -107,13 +107,13 @@ describe('UserService', () => {
     it('should throw for invalid role', async () => {
       await expect(
         userService.updateUserRole('target1', 'superadmin', 'admin1')
-      ).rejects.toThrow('Role must be user or admin');
+      ).rejects.toThrow('Vai trò chỉ được là "Người dùng" hoặc "Quản trị viên".');
     });
 
     it('should throw when changing own role', async () => {
       await expect(
         userService.updateUserRole('admin1', 'user', 'admin1')
-      ).rejects.toThrow('Cannot change your own role');
+      ).rejects.toThrow('Không thể tự đổi vai trò của chính mình.');
     });
 
     // Hồi quy: req.params.id là string còn req.user.id là ObjectId (auth.js gán
@@ -124,7 +124,7 @@ describe('UserService', () => {
 
       await expect(
         userService.updateUserRole(id.toString(), 'user', id)
-      ).rejects.toThrow('Cannot change your own role');
+      ).rejects.toThrow('Không thể tự đổi vai trò của chính mình.');
       expect(User.findByIdAndUpdate).not.toHaveBeenCalled();
     });
 
@@ -133,7 +133,7 @@ describe('UserService', () => {
 
       await expect(
         userService.updateUserRole('nonexistent', 'admin', 'admin1')
-      ).rejects.toThrow('User not found');
+      ).rejects.toThrow('Không tìm thấy người dùng.');
     });
 
     it('should update role successfully', async () => {
@@ -151,7 +151,7 @@ describe('UserService', () => {
     it('should throw when deactivating own account', async () => {
       await expect(
         userService.toggleUserActive('admin1', 'admin1')
-      ).rejects.toThrow('Cannot deactivate your own account');
+      ).rejects.toThrow('Không thể tự khoá tài khoản của chính mình.');
     });
 
     // Hồi quy: req.params.id là string, req.user.id là ObjectId (auth.js gán
@@ -161,7 +161,7 @@ describe('UserService', () => {
 
       await expect(
         userService.toggleUserActive(id.toString(), id)
-      ).rejects.toThrow('Cannot deactivate your own account');
+      ).rejects.toThrow('Không thể tự khoá tài khoản của chính mình.');
       expect(User.findById).not.toHaveBeenCalled();
     });
 
@@ -170,7 +170,7 @@ describe('UserService', () => {
 
       await expect(
         userService.toggleUserActive('nonexistent', 'admin1')
-      ).rejects.toThrow('User not found');
+      ).rejects.toThrow('Không tìm thấy người dùng.');
     });
 
     it('should toggle isActive from true to false', async () => {

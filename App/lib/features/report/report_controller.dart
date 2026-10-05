@@ -12,6 +12,7 @@ import '../../data/models/report_support.dart';
 import '../../data/repositories/issue_repository.dart';
 import '../../data/repositories/meta_repository.dart';
 import '../../data/repositories/support_repositories.dart';
+import '../auth/auth_controller.dart';
 import 'offline_queue.dart';
 import 'photo_tools.dart';
 
@@ -381,6 +382,12 @@ class ReportController extends AutoDisposeNotifier<ReportState> {
         state = state.copyWith(step: s, error: blockedHint(s));
         return SubmitFailed(blockedHint(s) ?? 'Thiếu thông tin');
       }
+    }
+
+    // Phiếu chờ gắn với tài khoản đang đăng nhập (chủ phiếu). Wizard nằm sau
+    // route guard nên chỉ rơi vào đây nếu phiên vừa hết hạn giữa chừng.
+    if (ref.read(currentUserProvider) == null) {
+      return const SubmitFailed('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
     }
 
     final payload = state.toPayload();

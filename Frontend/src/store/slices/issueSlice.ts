@@ -1,6 +1,18 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { issueApi } from '../../api/issueApi';
 import { Issue, Pagination } from '../../types';
+import { getApiErrorCode, getApiErrorMessage, getApiErrorStatus } from '../../utils/apiError';
+
+/**
+ * Lỗi khi tải CHI TIẾT một sự cố. Giữ cả HTTP status vì trang chi tiết phải phân
+ * biệt "không tồn tại" (404 — phiếu đã xoá, id sai) với "tạm thời không tải được"
+ * (mất mạng, 5xx — có nút Thử lại). Chuỗi thông báo trần không đủ để làm điều đó.
+ */
+export interface IssueRequestFailure {
+  message: string;
+  status?: number;
+  code?: string;
+}
 
 interface IssueState {
   issues: Issue[];
@@ -34,17 +46,25 @@ export const fetchIssues = createAsyncThunk('issues/fetchAll', async (params: Re
   try {
     const { data } = await issueApi.getIssues(params, signal);
     return data.data;
-  } catch (err: any) {
-    return rejectWithValue(err.response?.data?.message || 'Lỗi tải danh sách sự cố');
+  } catch (err: unknown) {
+    return rejectWithValue(getApiErrorMessage(err, 'Không tải được danh sách sự cố.'));
   }
 });
 
-export const fetchIssueById = createAsyncThunk('issues/fetchById', async (id: string, { rejectWithValue, signal }) => {
+export const fetchIssueById = createAsyncThunk<
+  { issue: Issue },
+  string,
+  { rejectValue: IssueRequestFailure }
+>('issues/fetchById', async (id, { rejectWithValue, signal }) => {
   try {
     const { data } = await issueApi.getIssueById(id, signal);
     return data.data;
-  } catch (err: any) {
-    return rejectWithValue(err.response?.data?.message || 'Không tìm thấy sự cố');
+  } catch (err: unknown) {
+    return rejectWithValue({
+      message: getApiErrorMessage(err, 'Không tải được sự cố. Vui lòng kiểm tra kết nối và thử lại.'),
+      status: getApiErrorStatus(err),
+      code: getApiErrorCode(err),
+    });
   }
 });
 
@@ -52,8 +72,8 @@ export const createIssue = createAsyncThunk('issues/create', async (formData: Fo
   try {
     const { data } = await issueApi.createIssue(formData);
     return data.data;
-  } catch (err: any) {
-    return rejectWithValue(err.response?.data?.message || 'Tạo sự cố thất bại');
+  } catch (err: unknown) {
+    return rejectWithValue(getApiErrorMessage(err, 'Gửi báo cáo thất bại. Vui lòng thử lại.'));
   }
 });
 
@@ -61,8 +81,8 @@ export const fetchMyIssues = createAsyncThunk('issues/fetchMy', async (params: R
   try {
     const { data } = await issueApi.getMyIssues(params, signal);
     return data.data;
-  } catch (err: any) {
-    return rejectWithValue(err.response?.data?.message || 'Lỗi tải sự cố của bạn');
+  } catch (err: unknown) {
+    return rejectWithValue(getApiErrorMessage(err, 'Không tải được sự cố của bạn.'));
   }
 });
 
@@ -111,7 +131,9 @@ const issueSlice = createSlice({
       .addCase(fetchIssueById.rejected, (state, action) => {
         if (state.activeDetailRequestId !== action.meta.requestId) return;
         if (state.activeLoadingRequestId === action.meta.requestId) state.loading = false;
-        state.error = action.payload as string;
+        // Trang chi tiết đọc lỗi qua kết quả thunk (unwrap) chứ không qua field
+        // dùng chung này; vẫn ghi lại để slice nhất quán với các thunk khác.
+        if (!action.meta.aborted) state.error = action.payload?.message ?? action.error.message ?? null;
       })
       .addCase(createIssue.pending, (state, action) => {
         state.loading = true;

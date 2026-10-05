@@ -6,43 +6,52 @@ const { logger } = require('../utils/logger');
 /** Số ảnh tối đa cho một sự cố */
 const MAX_ISSUE_IMAGES = 5;
 
+/** Một ảnh minh chứng — dùng chung cho lượt hiện tại và các lượt đã lưu trữ. */
+const resolutionImageFields = {
+  url: { type: String, required: true },
+  publicId: { type: String, default: null },
+  uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  uploadedAt: { type: Date, default: Date.now },
+  _id: false
+};
+
 const issueSchema = new mongoose.Schema({
   title: {
     type: String,
-    required: [true, 'Title is required'],
+    required: [true, 'Vui lòng nhập tiêu đề'],
     trim: true,
-    maxlength: [200, 'Title cannot exceed 200 characters']
+    maxlength: [200, 'Tiêu đề không quá 200 ký tự']
   },
   description: {
     type: String,
-    required: [true, 'Description is required'],
+    required: [true, 'Vui lòng nhập mô tả'],
     trim: true,
-    maxlength: [2000, 'Description cannot exceed 2000 characters']
+    maxlength: [2000, 'Mô tả không quá 2000 ký tự']
   },
   category: {
     type: String,
-    required: [true, 'Category is required'],
+    required: [true, 'Vui lòng chọn loại sự cố'],
     enum: {
       values: ['pothole', 'garbage', 'streetlight', 'flooding', 'tree', 'other'],
-      message: 'Category must be one of: pothole, garbage, streetlight, flooding, tree, other'
+      message: 'Loại sự cố không hợp lệ'
     }
   },
   location: {
     type: String,
-    required: [true, 'Location is required'],
+    required: [true, 'Vui lòng nhập địa chỉ'],
     trim: true
   },
   latitude: {
     type: Number,
-    required: [true, 'Latitude is required'],
-    min: [-90, 'Latitude must be between -90 and 90'],
-    max: [90, 'Latitude must be between -90 and 90']
+    required: [true, 'Thiếu vĩ độ của vị trí'],
+    min: [-90, 'Vĩ độ phải nằm trong khoảng -90 đến 90'],
+    max: [90, 'Vĩ độ phải nằm trong khoảng -90 đến 90']
   },
   longitude: {
     type: Number,
-    required: [true, 'Longitude is required'],
-    min: [-180, 'Longitude must be between -180 and 180'],
-    max: [180, 'Longitude must be between -180 and 180']
+    required: [true, 'Thiếu kinh độ của vị trí'],
+    min: [-180, 'Kinh độ phải nằm trong khoảng -180 đến 180'],
+    max: [180, 'Kinh độ phải nằm trong khoảng -180 đến 180']
   },
   // Quận/huyện chuẩn hoá từ `location` khi lưu. Có index nên truy vấn và
   // aggregate theo khu vực không cần $regex quét toàn bảng.
@@ -95,13 +104,7 @@ const issueSchema = new mongoose.Schema({
   // Ảnh minh chứng đơn vị chụp sau khi xử lý xong. Bắt buộc khi chuyển
   // sang `resolved` — làm cho điểm đánh giá của người dân có căn cứ.
   resolutionImages: {
-    type: [{
-      url: { type: String, required: true },
-      publicId: { type: String, default: null },
-      uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-      uploadedAt: { type: Date, default: Date.now },
-      _id: false
-    }],
+    type: [resolutionImageFields],
     validate: {
       validator: (arr) => !arr || arr.length <= MAX_ISSUE_IMAGES,
       message: `Mỗi sự cố chỉ được tối đa ${MAX_ISSUE_IMAGES} ảnh minh chứng`
@@ -111,14 +114,14 @@ const issueSchema = new mongoose.Schema({
     type: String,
     enum: {
       values: ['reported', 'processing', 'resolved', 'rejected'],
-      message: 'Status must be one of: reported, processing, resolved, rejected'
+      message: 'Trạng thái không hợp lệ'
     },
     default: 'reported'
   },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: [true, 'User ID is required']
+    required: [true, 'Thiếu mã người dùng']
   },
   adminId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -207,6 +210,30 @@ const issueSchema = new mongoose.Schema({
   lastReopenedAt: {
     type: Date,
     default: null
+  },
+  // ─── Các lượt xử lý đã khép lại (xem utils/issueRounds.js) ───
+  // Mở lại phiếu (người dân khiếu nại, hoặc cán bộ mở lại để làm tiếp) nghĩa là
+  // kết quả lượt trước không còn được coi là kết quả cuối. Ảnh minh chứng và đánh
+  // giá của lượt đó được cất vào đây rồi xoá khỏi phiếu, để (1) đơn vị phải chụp
+  // minh chứng MỚI trước khi báo xong lần nữa — không dùng lại chính ảnh người dân
+  // vừa phản đối; (2) người dân được đánh giá kết quả của lượt mới. Lịch sử vẫn
+  // còn nguyên để đối chiếu.
+  previousRounds: {
+    type: [{
+      closedStatus: { type: String, enum: ['resolved', 'rejected'] },
+      closedAt: { type: Date, default: null },
+      resolutionImages: { type: [resolutionImageFields], default: [] },
+      rating: {
+        score: { type: Number, min: 1, max: 5, default: null },
+        comment: { type: String, trim: true, maxlength: 500, default: null },
+        ratedAt: { type: Date, default: null }
+      },
+      reopenedAt: { type: Date, default: null },
+      reopenedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+      reopenReason: { type: String, trim: true, maxlength: 500, default: '' },
+      _id: false
+    }],
+    default: []
   },
 
   // ─── Hạn tiếp nhận (đồng hồ thứ hai, xem utils/slaConfig.js) ───

@@ -23,6 +23,7 @@ class ReportDraft {
     required this.payload,
     required this.createdAt,
     required this.imageCount,
+    this.ownerId,
     this.attempts = 0,
     this.lastError,
     this.state = DraftState.pending,
@@ -33,6 +34,13 @@ class ReportDraft {
   final ReportPayload payload;
   final DateTime createdAt;
   final int imageCount;
+
+  /// Id tài khoản đã soạn phiếu. Chỉ **chủ phiếu** mới thấy phiếu, được đếm trên
+  /// badge/banner và được gửi phiếu: máy dùng chung (người nhà, máy demo đổi qua
+  /// lại người dân ↔ cán bộ) không được gửi ảnh, vị trí, SĐT của người này dưới
+  /// tên người kia. `null` = phiếu lưu từ trước khi có trường này — xử lý một lần
+  /// lúc mở app (`OfflineQueueEngine.settleLegacy`).
+  final String? ownerId;
   final int attempts;
   final String? lastError;
   final DraftState state;
@@ -45,6 +53,7 @@ class ReportDraft {
         'payload': payload.toJson(),
         'createdAt': createdAt.toUtc().toIso8601String(),
         'imageCount': imageCount,
+        'ownerId': ownerId,
         'attempts': attempts,
         'lastError': lastError,
         'state': state.name,
@@ -58,6 +67,8 @@ class ReportDraft {
       payload: ReportPayload.fromJson(m['payload']),
       createdAt: asDate(m['createdAt']) ?? DateTime.now(),
       imageCount: asInt(m['imageCount']) ?? 0,
+      // Bản ghi cũ không có khoá này → null (phiếu chưa có chủ).
+      ownerId: asString(m['ownerId']),
       attempts: asInt(m['attempts']) ?? 0,
       lastError: asString(m['lastError']),
       state: m['state'] == DraftState.needsAttention.name
@@ -69,6 +80,7 @@ class ReportDraft {
 
   ReportDraft copyWith({
     ReportPayload? payload,
+    String? ownerId,
     int? attempts,
     Object? lastError = _keep,
     DraftState? state,
@@ -79,6 +91,7 @@ class ReportDraft {
         payload: payload ?? this.payload,
         createdAt: createdAt,
         imageCount: imageCount,
+        ownerId: ownerId ?? this.ownerId,
         attempts: attempts ?? this.attempts,
         lastError: lastError == _keep ? this.lastError : lastError as String?,
         state: state ?? this.state,
@@ -90,6 +103,11 @@ class ReportDraft {
 
 abstract class DraftStore {
   Future<List<ReportDraft>> all();
+
+  /// Phiếu còn trong kho không — một lượt gửi chạy trên ảnh chụp danh sách lúc
+  /// bắt đầu, nên trước mỗi phiếu phải hỏi lại (người dùng vừa xoá tay, hay xoá
+  /// tài khoản giữa chừng thì phiếu đó KHÔNG được gửi).
+  Future<bool> contains(String id);
   Future<void> save(ReportDraft draft, {List<Uint8List>? images});
   Future<List<Uint8List>> images(String id);
   Future<void> remove(String id);
@@ -117,6 +135,9 @@ class HiveDraftStore implements DraftStore {
     drafts.sort((a, b) => a.createdAt.compareTo(b.createdAt));
     return drafts;
   }
+
+  @override
+  Future<bool> contains(String id) async => _meta.containsKey(id);
 
   @override
   Future<void> save(ReportDraft draft, {List<Uint8List>? images}) async {
@@ -148,6 +169,9 @@ class MemoryDraftStore implements DraftStore {
   @override
   Future<List<ReportDraft>> all() async =>
       drafts.values.toList()..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
+  @override
+  Future<bool> contains(String id) async => drafts.containsKey(id);
 
   @override
   Future<void> save(ReportDraft draft, {List<Uint8List>? images}) async {

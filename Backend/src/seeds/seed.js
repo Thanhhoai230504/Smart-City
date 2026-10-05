@@ -1,10 +1,24 @@
+/**
+ * Dữ liệu mẫu tối thiểu (3 tài khoản, địa điểm, 11 sự cố, thời tiết) — CHỈ chạy
+ * trên MongoDB cục bộ:
+ *
+ *   SEED_MONGODB_URI=mongodb://127.0.0.1:27017/smartcity_dev npm run seed
+ *
+ * Script XOÁ SẠCH users/issues/places/environmentdatas của database đích. Trước
+ * đây nó đọc MONGODB_URI — tức database thật trên Atlas — nên một lần gõ
+ * `npm run seed` là mất toàn bộ tài khoản và sự cố của hệ thống đang chạy, rồi
+ * tạo một admin với mật khẩu yếu viết cứng trong repo công khai. Giờ:
+ *   - đọc biến riêng SEED_MONGODB_URI và từ chối mọi host không phải máy này;
+ *   - mật khẩu sinh ngẫu nhiên mỗi lần chạy, chỉ in ra màn hình một lần;
+ *   - email dùng miền example.com (RFC 2606) để thư hệ thống không tới người thật.
+ */
+const crypto = require('crypto');
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
 const dotenv = require('dotenv');
 const path = require('path');
-const { configureDnsServers } = require('../config/dns');
+const { assertLocalMongoUri } = require('./localDbGuard');
 
-// Load env vars
+// Load env vars (chỉ để lấy SEED_MONGODB_URI nếu khai trong .env — KHÔNG dùng MONGODB_URI)
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 const User = require('../models/User');
@@ -13,12 +27,19 @@ const Place = require('../models/Place');
 const EnvironmentData = require('../models/EnvironmentData');
 const { runPriorityBatch } = require('../services/priorityService');
 
+/** Mật khẩu ngẫu nhiên 16 ký tự — qua được chính sách mật khẩu (độ dài, không phổ biến). */
+const randomPassword = () => crypto.randomBytes(12).toString('base64url');
+
 const seedData = async () => {
   try {
-    // Connect to MongoDB
-    configureDnsServers();
-    await mongoose.connect(process.env.MONGODB_URI);
-    console.log('✅ Connected to MongoDB');
+    const uri = process.env.SEED_MONGODB_URI;
+    const { db } = assertLocalMongoUri(uri, {
+      envName: 'SEED_MONGODB_URI',
+      example: 'mongodb://127.0.0.1:27017/smartcity_dev',
+    });
+
+    await mongoose.connect(uri);
+    console.log(`✅ Kết nối MongoDB cục bộ, database "${db}"`);
 
     // Clear existing data
     await Promise.all([
@@ -30,29 +51,13 @@ const seedData = async () => {
     console.log('🗑️  Cleared existing data');
 
     // ============ USERS ============
-    const users = await User.create([
-      {
-        name: 'Admin Smart City',
-        email: 'admin@smartcity.vn',
-        password: 'admin123',
-        role: 'admin',
-        isActive: true
-      },
-      {
-        name: 'Nguyễn Văn A',
-        email: 'nguyenvana@gmail.com',
-        password: 'user123',
-        role: 'user',
-        isActive: true
-      },
-      {
-        name: 'Trần Thị B',
-        email: 'tranthib@gmail.com',
-        password: 'user123',
-        role: 'user',
-        isActive: true
-      }
-    ]);
+    const accounts = [
+      { name: 'Admin Smart City', email: 'admin@example.com', role: 'admin' },
+      { name: 'Nguyễn Văn A', email: 'nguoidan.a@example.com', role: 'user' },
+      { name: 'Trần Thị B', email: 'nguoidan.b@example.com', role: 'user' },
+    ].map((account) => ({ ...account, password: randomPassword(), isActive: true }));
+    // User.create băm mật khẩu ở hook pre-save nên phải giữ bản rõ để in ra sau.
+    const users = await User.create(accounts.map((account) => ({ ...account })));
     console.log(`👤 Created ${users.length} users`);
 
     const admin = users[0];
@@ -360,10 +365,10 @@ const seedData = async () => {
     console.log('\n========================================');
     console.log('🎉 Seed data created successfully!');
     console.log('========================================');
-    console.log('\n📋 Test accounts:');
-    console.log('   Admin: admin@smartcity.vn / admin123');
-    console.log('   User1: nguyenvana@gmail.com / user123');
-    console.log('   User2: tranthib@gmail.com / user123');
+    console.log('\n📋 Tài khoản thử (mật khẩu sinh ngẫu nhiên, chỉ in một lần — chạy lại seed là đổi):');
+    accounts.forEach((account) => {
+      console.log(`   ${account.role.padEnd(5)} ${account.email} / ${account.password}`);
+    });
     console.log('========================================\n');
 
     process.exit(0);

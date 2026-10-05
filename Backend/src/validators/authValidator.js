@@ -4,17 +4,17 @@ const { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH } = require('../utils/passwordP
 const registerValidator = [
   body('name')
     .trim()
-    .notEmpty().withMessage('Name is required')
-    .isLength({ max: 100 }).withMessage('Name cannot exceed 100 characters'),
+    .notEmpty().withMessage('Vui lòng nhập họ tên')
+    .isLength({ max: 100 }).withMessage('Họ tên không quá 100 ký tự'),
   body('email')
     .trim()
-    .notEmpty().withMessage('Email is required')
-    .isEmail().withMessage('Please enter a valid email'),
+    .notEmpty().withMessage('Vui lòng nhập email')
+    .isEmail().withMessage('Email không hợp lệ'),
   // Kiểm tra độ dài ở đây để trả lỗi theo field; service còn kiểm tra thêm mật
   // khẩu phổ biến và ký tự lặp (utils/passwordPolicy.js) — ràng buộc thật nằm ở
   // service để mọi đường đặt mật khẩu đều đi qua cùng một luật.
   body('password')
-    .notEmpty().withMessage('Password is required')
+    .notEmpty().withMessage('Vui lòng nhập mật khẩu')
     .isLength({ min: MIN_PASSWORD_LENGTH, max: MAX_PASSWORD_LENGTH })
     .withMessage(`Mật khẩu phải có từ ${MIN_PASSWORD_LENGTH} đến ${MAX_PASSWORD_LENGTH} ký tự`)
 ];
@@ -36,10 +36,10 @@ const loginValidator = [
   ...deviceValidators,
   body('email')
     .trim()
-    .notEmpty().withMessage('Email is required')
-    .isEmail().withMessage('Please enter a valid email'),
+    .notEmpty().withMessage('Vui lòng nhập email')
+    .isEmail().withMessage('Email không hợp lệ'),
   body('password')
-    .notEmpty().withMessage('Password is required')
+    .notEmpty().withMessage('Vui lòng nhập mật khẩu')
 ];
 
 // ID token Google là JWT cỡ 1–2 KB; chặn chuỗi bất thường trước khi tới bước
@@ -56,16 +56,16 @@ const googleIdTokenValidator = [
 
 const verifyEmailValidator = [
   query('token')
-    .notEmpty().withMessage('Verification token is required')
-    .isLength({ min: 64, max: 64 }).withMessage('Verification token is invalid')
-    .isHexadecimal().withMessage('Verification token is invalid'),
+    .notEmpty().withMessage('Thiếu mã xác thực email')
+    .isLength({ min: 64, max: 64 }).withMessage('Mã xác thực email không hợp lệ')
+    .isHexadecimal().withMessage('Mã xác thực email không hợp lệ'),
 ];
 
 const resendVerificationValidator = [
   body('email')
     .trim()
-    .notEmpty().withMessage('Email is required')
-    .isEmail().withMessage('Please enter a valid email')
+    .notEmpty().withMessage('Vui lòng nhập email')
+    .isEmail().withMessage('Email không hợp lệ')
     .normalizeEmail(),
 ];
 

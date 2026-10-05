@@ -38,7 +38,7 @@ const getEnvironmentData = async () => {
     return {
       environment: getMockEnvironmentData(),
       source: 'mock',
-      message: 'OpenWeatherMap API key not configured. Showing mock data.'
+      message: 'Chưa cấu hình khoá OpenWeatherMap — đang hiển thị dữ liệu mẫu.'
     };
   }
 

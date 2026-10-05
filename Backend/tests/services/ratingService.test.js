@@ -63,13 +63,44 @@ describe('ratingService — mã lỗi máy đọc được', () => {
     ).rejects.toMatchObject({ statusCode: 403 });
   });
 
-  it('saves the rating on the happy path', async () => {
+  it('saves the rating on the happy path with one conditional write', async () => {
     const issue = baseIssue();
     Issue.findOne.mockReturnValue(mockQuery(issue));
+    Issue.findOneAndUpdate.mockReturnValue(mockQuery({ ...issue, rating: { score: 5, comment: 'Tốt' } }));
 
-    await ratingService.rateIssue('i1', 'reporter1', { score: 5, comment: 'Tốt' });
+    const result = await ratingService.rateIssue('i1', 'reporter1', { score: 5, comment: 'Tốt' });
 
-    expect(issue.rating).toMatchObject({ score: 5, comment: 'Tốt' });
-    expect(issue.save).toHaveBeenCalled();
+    const [filter, update] = Issue.findOneAndUpdate.mock.calls[0];
+    // Chỉ ghi khi phiếu còn đúng trạng thái đóng và CHƯA có điểm.
+    expect(filter).toEqual({ _id: 'i1', isDeleted: false, mergedInto: null, status: 'resolved', 'rating.score': null });
+    expect(update.$set.rating).toMatchObject({ score: 5, comment: 'Tốt' });
+    expect(update.$set.rating.ratedAt).toBeInstanceOf(Date);
+    expect(result.rating.score).toBe(5);
+    expect(issue.save).not.toHaveBeenCalled();
+  });
+
+  // Bấm gửi hai lần: request sau không khớp điều kiện → ALREADY_RATED, không ghi đè.
+  it('a second concurrent submit gets ALREADY_RATED instead of overwriting', async () => {
+    Issue.findOne
+      .mockReturnValueOnce(mockQuery(baseIssue()))
+      .mockReturnValueOnce(mockQuery({ rating: { score: 5 }, status: 'resolved' }));
+    Issue.findOneAndUpdate.mockReturnValue(mockQuery(null));
+
+    await expect(
+      ratingService.rateIssue('i1', 'reporter1', { score: 1 })
+    ).rejects.toMatchObject({ statusCode: 400, code: 'ALREADY_RATED' });
+    expect(Notification.create).not.toHaveBeenCalled();
+  });
+
+  // Đánh giá đúng lúc phiếu bị mở lại: không để điểm lượt cũ rơi vào lượt mới.
+  it('returns 409 STATUS_CONFLICT when the issue was reopened in between', async () => {
+    Issue.findOne
+      .mockReturnValueOnce(mockQuery(baseIssue()))
+      .mockReturnValueOnce(mockQuery({ rating: { score: null }, status: 'processing' }));
+    Issue.findOneAndUpdate.mockReturnValue(mockQuery(null));
+
+    await expect(
+      ratingService.rateIssue('i1', 'reporter1', { score: 4 })
+    ).rejects.toMatchObject({ statusCode: 409, code: 'STATUS_CONFLICT' });
   });
 });

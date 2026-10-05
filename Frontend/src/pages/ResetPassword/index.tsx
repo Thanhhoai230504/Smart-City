@@ -4,8 +4,8 @@ import {
   Box, Container, Paper, Typography, TextField, Button, Alert, Link, Stack,
 } from '@mui/material';
 import { authApi } from '../../api/authApi';
-
-const MIN_PASSWORD_LENGTH = 6;
+import { getApiErrorMessage } from '../../utils/apiError';
+import { getPasswordLengthError, MIN_PASSWORD_LENGTH } from '../../utils/password';
 
 /**
  * Đặt mật khẩu mới bằng token trong email.
@@ -25,9 +25,9 @@ const ResetPasswordPage: React.FC = () => {
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
 
-  const tooShort = password.length > 0 && password.length < MIN_PASSWORD_LENGTH;
+  const passwordError = password.length > 0 ? getPasswordLengthError(password) : null;
   const mismatch = confirm.length > 0 && password !== confirm;
-  const canSubmit = password.length >= MIN_PASSWORD_LENGTH && password === confirm && !submitting;
+  const canSubmit = password.length > 0 && !getPasswordLengthError(password) && password === confirm && !submitting;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,8 +39,8 @@ const ResetPasswordPage: React.FC = () => {
       setDone(true);
       // Đợi một nhịp để người dùng kịp đọc thông báo rồi mới chuyển trang.
       setTimeout(() => navigate('/login'), 2500);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Không đặt lại được mật khẩu. Vui lòng thử lại.');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Không đặt lại được mật khẩu. Vui lòng thử lại.'));
     }
     setSubmitting(false);
   };
@@ -81,8 +81,8 @@ const ResetPasswordPage: React.FC = () => {
             <TextField
               fullWidth type="password" label="Mật khẩu mới" autoFocus required
               value={password} onChange={(e) => setPassword(e.target.value)}
-              error={tooShort}
-              helperText={tooShort ? `Mật khẩu phải có ít nhất ${MIN_PASSWORD_LENGTH} ký tự` : ' '}
+              error={Boolean(passwordError)}
+              helperText={passwordError || `Tối thiểu ${MIN_PASSWORD_LENGTH} ký tự`}
               sx={{ mb: 1 }}
             />
             <TextField

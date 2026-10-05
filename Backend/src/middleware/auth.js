@@ -11,7 +11,7 @@ const authMiddleware = async (req, res, next) => {
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({
         success: false,
-        message: 'Access denied. No token provided.'
+        message: 'Bạn cần đăng nhập để thực hiện thao tác này.'
       });
     }
 
@@ -25,7 +25,7 @@ const authMiddleware = async (req, res, next) => {
     if (!user || !user.isActive) {
       return res.status(401).json({
         success: false,
-        message: 'User not found or account deactivated.'
+        message: 'Tài khoản không tồn tại hoặc đã bị khoá.'
       });
     }
 
@@ -44,14 +44,14 @@ const authMiddleware = async (req, res, next) => {
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,
-        message: 'Token expired. Please refresh your token.',
+        message: 'Phiên đăng nhập đã hết hạn.',
         code: 'TOKEN_EXPIRED'
       });
     }
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({
         success: false,
-        message: 'Invalid token.'
+        message: 'Phiên đăng nhập không hợp lệ.'
       });
     }
     next(error);
@@ -65,7 +65,7 @@ const adminMiddleware = (req, res, next) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({
       success: false,
-      message: 'Access denied. Admin privileges required.'
+      message: 'Chỉ quản trị viên mới được thực hiện thao tác này.'
     });
   }
   next();
@@ -80,7 +80,7 @@ const staffMiddleware = (req, res, next) => {
   if (req.user.role !== 'admin' && req.user.role !== 'staff') {
     return res.status(403).json({
       success: false,
-      message: 'Access denied. Staff or admin privileges required.'
+      message: 'Chỉ cán bộ hoặc quản trị viên mới được thực hiện thao tác này.'
     });
   }
   // Cán bộ mất đơn vị (đơn vị bị xoá) thì không có phạm vi xử lý nào hợp lệ.
@@ -138,7 +138,7 @@ const ownerMiddleware = (model) => {
       if (!resource) {
         return res.status(404).json({
           success: false,
-          message: 'Resource not found.'
+          message: 'Không tìm thấy dữ liệu.'
         });
       }
 
@@ -146,7 +146,7 @@ const ownerMiddleware = (model) => {
       if (resource.userId.toString() !== req.user.id.toString()) {
         return res.status(403).json({
           success: false,
-          message: 'Access denied. You can only manage your own resources.'
+          message: 'Bạn chỉ được thao tác trên dữ liệu của chính mình.'
         });
       }
 

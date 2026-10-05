@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { issueApi } from '../../api/issueApi';
 import {
@@ -25,10 +24,8 @@ import {
 import PriorityBadge from '../../components/PriorityBadge';
 import SlaBadge from '../../components/SlaBadge';
 import ReopenedBadge from '../../components/ReopenedBadge';
-
-interface ApiErrorResponse {
-  message?: string;
-}
+import UpdateStatusDialog from '../StaffDashboard/UpdateStatusDialog';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 interface Props {
   onDataChange?: () => void;
@@ -60,7 +57,10 @@ const IssueManagement: React.FC<Props> = ({ onDataChange = () => undefined }) =>
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [snack, setSnack] = useState<{ open: boolean; msg: string; severity: 'success' | 'error' }>({ open: false, msg: '', severity: 'success' });
+  const [snack, setSnack] = useState<{ open: boolean; msg: string; severity: 'success' | 'error' | 'warning' }>({ open: false, msg: '', severity: 'success' });
+  // Đổi trạng thái đi qua hộp thoại dùng chung (lý do khi từ chối, ảnh minh chứng
+  // khi báo đã xử lý) — trước đây ô chọn gửi thẳng API nên hai trạng thái này luôn bị backend từ chối.
+  const [statusTarget, setStatusTarget] = useState<{ issue: Issue; status: IssueStatus } | null>(null);
   const [sortBy, setSortBy] = useState('-createdAt');
   const [mergeSource, setMergeSource] = useState<Issue | null>(null);
   const [mergeCandidates, setMergeCandidates] = useState<DuplicateCandidate[]>([]);
@@ -88,9 +88,7 @@ const IssueManagement: React.FC<Props> = ({ onDataChange = () => undefined }) =>
     } catch (error) {
       setSnack({
         open: true,
-        msg: axios.isAxiosError<ApiErrorResponse>(error)
-          ? error.response?.data?.message || 'Không thể tải danh sách sự cố.'
-          : 'Không thể tải danh sách sự cố.',
+        msg: getApiErrorMessage(error, 'Không thể tải danh sách sự cố.'),
         severity: 'error',
       });
     } finally { setLoading(false); }
@@ -106,13 +104,11 @@ const IssueManagement: React.FC<Props> = ({ onDataChange = () => undefined }) =>
     return () => window.clearTimeout(timer);
   }, [searchInput]);
 
-  const handleStatusChange = async (id: string, status: IssueStatus) => {
-    try {
-      await issueApi.updateIssueStatus(id, status);
-      setSnack({ open: true, msg: `Trạng thái → ${STATUS_LABELS[status]}`, severity: 'success' });
-      await loadIssues();
-      onDataChange();
-    } catch { /* silently ignore */ setSnack({ open: true, msg: 'Cập nhật thất bại', severity: 'error' }); }
+  const handleStatusFinished = (msg: string, severity: 'success' | 'warning') => {
+    setStatusTarget(null);
+    setSnack({ open: true, msg, severity });
+    loadIssues();
+    onDataChange();
   };
 
   const handleDelete = async () => {
@@ -123,7 +119,9 @@ const IssueManagement: React.FC<Props> = ({ onDataChange = () => undefined }) =>
       setSnack({ open: true, msg: 'Đã xoá sự cố', severity: 'success' });
       await loadIssues();
       onDataChange();
-    } catch { /* silently ignore */ setSnack({ open: true, msg: 'Xoá thất bại', severity: 'error' }); }
+    } catch (error) {
+      setSnack({ open: true, msg: getApiErrorMessage(error, 'Xoá thất bại.'), severity: 'error' });
+    }
   };
 
   const openMergeDialog = async (source: Issue) => {
@@ -138,11 +136,7 @@ const IssueManagement: React.FC<Props> = ({ onDataChange = () => undefined }) =>
       setMergeCandidates(data.data.candidates);
       setMergeMeta(data.data.meta);
     } catch (error) {
-      setMergeError(
-        axios.isAxiosError<ApiErrorResponse>(error)
-          ? error.response?.data?.message || 'Không thể tải danh sách sự cố gốc.'
-          : 'Không thể tải danh sách sự cố gốc.'
-      );
+      setMergeError(getApiErrorMessage(error, 'Không thể tải danh sách sự cố gốc.'));
     } finally {
       setMergeLoading(false);
     }
@@ -163,11 +157,7 @@ const IssueManagement: React.FC<Props> = ({ onDataChange = () => undefined }) =>
       await loadIssues();
       onDataChange();
     } catch (error) {
-      setMergeError(
-        axios.isAxiosError<ApiErrorResponse>(error)
-          ? error.response?.data?.message || 'Không thể gộp sự cố.'
-          : 'Không thể gộp sự cố.'
-      );
+      setMergeError(getApiErrorMessage(error, 'Không thể gộp sự cố.'));
     } finally {
       setMerging(false);
     }
@@ -310,7 +300,7 @@ const IssueManagement: React.FC<Props> = ({ onDataChange = () => undefined }) =>
                 <TableCell sx={cellSx}>
                   <Select size="small" value={issue.status}
                     disabled={getAllowedStatusTargets(issue.status).length === 0}
-                    onChange={(event: SelectChangeEvent) => handleStatusChange(issue._id, event.target.value as IssueStatus)}
+                    onChange={(event: SelectChangeEvent) => setStatusTarget({ issue, status: event.target.value as IssueStatus })}
                     sx={{ height: 30, minWidth: 125, fontSize: '0.74rem', bgcolor: STATUS_MAP[issue.status]?.bg, color: STATUS_MAP[issue.status]?.text, '& .MuiOutlinedInput-notchedOutline': { borderColor: `${STATUS_MAP[issue.status]?.text}33` } }}>
                     {/* Trước đây hiện cả 4 trạng thái kể cả 'reported', nên admin lùi
                         được phiếu đã xử lý về "mới" ngay trên giao diện — backend giờ
@@ -496,7 +486,16 @@ const IssueManagement: React.FC<Props> = ({ onDataChange = () => undefined }) =>
         </DialogActions>
       </Dialog>
 
-      <Snackbar open={snack.open} autoHideDuration={3000} onClose={() => setSnack(s => ({ ...s, open: false }))} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
+      <UpdateStatusDialog
+        issue={statusTarget?.issue ?? null}
+        open={Boolean(statusTarget)}
+        initialStatus={statusTarget?.status}
+        onClose={() => setStatusTarget(null)}
+        onCompleted={(msg) => handleStatusFinished(msg, 'success')}
+        onStale={(msg) => handleStatusFinished(msg, 'warning')}
+      />
+
+      <Snackbar open={snack.open} autoHideDuration={4000} onClose={() => setSnack(s => ({ ...s, open: false }))} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
         <Alert severity={snack.severity} variant="filled" onClose={() => setSnack(s => ({ ...s, open: false }))}>{snack.msg}</Alert>
       </Snackbar>
     </GlassCard>

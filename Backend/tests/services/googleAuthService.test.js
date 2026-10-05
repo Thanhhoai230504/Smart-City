@@ -4,10 +4,12 @@ jest.mock('google-auth-library', () => {
 });
 jest.mock('../../src/models/User');
 jest.mock('../../src/services/authService', () => ({ generateTokensForUser: jest.fn() }));
+jest.mock('../../src/services/sessionService', () => ({ revokeAllSessions: jest.fn() }));
 
 const { __verifyIdToken: verifyIdToken } = require('google-auth-library');
 const User = require('../../src/models/User');
 const { generateTokensForUser } = require('../../src/services/authService');
+const { revokeAllSessions } = require('../../src/services/sessionService');
 const {
   allowedAudiences,
   verifyGoogleIdToken,
@@ -142,12 +144,13 @@ describe('googleAuthService', () => {
       expect(existing.save).toHaveBeenCalled();
     });
 
-    it('có tài khoản local cùng email → liên kết vào tài khoản đó (giống luồng web)', async () => {
+    it('có tài khoản local ĐÃ xác thực cùng email → liên kết, giữ mật khẩu của chủ email', async () => {
       const local = {
+        _id: 'u-local',
+        name: 'Tên cũ',
         provider: 'local',
-        isVerified: false,
-        emailVerificationTokenHash: 'hash',
-        emailVerificationExpires: new Date(),
+        isVerified: true,
+        password: '$2a$10$hash-cua-chu-email',
         save: jest.fn(),
       };
       User.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(local);
@@ -160,11 +163,48 @@ describe('googleAuthService', () => {
         providerId: 'google-sub-1',
         avatar: profile.avatar,
         isVerified: true,
-        emailVerificationTokenHash: null,
-        emailVerificationExpires: null,
+        password: '$2a$10$hash-cua-chu-email',
+        name: 'Tên cũ',
       });
       expect(local.save).toHaveBeenCalled();
+      expect(revokeAllSessions).not.toHaveBeenCalled();
       expect(User.create).not.toHaveBeenCalled();
+    });
+
+    it('tài khoản local CHƯA xác thực (có thể do kẻ xấu đăng ký trước) → xoá mật khẩu, thu hồi phiên, lấy tên Google', async () => {
+      const local = {
+        _id: 'u-squatter',
+        name: 'Kẻ đăng ký trước',
+        provider: 'local',
+        isVerified: false,
+        password: '$2a$10$hash-cua-ke-xau',
+        emailVerificationTokenHash: 'hash',
+        emailVerificationExpires: new Date(),
+        passwordResetTokenHash: 'reset-hash',
+        passwordResetExpires: new Date(),
+        failedLoginAttempts: 3,
+        save: jest.fn(),
+      };
+      User.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(local);
+
+      await findOrCreateGoogleUser(profile);
+
+      expect(local).toMatchObject({
+        provider: 'google',
+        providerId: 'google-sub-1',
+        isVerified: true,
+        emailVerificationTokenHash: null,
+        emailVerificationExpires: null,
+        passwordResetTokenHash: null,
+        passwordResetExpires: null,
+        failedLoginAttempts: 0,
+        lockUntil: null,
+        name: 'Nguyễn Văn An',
+      });
+      // Mật khẩu kẻ xấu đặt không còn đăng nhập được nữa.
+      expect(local.password).toBeUndefined();
+      expect(local.save).toHaveBeenCalled();
+      expect(revokeAllSessions).toHaveBeenCalledWith('u-squatter');
     });
 
     it('chưa có gì → tạo tài khoản provider google, đã xác minh, email chữ thường', async () => {

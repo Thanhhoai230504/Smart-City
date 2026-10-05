@@ -1,16 +1,20 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../../store/store';
-import { fetchIssueById, clearCurrentIssue, currentIssueRefreshed } from '../../store/slices/issueSlice';
+import {
+  fetchIssueById,
+  clearCurrentIssue,
+  currentIssueRefreshed,
+  IssueRequestFailure,
+} from '../../store/slices/issueSlice';
 import { SOCKET_RECONNECTED, useSocket } from '../../hooks/useSocket';
 import { commentApi } from '../../api/commentApi';
 import { issueApi } from '../../api/issueApi';
 import {
   Box, Container, Typography, Chip, Card, CardContent, Stack, Button,
   Grid, Divider, Avatar, TextField, Stepper, Step, StepLabel, StepConnector,
-  MenuItem, Select, FormControl, InputLabel, SelectChangeEvent, IconButton,
-  Rating, Alert, Dialog, DialogTitle, DialogContent, DialogActions,
+  IconButton, Rating, Alert, Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
@@ -21,22 +25,25 @@ import {
   ArrowBack, LocationOn, Person, CalendarMonth, Send,
   FiberManualRecord, CheckCircle, Pending, Cancel,
   Phone, Email, Description, ThumbUp, ThumbUpOffAlt,
-  Share, Facebook, ContentCopy, Link as LinkIcon,
-  Star, AssignmentInd,
+  Facebook, ContentCopy, AssignmentInd, EditNote,
+  SearchOff, ErrorOutline, Refresh, FormatListBulleted,
 } from '@mui/icons-material';
-import { CATEGORY_MAP, STATUS_MAP, getAllowedStatusTargets } from '../../utils/constants';
+import { CATEGORY_MAP, STATUS_MAP } from '../../utils/constants';
 import { getReopenEligibility, getReopenRules, REOPEN_BLOCK_MESSAGES, ReopenBlockReason } from '../../utils/reopen';
 import { canRateIssue, MAX_RATING_COMMENT_LENGTH } from '../../utils/rating';
 import { formatDate, escapeHtml } from '../../utils/helpers';
-import { Comment, Department, IssueStatus, Pagination } from '../../types';
+import { Comment, Department, Issue, Pagination } from '../../types';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import SlaBadge from '../../components/SlaBadge';
 import PriorityBadge from '../../components/PriorityBadge';
 import IssuePhotoComparison from './IssuePhotoComparison';
+import PreviousRounds from './PreviousRounds';
 import NearbyCameras from './NearbyCameras';
 import NearbyIssues from './NearbyIssues';
 import AssignIssueDialog from '../../components/AssignIssueDialog';
 import { canAssignIssue } from '../../utils/assignment';
+import { getApiErrorCode, getApiErrorMessage } from '../../utils/apiError';
+import UpdateStatusDialog from '../StaffDashboard/UpdateStatusDialog';
 import { toast } from 'react-toastify';
 
 const CATEGORY_LABELS_VN: Record<string, string> = {
@@ -67,11 +74,126 @@ const statusLabels: Record<string, string> = {
   rejected: 'Từ chối',
 };
 
+/**
+ * 404 (phiếu đã xoá) hoặc 400 không kèm mã nghiệp vụ (id sai định dạng — lỗi
+ * CastError của Mongoose) đều nghĩa là "không có sự cố này"; thử lại vô ích.
+ */
+const isNotFoundFailure = (failure: IssueRequestFailure) => (
+  failure.status === 404 || (failure.status === 400 && !failure.code)
+);
+
+const toLoadFailure = (rejection: unknown): IssueRequestFailure => {
+  // Payload của rejectWithValue có `message` nhưng không có `name`; lỗi JS bị
+  // serialize (SerializedError) thì có `name` và message tiếng Anh — không hiện ra.
+  const candidate = rejection as (Partial<IssueRequestFailure> & { name?: unknown }) | null;
+  if (candidate && typeof candidate === 'object' && typeof candidate.message === 'string' && candidate.name === undefined) {
+    return { message: candidate.message, status: candidate.status, code: candidate.code };
+  }
+  return { message: 'Không tải được sự cố. Vui lòng kiểm tra kết nối và thử lại.' };
+};
+
+/**
+ * Trạng thái lỗi của trang chi tiết.
+ *
+ * Trước đây trang chỉ có `if (loading || !issue) return <LoadingSpinner />`: id
+ * sai, phiếu đã xoá hay mất mạng đều quay vòng "Đang tải..." mãi mãi (thường gặp
+ * khi mở link chia sẻ hoặc thông báo của một phiếu đã bị xoá).
+ */
+const IssueLoadError: React.FC<{ failure: IssueRequestFailure; onRetry: () => void }> = ({ failure, onRetry }) => {
+  const notFound = isNotFoundFailure(failure);
+  return (
+    <Container maxWidth="sm">
+      <Stack
+        role="alert"
+        alignItems="center"
+        textAlign="center"
+        spacing={2}
+        sx={{ minHeight: '55vh', justifyContent: 'center', py: 8 }}
+      >
+        {notFound
+          ? <SearchOff sx={{ fontSize: 56, color: 'text.disabled' }} />
+          : <ErrorOutline sx={{ fontSize: 56, color: 'warning.main' }} />}
+        <Typography variant="h5" component="h1" fontWeight={700}>
+          {notFound ? 'Không tìm thấy sự cố' : 'Không tải được sự cố'}
+        </Typography>
+        <Typography color="text.secondary" maxWidth={440}>
+          {notFound
+            ? 'Sự cố này có thể đã bị xoá hoặc đường dẫn không còn đúng. Bạn có thể tìm các phản ánh khác trong danh sách.'
+            : failure.message}
+        </Typography>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} pt={1}>
+          {!notFound && (
+            <Button variant="contained" startIcon={<Refresh />} onClick={onRetry}>
+              Thử lại
+            </Button>
+          )}
+          <Button
+            component={RouterLink}
+            to="/issues"
+            variant={notFound ? 'contained' : 'outlined'}
+            startIcon={<FormatListBulleted />}
+          >
+            Quay lại danh sách
+          </Button>
+        </Stack>
+      </Stack>
+    </Container>
+  );
+};
+
+/**
+ * Ai đổi trạng thái gần nhất. `adminId` là tài khoản gọi API đổi trạng thái lần
+ * cuối — thường là CÁN BỘ của đơn vị, không phải quản trị viên — nên tiêu đề nói
+ * đúng việc đã làm thay vì "Xử lý bởi Admin" như trước. Người dân mở lại phiếu
+ * không đổi `adminId`, nên thời điểm lấy từ chính dòng lịch sử của người này chứ
+ * không lấy dòng cuối cùng (có thể là lượt mở lại của người dân).
+ */
+const getLastHandlerSummary = (issue: Issue, handlerId: string) => {
+  const entryOf = (entry: NonNullable<Issue['statusHistory']>[number]) => (
+    typeof entry.changedBy === 'string' ? entry.changedBy : entry.changedBy?._id
+  );
+  const handlerEntry = [...(issue.statusHistory || [])].reverse()
+    .find((entry) => entryOf(entry) === handlerId) || null;
+
+  if (issue.status === 'resolved') {
+    return {
+      title: 'Hoàn tất bởi',
+      timeLabel: 'Hoàn tất lúc',
+      time: issue.resolvedAt || handlerEntry?.changedAt || null,
+      titleColor: 'success.main',
+      bgcolor: 'rgba(46,125,50,0.06)',
+      borderColor: 'rgba(46,125,50,0.22)',
+    };
+  }
+  if (issue.status === 'rejected') {
+    return {
+      title: 'Từ chối bởi',
+      timeLabel: 'Từ chối lúc',
+      time: handlerEntry?.status === 'rejected' ? handlerEntry.changedAt : null,
+      titleColor: 'text.primary',
+      bgcolor: 'rgba(107,114,128,0.06)',
+      borderColor: 'rgba(107,114,128,0.22)',
+    };
+  }
+  return {
+    title: 'Cập nhật gần nhất bởi',
+    timeLabel: handlerEntry
+      ? `Chuyển sang “${statusLabels[handlerEntry.status] || handlerEntry.status}” lúc`
+      : 'Cập nhật lúc',
+    time: handlerEntry?.changedAt || null,
+    titleColor: 'primary.main',
+    bgcolor: 'rgba(11,94,142,0.05)',
+    borderColor: 'rgba(11,94,142,0.18)',
+  };
+};
+
 const IssueDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
-  const { currentIssue: issue, loading } = useSelector((s: RootState) => s.issues);
+  // Không đọc `loading`/`error` dùng chung của slice: chúng phục vụ cả danh sách,
+  // chi tiết lẫn tạo mới nên lỗi của trang khác có thể "rò" sang đây.
+  const { currentIssue: issue } = useSelector((s: RootState) => s.issues);
   const { user, isAuthenticated } = useSelector((s: RootState) => s.auth);
 
   const [comments, setComments] = useState<Comment[]>([]);
@@ -80,10 +202,12 @@ const IssueDetailPage: React.FC = () => {
   const [newComment, setNewComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Admin status update
-  const [newStatus, setNewStatus] = useState<IssueStatus | ''>('');
-  const [statusNote, setStatusNote] = useState('');
-  const [updatingStatus, setUpdatingStatus] = useState(false);
+  // Tải chi tiết: lỗi lấy từ kết quả thunk (unwrap) của CHÍNH request này.
+  const [loadFailure, setLoadFailure] = useState<IssueRequestFailure | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
+
+  // Đổi trạng thái (quản trị viên) — dùng chung hộp thoại với cổng cán bộ.
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
 
   // Vote
   const [voteCount, setVoteCount] = useState(0);
@@ -100,17 +224,36 @@ const IssueDetailPage: React.FC = () => {
   const [submittingRating, setSubmittingRating] = useState(false);
 
   useEffect(() => {
-    const request = id ? dispatch(fetchIssueById(id)) : null;
+    if (!id) return undefined;
+    let active = true;
+    setLoadFailure(null);
+    const request = dispatch(fetchIssueById(id));
+    request.unwrap().catch((rejection: unknown) => {
+      // Huỷ vì rời trang / đổi sang phiếu khác thì không phải lỗi.
+      if (!active || (rejection as { name?: string } | null)?.name === 'AbortError') return;
+      setLoadFailure(toLoadFailure(rejection));
+    });
     return () => {
-      request?.abort();
+      active = false;
+      request.abort();
       dispatch(clearCurrentIssue());
     };
+  }, [dispatch, id, reloadToken]);
+
+  // Làm mới tại chỗ (không bật màn chờ): sau khi đổi trạng thái, đánh giá, mở lại,
+  // phân công hoặc khi có thông báo realtime về chính phiếu này. Lỗi thì giữ bản
+  // đang hiển thị — thao tác kế tiếp sẽ tự báo lỗi nếu phiếu thật sự đã đổi.
+  const refreshIssue = useCallback(() => {
+    if (!id) return;
+    issueApi.getIssueById(id)
+      .then(({ data: res }) => dispatch(currentIssueRefreshed(res.data.issue)))
+      .catch(() => { /* giữ bản đang hiển thị */ });
   }, [dispatch, id]);
 
   useEffect(() => {
     if (issue) {
       setVoteCount(issue.voteCount || 0);
-      setHasVoted(user ? (issue.votes || []).includes(user._id) : false);
+      setHasVoted(user ? (issue.hasVoted ?? (issue.votes || []).includes(user._id)) : false);
     }
   }, [issue, user]);
 
@@ -140,9 +283,7 @@ const IssueDetailPage: React.FC = () => {
     const aboutThisIssue = event === SOCKET_RECONNECTED
       || (event === 'notification:new' && String(data?.issueId) === id);
     if (!aboutThisIssue) return;
-    issueApi.getIssueById(id)
-      .then(({ data: res }) => dispatch(currentIssueRefreshed(res.data.issue)))
-      .catch(() => { /* giữ bản đang hiển thị */ });
+    refreshIssue();
     if (event === SOCKET_RECONNECTED || data?.type === 'comment') loadComments(1);
   });
 
@@ -158,19 +299,18 @@ const IssueDetailPage: React.FC = () => {
     setSubmitting(false);
   };
 
-  const handleStatusUpdate = async () => {
-    if (!newStatus || !id) return;
-    setUpdatingStatus(true);
-    try {
-      await issueApi.updateIssueStatus(id, newStatus, statusNote.trim());
-      toast.success(`Trạng thái → ${statusLabels[newStatus]}`);
-      dispatch(fetchIssueById(id));
-      setNewStatus('');
-      setStatusNote('');
-    } catch {
-      toast.error('Cập nhật thất bại');
-    }
-    setUpdatingStatus(false);
+  const handleStatusCompleted = (message: string) => {
+    setStatusDialogOpen(false);
+    toast.success(message);
+    refreshIssue();
+  };
+
+  // 409 STATUS_CONFLICT (người khác vừa đổi trạng thái), phiếu bị gộp/xoá: hiện đúng
+  // lý do của server rồi tải lại để trang khớp thực tế.
+  const handleStatusStale = (message: string) => {
+    setStatusDialogOpen(false);
+    toast.warning(message);
+    refreshIssue();
   };
 
   const handleVote = async () => {
@@ -185,7 +325,6 @@ const IssueDetailPage: React.FC = () => {
   };
 
   const shareUrl = window.location.href;
-  const shareTitle = issue ? `Sự cố: ${issue.title}` : '';
   const handleShare = (platform: string) => {
     const urls: Record<string, string> = {
       facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
@@ -199,7 +338,13 @@ const IssueDetailPage: React.FC = () => {
     window.open(urls[platform], '_blank', 'width=600,height=400');
   };
 
-  if (loading || !issue) return <LoadingSpinner />;
+  // Chỉ coi là "đã có dữ liệu" khi đúng phiếu của URL hiện tại.
+  if (!issue || issue._id !== id) {
+    if (loadFailure) {
+      return <IssueLoadError failure={loadFailure} onRetry={() => setReloadToken((token) => token + 1)} />;
+    }
+    return <LoadingSpinner text="Đang tải sự cố..." />;
+  }
 
   const cat = CATEGORY_MAP[issue.category] || CATEGORY_MAP.other;
   const st = STATUS_MAP[issue.status] || STATUS_MAP.reported;
@@ -232,6 +377,8 @@ const IssueDetailPage: React.FC = () => {
   // Admin bấm vào thông báo "có sự cố mới" là phân công được ngay tại đây, không phải
   // quay lại tab Phân công tìm sự cố. Cùng điều kiện với backend (utils/assignment.ts).
   const canAssign = canAssignIssue(issue, user?.role);
+  const lastHandler = issue.adminId && typeof issue.adminId === 'object' ? issue.adminId : null;
+  const lastHandlerSummary = lastHandler ? getLastHandlerSummary(issue, lastHandler._id) : null;
 
   const handleReopen = async () => {
     if (!id || reopenReason.trim().length < reopenRules.minReasonLength || submittingReopen) return;
@@ -239,18 +386,18 @@ const IssueDetailPage: React.FC = () => {
     try {
       await issueApi.reopenIssue(id, { reason: reopenReason.trim() });
       toast.success('Đã mở lại sự cố. Đơn vị phụ trách sẽ xem xét lại.');
-      dispatch(fetchIssueById(id));
+      refreshIssue();
       setReopenOpen(false);
       setReopenReason('');
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Phân nhánh theo mã lỗi, không so chuỗi. Bị từ chối vì một rào chắn thì tải
       // lại phiếu để nút ẩn đi — nếu không người dùng bấm lại vẫn nhận cùng lỗi.
-      const code = err.response?.data?.code as ReopenBlockReason | undefined;
+      const code = getApiErrorCode(err) as ReopenBlockReason | undefined;
       const known = code && REOPEN_BLOCK_MESSAGES[code];
-      toast.error(known ? known(reopenRules) : err.response?.data?.message || 'Mở lại sự cố thất bại');
+      toast.error(known ? known(reopenRules) : getApiErrorMessage(err, 'Mở lại sự cố thất bại.'));
       if (known) {
         setReopenOpen(false);
-        dispatch(fetchIssueById(id));
+        refreshIssue();
       }
     }
     setSubmittingReopen(false);
@@ -262,14 +409,14 @@ const IssueDetailPage: React.FC = () => {
     try {
       await issueApi.rateIssue(id, { score: ratingScore, comment: ratingComment.trim() || undefined });
       toast.success('Đánh giá thành công! Cảm ơn bạn.');
-      dispatch(fetchIssueById(id));
+      refreshIssue();
       setRatingScore(null);
       setRatingComment('');
-    } catch (err: any) {
-      toast.error(err.response?.data?.errors?.[0]?.message || err.response?.data?.message || 'Đánh giá thất bại');
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, 'Đánh giá thất bại.'));
       // Phiếu đã đổi trạng thái hoặc đã được đánh giá ở tab khác: tải lại để nút ẩn đi.
-      const code = err.response?.data?.code;
-      if (code === 'ALREADY_RATED' || code === 'ISSUE_NOT_CLOSED') dispatch(fetchIssueById(id));
+      const code = getApiErrorCode(err);
+      if (code === 'ALREADY_RATED' || code === 'ISSUE_NOT_CLOSED') refreshIssue();
     }
     setSubmittingRating(false);
   };
@@ -373,6 +520,9 @@ const IssueDetailPage: React.FC = () => {
           <Typography color="text.secondary" lineHeight={1.8} mb={3}>{issue.description}</Typography>
 
           <IssuePhotoComparison issue={issue} />
+
+          {/* Lượt xử lý cũ (phiếu từng bị mở lại): minh chứng + đánh giá cũ để đối chiếu */}
+          <PreviousRounds rounds={issue.previousRounds} />
 
           {/* STATUS TIMELINE */}
           {issue.statusHistory && issue.statusHistory.length > 0 && (
@@ -510,44 +660,42 @@ const IssueDetailPage: React.FC = () => {
 
           <NearbyCameras latitude={issue.latitude} longitude={issue.longitude} />
 
-          {/* ADMIN CONTROLS — chỉ hiện cho admin khi sự cố chưa xử lý xong */}
+          {/* ADMIN CONTROLS — chỉ hiện cho admin khi sự cố chưa xử lý xong. Đổi trạng
+              thái đi qua hộp thoại dùng chung: từ chối bắt buộc lý do, báo đã xử lý bắt
+              buộc ảnh minh chứng — đúng như backend kiểm tra. */}
           {canChangeStatus && (
             <Card sx={{ mb: 3, bgcolor: 'rgba(11,94,142,0.05)', border: '1px solid rgba(11,94,142,0.18)' }}>
               <CardContent>
-                <Typography fontWeight={600} color="primary.main" mb={2}>
+                <Typography fontWeight={600} color="primary.main" mb={1}>
                   🛠️ Xử lý sự cố
                 </Typography>
-
-                <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-                  <InputLabel>Chuyển trạng thái</InputLabel>
-                  <Select value={newStatus} label="Chuyển trạng thái"
-                    onChange={(e: SelectChangeEvent) => setNewStatus(e.target.value as IssueStatus)}
-                    sx={{ borderRadius: '10px' }}>
-                    {/* Chỉ hiện đích đến hợp lệ theo luật chuyển trạng thái —
-                        backend trả 400 code INVALID_STATUS_TRANSITION nếu gọi sai. */}
-                    {getAllowedStatusTargets(issue.status).map((target) => (
-                      <MenuItem key={target} value={target}>
-                        {STATUS_MAP[target]?.icon} {STATUS_MAP[target]?.label || target}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-
-                <TextField fullWidth size="small" label="Ghi chú (tùy chọn)"
-                  placeholder="VD: Đã cử đội ngũ đến kiểm tra..."
-                  value={statusNote} onChange={(e) => setStatusNote(e.target.value)}
-                  multiline rows={2}
-                  sx={{ mb: 2, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-                />
-
-                <Button fullWidth variant="contained" disabled={!newStatus || updatingStatus}
-                  onClick={handleStatusUpdate}
-                  sx={{ borderRadius: '10px', py: 1 }}>
-                  {updatingStatus ? 'Đang cập nhật...' : '✅ Cập nhật trạng thái'}
+                <Stack direction="row" spacing={1} alignItems="center" mb={1.5}>
+                  <Typography variant="body2" color="text.secondary">Trạng thái hiện tại:</Typography>
+                  <Chip size="small" label={st.label} sx={{ bgcolor: st.bg, color: st.text, fontWeight: 600 }} />
+                </Stack>
+                <Typography variant="body2" color="text.secondary" mb={2}>
+                  Từ chối cần nêu lý do cho người báo cáo; chuyển sang “Đã xử lý” cần ảnh minh chứng sau xử lý.
+                </Typography>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  startIcon={<EditNote />}
+                  onClick={() => setStatusDialogOpen(true)}
+                  sx={{ borderRadius: '10px', py: 1 }}
+                >
+                  Cập nhật trạng thái
                 </Button>
               </CardContent>
             </Card>
           )}
+
+          <UpdateStatusDialog
+            issue={canChangeStatus ? issue : null}
+            open={statusDialogOpen && canChangeStatus}
+            onClose={() => setStatusDialogOpen(false)}
+            onCompleted={handleStatusCompleted}
+            onStale={handleStatusStale}
+          />
 
           {/* ĐƠN VỊ PHỤ TRÁCH — theo phân công thực tế */}
           {isAdmin && (
@@ -618,7 +766,7 @@ const IssueDetailPage: React.FC = () => {
             onAssigned={() => {
               setAssignOpen(false);
               toast.success('Đã phân công sự cố và bắt đầu tính SLA.');
-              if (id) dispatch(fetchIssueById(id));
+              refreshIssue();
             }}
           />
 
@@ -737,14 +885,20 @@ const IssueDetailPage: React.FC = () => {
             </Card>
           )}
 
-          {issue.adminId && typeof issue.adminId === 'object' && (
-            <Card sx={{ mb: 3, bgcolor: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)' }}>
+          {lastHandler && lastHandlerSummary && (
+            <Card sx={{ mb: 3, bgcolor: lastHandlerSummary.bgcolor, border: `1px solid ${lastHandlerSummary.borderColor}` }}>
               <CardContent>
-                <Typography fontWeight={600} color="success.main" mb={0.5}>Xử lý bởi Admin</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {issue.adminId.name}{issue.adminId.email ? ` (${issue.adminId.email})` : ''}
+                <Typography fontWeight={600} color={lastHandlerSummary.titleColor} mb={0.5}>
+                  {lastHandlerSummary.title}
                 </Typography>
-                {issue.resolvedAt && <Typography variant="body2" color="text.secondary" mt={0.5}>Hoàn thành: {formatDate(issue.resolvedAt)}</Typography>}
+                <Typography variant="body2" color="text.secondary">
+                  {lastHandler.name}{lastHandler.email ? ` (${lastHandler.email})` : ''}
+                </Typography>
+                {lastHandlerSummary.time && (
+                  <Typography variant="body2" color="text.secondary" mt={0.5}>
+                    {lastHandlerSummary.timeLabel}: {formatDate(lastHandlerSummary.time)}
+                  </Typography>
+                )}
               </CardContent>
             </Card>
           )}

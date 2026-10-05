@@ -51,7 +51,7 @@ describe('Error Handler Middleware', () => {
     const err = new Error('Validation failed');
     err.name = 'ValidationError';
     err.errors = {
-      name: { message: 'Name is required' },
+      name: { message: 'Vui lòng nhập họ tên' },
       email: { message: 'Invalid email' },
     };
     const res = mockRes();
@@ -62,7 +62,7 @@ describe('Error Handler Middleware', () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         success: false,
-        message: 'Name is required, Invalid email',
+        message: 'Vui lòng nhập họ tên, Invalid email',
       })
     );
   });
@@ -74,7 +74,7 @@ describe('Error Handler Middleware', () => {
     err.name = 'ValidationError';
     err.errors = {
       'statusHistory.0.note': { path: 'statusHistory.0.note', message: 'Ghi chú không quá 500 ký tự' },
-      title: { path: 'title', message: 'Title is required' },
+      title: { path: 'title', message: 'Vui lòng nhập tiêu đề' },
     };
     const res = mockRes();
 
@@ -84,7 +84,7 @@ describe('Error Handler Middleware', () => {
       expect.objectContaining({
         errors: [
           { field: 'statusHistory.0.note', message: 'Ghi chú không quá 500 ký tự' },
-          { field: 'title', message: 'Title is required' },
+          { field: 'title', message: 'Vui lòng nhập tiêu đề' },
         ],
       })
     );
@@ -93,13 +93,13 @@ describe('Error Handler Middleware', () => {
   it('falls back to the object key when the error has no path', () => {
     const err = new Error('Validation failed');
     err.name = 'ValidationError';
-    err.errors = { name: { message: 'Name is required' } };
+    err.errors = { name: { message: 'Vui lòng nhập họ tên' } };
     const res = mockRes();
 
     errorHandler(err, mockReq(), res, mockNext);
 
     expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ errors: [{ field: 'name', message: 'Name is required' }] })
+      expect.objectContaining({ errors: [{ field: 'name', message: 'Vui lòng nhập họ tên' }] })
     );
   });
 
@@ -144,7 +144,7 @@ describe('Error Handler Middleware', () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         success: false,
-        message: 'email already exists.',
+        message: 'Giá trị của trường email đã tồn tại.',
       })
     );
   });
@@ -162,7 +162,7 @@ describe('Error Handler Middleware', () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         success: false,
-        message: 'Invalid _id: invalid-id',
+        message: 'Giá trị không hợp lệ cho trường _id.',
       })
     );
   });
@@ -178,7 +178,7 @@ describe('Error Handler Middleware', () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         success: false,
-        message: 'Invalid token.',
+        message: 'Phiên đăng nhập không hợp lệ.',
       })
     );
   });
@@ -194,7 +194,7 @@ describe('Error Handler Middleware', () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         success: false,
-        message: 'Token expired.',
+        message: 'Phiên đăng nhập đã hết hạn.',
       })
     );
   });
@@ -248,7 +248,7 @@ describe('Error Handler Middleware', () => {
 
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ success: false, message: 'Internal Server Error' })
+        expect.objectContaining({ success: false, message: 'Lỗi máy chủ. Vui lòng thử lại sau.' })
       );
     });
 
@@ -299,28 +299,28 @@ describe('Error Handler Middleware', () => {
     });
 
     it('should keep ApiError 4xx messages', () => {
-      const err = ApiError.badRequest('Cannot change your own role');
+      const err = ApiError.badRequest('Không thể tự đổi vai trò của chính mình.');
       const res = mockRes();
 
       errorHandler(err, mockReq(), res, mockNext);
 
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: 'Cannot change your own role' })
+        expect.objectContaining({ message: 'Không thể tự đổi vai trò của chính mình.' })
       );
     });
 
     it('should keep Mongoose ValidationError messages', () => {
       const err = new Error('Validation failed');
       err.name = 'ValidationError';
-      err.errors = { name: { message: 'Name is required' } };
+      err.errors = { name: { message: 'Vui lòng nhập họ tên' } };
       const res = mockRes();
 
       errorHandler(err, mockReq(), res, mockNext);
 
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: 'Name is required' })
+        expect.objectContaining({ message: 'Vui lòng nhập họ tên' })
       );
     });
 
@@ -331,7 +331,7 @@ describe('Error Handler Middleware', () => {
       const dupRes = mockRes();
       errorHandler(dup, mockReq(), dupRes, mockNext);
       expect(dupRes.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: 'email already exists.' })
+        expect.objectContaining({ message: 'Giá trị của trường email đã tồn tại.' })
       );
 
       const cast = new Error('Cast error');
@@ -341,7 +341,7 @@ describe('Error Handler Middleware', () => {
       const castRes = mockRes();
       errorHandler(cast, mockReq(), castRes, mockNext);
       expect(castRes.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: 'Invalid _id: invalid-id' })
+        expect.objectContaining({ message: 'Giá trị không hợp lệ cho trường _id.' })
       );
     });
 
@@ -354,7 +354,7 @@ describe('Error Handler Middleware', () => {
 
       expect(res.status).toHaveBeenCalledWith(401);
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: 'Invalid token.' })
+        expect.objectContaining({ message: 'Phiên đăng nhập không hợp lệ.' })
       );
     });
   });

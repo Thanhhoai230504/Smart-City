@@ -11,6 +11,7 @@ import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/meta_repository.dart';
 import '../auth/auth_controller.dart';
 import '../auth/widgets.dart';
+import '../report/offline_queue.dart';
 
 /// Sửa tên + `watchedDistricts` (task 6.1). Khu vực lấy từ meta — khi backend
 /// đổi sang 94 đơn vị cấp xã (mục 5.1), app không phải phát hành lại.
@@ -239,15 +240,26 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
   Future<void> _delete() async {
     final user = ref.read(currentUserProvider);
     if (user == null) return;
+    // Lấy trước: đăng xuất cục bộ làm router rời màn này, `ref` hết dùng được.
+    final queue = ref.read(offlineQueueProvider.notifier);
+    final auth = ref.read(authControllerProvider.notifier);
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
       await ref.read(authRepositoryProvider).deleteAccount(password: _password.text);
-      await ref.read(authControllerProvider.notifier).signOutLocally(
-            notice: 'Tài khoản đã được xoá. Phản ánh bạn từng gửi được giữ lại dưới dạng ẩn danh.',
-          );
+      // Phiếu chờ gửi trên máy (ảnh, vị trí, SĐT) là dữ liệu của tài khoản vừa xoá
+      // → xoá theo, kèm ảnh. Đăng xuất thường thì giữ (phiếu chờ chủ quay lại).
+      // `finally`: lỗi kho trên máy cũng không được giữ người dùng ở trạng thái đăng
+      // nhập vào một tài khoản đã không còn.
+      try {
+        await queue.purgeAccount(user.id);
+      } finally {
+        await auth.signOutLocally(
+          notice: 'Tài khoản đã được xoá. Phản ánh bạn từng gửi được giữ lại dưới dạng ẩn danh.',
+        );
+      }
       if (mounted) context.go(Routes.login);
     } on AppException catch (e) {
       if (!mounted) return;
@@ -269,6 +281,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
     final textTheme = Theme.of(context).textTheme;
     final needsPassword = user?.isLocalAccount ?? true;
     final canDelete = _understood && (!needsPassword || _password.text.isNotEmpty);
+    final pending = ref.watch(offlineQueueProvider.select((s) => s.count));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Xoá tài khoản')),
@@ -284,6 +297,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
             '• Số điện thoại bạn nhập trên các phiếu sẽ bị xoá.\n'
             '• Các phiếu bạn đã gửi được giữ lại dưới dạng ẩn danh để đơn vị tiếp tục xử lý '
             'và thống kê không bị sai lệch.\n'
+            '${pending > 0 ? '• $pending báo cáo chưa gửi được trên máy này sẽ bị xoá cùng ảnh đính kèm.\n' : ''}'
             '• Bạn bị đăng xuất khỏi mọi thiết bị.',
             style: textTheme.bodyMedium,
           ),

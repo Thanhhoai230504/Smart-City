@@ -54,12 +54,32 @@ const rateIssue = async (issueId, userId, { score, comment }) => {
     throw ApiError.badRequestWithCode('Bạn đã đánh giá sự cố này rồi', 'ALREADY_RATED');
   }
 
-  issue.rating = {
-    score,
-    comment: comment || null,
-    ratedAt: new Date(),
-  };
-  await issue.save();
+  // Ghi CÓ ĐIỀU KIỆN: phiếu vẫn đúng trạng thái vừa kiểm tra và CHƯA có điểm.
+  // Trước đây đọc → gán → save: bấm gửi hai lần thì cả hai cùng qua kiểm tra
+  // (lần sau ghi đè lần trước, đơn vị nhận hai thông báo), còn đánh giá đúng lúc
+  // phiếu bị mở lại thì điểm của lượt cũ rơi vào lượt mới vừa được đặt lại.
+  const rated = await Issue.findOneAndUpdate(
+    {
+      _id: issue._id,
+      isDeleted: false,
+      mergedInto: null,
+      status: issue.status,
+      'rating.score': null,
+    },
+    { $set: { rating: { score, comment: comment || null, ratedAt: new Date() } } },
+    { new: true, runValidators: true }
+  ).populate('departmentId', 'name');
+
+  if (!rated) {
+    const latest = await Issue.findOne({ _id: issue._id }).select('rating status');
+    if (latest?.rating?.score) {
+      throw ApiError.badRequestWithCode('Bạn đã đánh giá sự cố này rồi', 'ALREADY_RATED');
+    }
+    throw ApiError.conflictWithCode(
+      'Sự cố vừa được cập nhật (có thể đã được mở lại). Vui lòng tải lại trang.',
+      'STATUS_CONFLICT'
+    );
+  }
 
   // ─── Khép vòng phản hồi ───
   const isLow = score <= LOW_RATING_THRESHOLD;
@@ -106,7 +126,7 @@ const rateIssue = async (issueId, userId, { score, comment }) => {
     }
   }
 
-  return issue;
+  return rated;
 };
 
 const getAverageRating = async () => {

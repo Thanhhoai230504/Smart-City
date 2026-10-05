@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import axios from 'axios';
 import { authApi } from '../../api/authApi';
 import { AuthState, LoginCredentials, RegisterData, User } from '../../types';
+import { getApiErrorCode, getApiErrorMessage } from '../../utils/apiError';
 
 const initialState: AuthState = {
   user: null,
@@ -25,13 +25,10 @@ export const loginThunk = createAsyncThunk<
     const { data } = await authApi.login(credentials);
     return data.data;
   } catch (err: unknown) {
-    if (axios.isAxiosError<{ message?: string; code?: string }>(err)) {
-      return rejectWithValue({
-        message: err.response?.data?.message || 'Đăng nhập thất bại',
-        code: err.response?.data?.code,
-      });
-    }
-    return rejectWithValue({ message: 'Đăng nhập thất bại' });
+    return rejectWithValue({
+      message: getApiErrorMessage(err, 'Đăng nhập thất bại. Vui lòng thử lại.'),
+      code: getApiErrorCode(err),
+    });
   }
 });
 
@@ -39,8 +36,8 @@ export const registerThunk = createAsyncThunk('auth/register', async (userData: 
   try {
     const { data } = await authApi.register(userData);
     return data.data;
-  } catch (err: any) {
-    return rejectWithValue(err.response?.data?.message || 'Đăng ký thất bại');
+  } catch (err: unknown) {
+    return rejectWithValue(getApiErrorMessage(err, 'Đăng ký thất bại. Vui lòng thử lại.'));
   }
 });
 
@@ -48,8 +45,8 @@ export const getProfileThunk = createAsyncThunk('auth/getProfile', async (_, { r
   try {
     const { data } = await authApi.getProfile();
     return data.data;
-  } catch (err: any) {
-    return rejectWithValue(err.response?.data?.message || 'Lấy thông tin thất bại');
+  } catch (err: unknown) {
+    return rejectWithValue(getApiErrorMessage(err, 'Không lấy được thông tin tài khoản.'));
   }
 });
 

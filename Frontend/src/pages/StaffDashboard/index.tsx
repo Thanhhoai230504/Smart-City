@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import axios from 'axios';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -61,16 +60,13 @@ import SlaBadge from '../../components/SlaBadge';
 import UpdateStatusDialog from './UpdateStatusDialog';
 import DepartmentEvaluationsPanel from './DepartmentEvaluationsPanel';
 import { SOCKET_RECONNECTED, useSocket } from '../../hooks/useSocket';
+import { getApiErrorMessage } from '../../utils/apiError';
+import { stickyActionCellSx, stickyActionHeadSx } from '../../utils/tableSx';
 
 /** Thông báo làm đổi danh sách việc của cán bộ → tải lại bàn điều phối. */
 const WORK_REFRESH_TYPES = new Set([
   'issue_assigned', 'issue_unassigned', 'issue_reopened', 'sla_reminder', 'sla_escalated',
 ]);
-
-interface ApiErrorResponse {
-  message?: string;
-  errors?: Array<{ message: string }>;
-}
 
 type StatusFilter = IssueStatus | '';
 type SlaFilter = Extract<SlaStatus, 'overdue' | 'due_soon'> | '';
@@ -80,7 +76,7 @@ type WorkScope = 'department' | 'mine';
 type SnackState = {
   open: boolean;
   message: string;
-  severity: 'success' | 'error';
+  severity: 'success' | 'error' | 'warning';
 };
 
 const PAGE_SIZE = 10;
@@ -110,6 +106,7 @@ const panelSx = {
 
 const headCellSx = {
   py: 1.5,
+  px: 1.5,
   color: 'text.secondary',
   fontWeight: 700,
   whiteSpace: 'nowrap',
@@ -119,15 +116,25 @@ const headCellSx = {
 
 const cellSx = {
   py: 1.6,
+  px: 1.5,
   borderColor: 'divider',
 };
 
-const getErrorMessage = (error: unknown, fallback: string) => {
-  if (!axios.isAxiosError<ApiErrorResponse>(error)) return fallback;
-  return error.response?.data?.errors?.[0]?.message
-    || error.response?.data?.message
-    || fallback;
-};
+/**
+ * Bảng dùng `table-layout: fixed`: cột "Công việc" lấy phần còn lại, các cột khác
+ * cố định. Trước đây bảng tự co giãn theo nội dung (tiêu đề dài kéo rộng cả bảng)
+ * và đặt `minWidth: 1120`, nên ở 1440 px có thanh điều hướng thì cột thao tác bị
+ * đẩy ra ngoài vùng nhìn thấy. "Phân loại" đã gộp vào ô công việc, "Ưu tiên" gộp
+ * với "Trạng thái".
+ */
+const WORK_TABLE_COLUMNS = {
+  priorityStatus: 184,
+  sla: 216,
+  assignee: 150,
+  // "Nhận việc"/"Cập nhật" (có icon) + nút xem chi tiết; chừa dư vài px cho font thật.
+  actions: 188,
+} as const;
+const WORK_TABLE_MIN_WIDTH = Object.values(WORK_TABLE_COLUMNS).reduce((sum, width) => sum + width, 0) + 280;
 
 const getReferenceId = (
   reference?: string | { _id: string } | null,
@@ -289,7 +296,7 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
         if (active) setDepartment(data.data.department);
       } catch (requestError) {
         if (active) {
-          setDepartmentError(getErrorMessage(
+          setDepartmentError(getApiErrorMessage(
             requestError,
             'Không thể tải thông tin đơn vị.',
           ));
@@ -332,7 +339,7 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
         pages: Math.max(1, data.data.pagination.pages),
       });
     } catch (requestError) {
-      setError(getErrorMessage(requestError, 'Không thể tải danh sách công việc.'));
+      setError(getApiErrorMessage(requestError, 'Không thể tải danh sách công việc.'));
     } finally {
       setLoading(false);
     }
@@ -471,7 +478,7 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
     } catch (requestError) {
       setSnack({
         open: true,
-        message: getErrorMessage(requestError, 'Không thể nhận công việc này.'),
+        message: getApiErrorMessage(requestError, 'Không thể nhận công việc này.'),
         severity: 'error',
       });
       await refreshAll();
@@ -483,6 +490,14 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
   const handleStatusCompleted = (message: string) => {
     setStatusTarget(null);
     setSnack({ open: true, message, severity: 'success' });
+    refreshAll();
+  };
+
+  // Người khác vừa đổi trạng thái (409 STATUS_CONFLICT), phiếu bị gộp hoặc bị xoá:
+  // báo đúng lý do của server rồi tải lại để danh sách khớp thực tế.
+  const handleStatusStale = (message: string) => {
+    setStatusTarget(null);
+    setSnack({ open: true, message, severity: 'warning' });
     refreshAll();
   };
 
@@ -857,23 +872,31 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
 
             <Box sx={{ ...panelSx, overflow: 'hidden' }}>
               <TableContainer sx={{ display: { xs: 'none', md: 'block' } }}>
-                <Table sx={{ minWidth: 1120 }} aria-label="Danh sách công việc của đơn vị">
+                <Table
+                  sx={{ minWidth: WORK_TABLE_MIN_WIDTH, tableLayout: 'fixed' }}
+                  aria-label="Danh sách công việc của đơn vị"
+                >
                   <TableHead>
                     <TableRow>
                       <TableCell sx={headCellSx}>Công việc</TableCell>
-                      <TableCell sx={headCellSx}>Phân loại</TableCell>
-                      <TableCell sx={headCellSx}>Ưu tiên</TableCell>
-                      <TableCell sx={headCellSx}>Trạng thái</TableCell>
-                      <TableCell sx={headCellSx}>SLA và hạn xử lý</TableCell>
-                      <TableCell sx={headCellSx}>Phụ trách</TableCell>
-                      <TableCell align="right" sx={headCellSx}>Thao tác</TableCell>
+                      <TableCell sx={{ ...headCellSx, width: WORK_TABLE_COLUMNS.priorityStatus }}>
+                        Ưu tiên · Trạng thái
+                      </TableCell>
+                      <TableCell sx={{ ...headCellSx, width: WORK_TABLE_COLUMNS.sla }}>SLA và hạn xử lý</TableCell>
+                      <TableCell sx={{ ...headCellSx, width: WORK_TABLE_COLUMNS.assignee }}>Phụ trách</TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{ ...headCellSx, ...stickyActionHeadSx, width: WORK_TABLE_COLUMNS.actions }}
+                      >
+                        Thao tác
+                      </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {loading ? (
                       Array.from({ length: 5 }).map((_, rowIndex) => (
                         <TableRow key={rowIndex}>
-                          {Array.from({ length: 7 }).map((__, cellIndex) => (
+                          {Array.from({ length: 5 }).map((__, cellIndex) => (
                             <TableCell key={cellIndex} sx={cellSx}>
                               <Skeleton height={30} />
                             </TableCell>
@@ -882,7 +905,7 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
                       ))
                     ) : issues.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} align="center" sx={{ ...cellSx, py: 8 }}>
+                        <TableCell colSpan={5} align="center" sx={{ ...cellSx, py: 8 }}>
                           <AssignmentIndOutlined sx={{ fontSize: 44, color: 'text.disabled', mb: 1 }} />
                           <Typography color="text.secondary">
                             {emptyMessage}
@@ -911,6 +934,7 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
                     ) : (
                       issues.map((issue) => {
                         const permissions = getPermissions(issue);
+                        const category = CATEGORY_MAP[issue.category] || CATEGORY_MAP.other;
                         const priorityColor = issue.priorityLevel
                           ? PRIORITY_MAP[issue.priorityLevel]?.color
                           : '#94A3B8';
@@ -920,48 +944,50 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
                             key={issue._id}
                             hover
                             sx={{
+                              // Nền đặc: cột thao tác dính phải kế thừa nền hàng, không lộ chữ cuộn bên dưới.
+                              bgcolor: 'background.paper',
                               '& td:first-of-type': {
                                 borderLeft: `3px solid ${priorityColor}`,
                               },
                               '&:hover': { bgcolor: '#F8FAFB' },
                             }}
                           >
-                            <TableCell sx={{ ...cellSx, width: '32%', maxWidth: 370 }}>
-                              <Typography variant="body2" fontWeight={700} noWrap>
-                                {issue.title}
-                              </Typography>
-                              <Stack direction="row" spacing={0.5} alignItems="center" mt={0.35}>
-                                <LocationOn sx={{ fontSize: 14, color: 'text.secondary' }} />
+                            <TableCell sx={cellSx}>
+                              <Tooltip title={issue.title} placement="top-start" enterDelay={500}>
+                                <Typography variant="body2" fontWeight={700} noWrap>
+                                  {issue.title}
+                                </Typography>
+                              </Tooltip>
+                              <Stack direction="row" spacing={0.5} alignItems="center" mt={0.35} minWidth={0}>
+                                <LocationOn sx={{ fontSize: 14, color: 'text.secondary', flexShrink: 0 }} />
                                 <Typography variant="caption" color="text.secondary" noWrap>
                                   {issue.location}
                                 </Typography>
                               </Stack>
-                              <Typography variant="caption" color="text.disabled">
-                                Báo lúc {formatDate(issue.createdAt)}
-                              </Typography>
+                              <Stack direction="row" spacing={0.75} alignItems="center" mt={0.25} minWidth={0}>
+                                <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: category.color, flexShrink: 0 }} />
+                                <Typography variant="caption" color="text.secondary" noWrap>
+                                  {category.label} · Báo lúc {formatDate(issue.createdAt)}
+                                </Typography>
+                              </Stack>
                             </TableCell>
 
                             <TableCell sx={cellSx}>
-                              <CategoryIndicator issue={issue} />
-                            </TableCell>
-
-                            <TableCell sx={{ ...cellSx, whiteSpace: 'nowrap' }}>
-                              <PriorityBadge issue={issue} />
-                            </TableCell>
-
-                            <TableCell sx={cellSx}>
-                              <Stack spacing={0.5} alignItems="flex-start">
+                              <Stack spacing={0.75} alignItems="flex-start">
+                                <PriorityBadge issue={issue} />
                                 <StatusIndicator issue={issue} />
                                 <ReopenedBadge reopenCount={issue.reopenCount} lastReopenedAt={issue.lastReopenedAt} />
                               </Stack>
                             </TableCell>
 
-                            <TableCell sx={{ ...cellSx, whiteSpace: 'nowrap' }}>
-                              <SlaBadge
-                                status={issue.slaStatus}
-                                dueAt={issue.dueAt}
-                                showRemaining
-                              />
+                            <TableCell sx={cellSx}>
+                              <Stack alignItems="flex-start">
+                                <SlaBadge
+                                  status={issue.slaStatus}
+                                  dueAt={issue.dueAt}
+                                  showRemaining
+                                />
+                              </Stack>
                               <Typography
                                 variant="caption"
                                 display="block"
@@ -974,17 +1000,20 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
                             </TableCell>
 
                             <TableCell sx={cellSx}>
-                              <Stack direction="row" spacing={0.75} alignItems="center">
+                              <Stack direction="row" spacing={0.75} alignItems="flex-start">
                                 <PersonOutline
                                   sx={{
                                     fontSize: 18,
+                                    mt: 0.15,
+                                    flexShrink: 0,
                                     color: permissions.isMine ? 'success.main' : 'text.secondary',
                                   }}
                                 />
-                                <Box>
+                                <Box minWidth={0}>
                                   <Typography
                                     variant="body2"
                                     color={!permissions.assigneeId ? 'text.secondary' : 'text.primary'}
+                                    sx={{ overflowWrap: 'anywhere' }}
                                   >
                                     {getAssigneeName(issue)}
                                   </Typography>
@@ -997,7 +1026,7 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
                               </Stack>
                             </TableCell>
 
-                            <TableCell align="right" sx={cellSx}>
+                            <TableCell align="right" sx={{ ...cellSx, ...stickyActionCellSx }}>
                               <WorkActions
                                 issue={issue}
                                 canClaim={permissions.canClaim}
@@ -1165,6 +1194,7 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
         open={Boolean(statusTarget)}
         onClose={() => setStatusTarget(null)}
         onCompleted={handleStatusCompleted}
+        onStale={handleStatusStale}
       />
 
       <Snackbar

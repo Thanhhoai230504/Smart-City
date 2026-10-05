@@ -29,23 +29,16 @@ const Notification = require('../models/Notification');
 const Place = require('../models/Place');
 const RefreshSession = require('../models/RefreshSession');
 const { DEPARTMENTS } = require('./seedDepartments');
+const { assertLocalMongoUri: assertLocalUri } = require('./localDbGuard');
 
 const DEMO_PASSWORD = 'DemoSmartCity2026';
 const HOUR = 60 * 60 * 1000;
 
-/** Chỉ chấp nhận MongoDB trên chính máy này. */
-const assertLocalMongoUri = (uri) => {
-  if (typeof uri !== 'string' || !uri) {
-    throw new Error('Thiếu APP_DEMO_MONGODB_URI (ví dụ mongodb://127.0.0.1:27017/smartcity_app_demo)');
-  }
-  const match = /^mongodb:\/\/(?:[^@/]+@)?([^/:?,]+)(?::\d+)?\/([^/?]+)/.exec(uri);
-  if (!match) throw new Error('APP_DEMO_MONGODB_URI phải có dạng mongodb://host:port/tenDb (không nhận mongodb+srv)');
-  const [, host, db] = match;
-  if (!['127.0.0.1', 'localhost', '::1', '[::1]'].includes(host)) {
-    throw new Error(`Từ chối seed vào host "${host}" — script này xoá sạch database, chỉ chạy trên máy cục bộ`);
-  }
-  return { host, db };
-};
+/** Chỉ chấp nhận MongoDB trên chính máy này — rào chắn chung ở localDbGuard.js. */
+const assertLocalMongoUri = (uri) => assertLocalUri(uri, {
+  envName: 'APP_DEMO_MONGODB_URI',
+  example: 'mongodb://127.0.0.1:27017/smartcity_app_demo',
+});
 
 const photo = (seed) => ({ url: `https://picsum.photos/seed/${seed}/960/720`, publicId: null });
 

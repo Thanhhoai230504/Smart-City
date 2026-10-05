@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import {
   Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   Skeleton, Stack, TextField, Typography,
@@ -12,13 +11,10 @@ import { DECISION_LABEL, EVALUATION_LIMITS } from '../../utils/evaluation';
 import { formatPeriod } from '../../utils/period';
 import { formatDateTime } from '../../utils/performanceExport';
 import DecisionChip from './DecisionChip';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 const nameOf = (u: DepartmentEvaluation['decidedBy'] | null) => (u && typeof u === 'object' ? u.name : 'Không rõ');
 const periodText = (p: DepartmentEvaluation['period']) => formatPeriod({ from: new Date(p.from), to: new Date(p.to) });
-
-const getErrorMessage = (error: unknown) => (axios.isAxiosError<{ message?: string }>(error)
-  ? error.response?.data?.message || 'Không huỷ được quyết định.'
-  : 'Không huỷ được quyết định.');
 
 /** Số liệu đã chụp lúc quyết — đọc lại để biết vì sao hồi đó quyết như vậy. */
 const SnapshotLine: React.FC<{ e: DepartmentEvaluation }> = ({ e }) => {
@@ -118,7 +114,7 @@ const EvaluationHistory: React.FC<{
       setTarget(null);
       onChanged?.();
     } catch (err) {
-      setRevokeError(getErrorMessage(err));
+      setRevokeError(getApiErrorMessage(err, 'Không huỷ được quyết định.'));
     } finally {
       setSaving(false);
     }

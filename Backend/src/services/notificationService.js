@@ -41,7 +41,7 @@ const markAsRead = async (notificationId, userId) => {
     { isRead: true },
     { new: true }
   );
-  if (!notification) throw ApiError.notFound('Notification not found');
+  if (!notification) throw ApiError.notFound('Không tìm thấy thông báo.');
   return notification;
 };
 

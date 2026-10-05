@@ -23,17 +23,21 @@ describe('CommentService', () => {
   });
 
   describe('getComments()', () => {
-    it('should return comments for an issue sorted by createdAt', async () => {
-      const mockComments = [{ _id: '1', content: 'Hello' }];
-      Comment.find.mockReturnValue({
-        populate: jest.fn().mockReturnValue({
-          sort: jest.fn().mockReturnValue({
-            skip: jest.fn().mockReturnValue({
-              limit: jest.fn().mockResolvedValue(mockComments),
-            }),
+    const mockFindChain = (comments) => {
+      const populate = jest.fn().mockReturnValue({
+        sort: jest.fn().mockReturnValue({
+          skip: jest.fn().mockReturnValue({
+            limit: jest.fn().mockResolvedValue(comments),
           }),
         }),
       });
+      Comment.find.mockReturnValue({ populate });
+      return populate;
+    };
+
+    it('should return comments for an issue sorted by createdAt', async () => {
+      Issue.exists.mockResolvedValue({ _id: 'issue1' });
+      mockFindChain([{ _id: '1', content: 'Hello' }]);
       Comment.countDocuments.mockResolvedValue(1);
 
       const result = await commentService.getComments('issue1');
@@ -43,19 +47,38 @@ describe('CommentService', () => {
       // G16: bình luận đã ẩn không ra khỏi server nữa.
       expect(Comment.find).toHaveBeenCalledWith({ issueId: 'issue1', isDeleted: false });
     });
+
+    it('route công khai: người viết chỉ lộ tên + vai trò, KHÔNG có email', async () => {
+      Issue.exists.mockResolvedValue({ _id: 'issue1' });
+      const populate = mockFindChain([]);
+      Comment.countDocuments.mockResolvedValue(0);
+
+      await commentService.getComments('issue1');
+
+      expect(populate).toHaveBeenCalledWith('userId', 'name role');
+      expect(populate.mock.calls[0][1]).not.toMatch(/email/);
+    });
+
+    it('sự cố đã xoá mềm thì không trả bình luận nữa (404)', async () => {
+      Issue.exists.mockResolvedValue(null);
+
+      await expect(commentService.getComments('deleted-issue')).rejects.toMatchObject({ statusCode: 404 });
+      expect(Issue.exists).toHaveBeenCalledWith({ _id: 'deleted-issue', isDeleted: false });
+      expect(Comment.find).not.toHaveBeenCalled();
+    });
   });
 
   describe('addComment()', () => {
     it('should throw if content is empty', async () => {
       await expect(
         commentService.addComment('issue1', { content: '', user: { id: 'user1', role: 'user' } })
-      ).rejects.toThrow('Content is required');
+      ).rejects.toThrow('Vui lòng nhập nội dung bình luận.');
     });
 
     it('should throw if content is only whitespace', async () => {
       await expect(
         commentService.addComment('issue1', { content: '   ', user: { id: 'user1', role: 'user' } })
-      ).rejects.toThrow('Content is required');
+      ).rejects.toThrow('Vui lòng nhập nội dung bình luận.');
     });
 
     it('should throw if issue not found', async () => {
@@ -65,7 +88,7 @@ describe('CommentService', () => {
 
       await expect(
         commentService.addComment('nonexistent', { content: 'test', user: { id: 'user1', role: 'user' } })
-      ).rejects.toThrow('Issue not found');
+      ).rejects.toThrow('Không tìm thấy sự cố.');
     });
 
     it('should create comment and notify admins when user comments', async () => {

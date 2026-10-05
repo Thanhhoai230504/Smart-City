@@ -34,7 +34,7 @@ const createIssue = async (req, res, next) => {
       files: req.files,
       user: req.user
     });
-    res.status(201).json({ success: true, message: 'Issue reported successfully.', data: { issue } });
+    res.status(201).json({ success: true, message: 'Đã gửi báo cáo sự cố.', data: { issue } });
   } catch (error) {
     next(error);
   }
@@ -56,7 +56,7 @@ const updateIssueStatus = async (req, res, next) => {
       metadata: { status: req.body.status, note: req.body.note || '' },
       request: req,
     });
-    res.json({ success: true, message: `Issue status updated to ${req.body.status}.`, data: { issue } });
+    res.json({ success: true, message: 'Đã cập nhật trạng thái sự cố.', data: { issue } });
   } catch (error) {
     next(error);
   }
@@ -73,7 +73,7 @@ const deleteIssue = async (req, res, next) => {
       description: `Xóa sự cố "${issue.title}"`,
       request: req,
     });
-    res.json({ success: true, message: 'Issue deleted successfully.' });
+    res.json({ success: true, message: 'Đã xoá sự cố.' });
   } catch (error) {
     next(error);
   }
@@ -108,7 +108,7 @@ const getMyIssueSummary = async (req, res, next) => {
 const deleteMyIssue = async (req, res, next) => {
   try {
     await issueService.deleteMyIssue(req.params.id, req.user.id);
-    res.json({ success: true, message: 'Issue deleted successfully.' });
+    res.json({ success: true, message: 'Đã xoá sự cố.' });
   } catch (error) {
     next(error);
   }
@@ -117,33 +117,59 @@ const deleteMyIssue = async (req, res, next) => {
 const updateMyIssue = async (req, res, next) => {
   try {
     const issue = await issueService.updateMyIssue(req.params.id, req.user.id, req.body);
-    res.json({ success: true, message: 'Issue updated.', data: { issue } });
+    res.json({ success: true, message: 'Đã cập nhật sự cố.', data: { issue } });
   } catch (error) {
     next(error);
   }
 };
 
+/**
+ * Ủng hộ / bỏ ủng hộ.
+ *
+ * Hai lệnh ghi CÓ ĐIỀU KIỆN thay cho đọc → sửa mảng → save: lệnh thêm chỉ khớp
+ * khi người này CHƯA có trong `votes`, lệnh bỏ chỉ khớp khi ĐANG có — nên
+ * `$inc voteCount` luôn đi cùng đúng một thay đổi của mảng. Trước đây hai người
+ * bấm cùng lúc làm `voteCount` lệch với số người thật, còn bấm đúp có thể lưu
+ * cùng một người hai lần (bỏ ủng hộ rồi vẫn còn).
+ */
 const toggleVote = async (req, res, next) => {
   try {
-    const issue = await Issue.findOne({ _id: req.params.id, isDeleted: false });
-    if (!issue) return res.status(404).json({ success: false, message: 'Issue not found' });
-    if (issue.mergedInto) {
-      return res.status(400).json({
-        success: false,
-        message: 'Báo cáo này đã được gộp. Hãy bình chọn cho sự cố gốc.'
-      });
-    }
     const userId = req.user.id;
-    const idx = issue.votes.indexOf(userId);
-    if (idx > -1) {
-      issue.votes.splice(idx, 1);
-    } else {
-      issue.votes.push(userId);
+    const votable = { _id: req.params.id, isDeleted: false, mergedInto: null };
+
+    let voted = true;
+    let updated = await Issue.findOneAndUpdate(
+      { ...votable, votes: { $ne: userId } },
+      { $addToSet: { votes: userId }, $inc: { voteCount: 1 } },
+      { new: true }
+    ).select('voteCount');
+
+    if (!updated) {
+      voted = false;
+      updated = await Issue.findOneAndUpdate(
+        { ...votable, votes: userId },
+        { $pull: { votes: userId }, $inc: { voteCount: -1 } },
+        { new: true }
+      ).select('voteCount');
     }
-    issue.voteCount = issue.votes.length;
-    await issue.save();
-    enqueuePriorityRecalculation(issue._id);
-    res.json({ success: true, data: { voted: idx === -1, voteCount: issue.voteCount } });
+
+    if (!updated) {
+      // Không thêm cũng không bỏ được: phiếu không tồn tại, đã gộp — hoặc một
+      // request khác của chính người này vừa đổi trạng thái; trả trạng thái hiện tại.
+      const issue = await Issue.findOne({ _id: req.params.id, isDeleted: false }).select('mergedInto votes voteCount');
+      if (!issue) return res.status(404).json({ success: false, message: 'Không tìm thấy sự cố.' });
+      if (issue.mergedInto) {
+        return res.status(400).json({
+          success: false,
+          message: 'Báo cáo này đã được gộp. Hãy bình chọn cho sự cố gốc.'
+        });
+      }
+      const hasVoted = (issue.votes || []).some((id) => String(id) === String(userId));
+      return res.json({ success: true, data: { voted: hasVoted, voteCount: issue.voteCount } });
+    }
+
+    enqueuePriorityRecalculation(updated._id);
+    res.json({ success: true, data: { voted, voteCount: updated.voteCount } });
   } catch (error) { next(error); }
 };
 

@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import {
   Alert,
@@ -36,6 +35,7 @@ import {
 import {
   AssignmentTurnedIn,
   LinkOff,
+  LocationOn,
   OpenInNew,
   Refresh,
   ThumbUp,
@@ -46,16 +46,13 @@ import {
   Pagination as PaginationData,
   PriorityLevel,
 } from '../../types';
-import { CATEGORY_MAP, PRIORITY_MAP } from '../../utils/constants';
+import { CATEGORY_MAP, PRIORITY_MAP, STATUS_MAP } from '../../utils/constants';
 import SlaBadge from '../../components/SlaBadge';
 import PriorityBadge from '../../components/PriorityBadge';
 import AssignIssueDialog from '../../components/AssignIssueDialog';
 import { cellSx, GlassCard, headCellSx } from './types';
-
-interface ApiErrorResponse {
-  message?: string;
-  errors?: Array<{ field: string; message: string }>;
-}
+import { getApiErrorMessage } from '../../utils/apiError';
+import { stickyActionCellSx, stickyActionHeadSx } from '../../utils/tableSx';
 
 type SnackState = {
   open: boolean;
@@ -71,12 +68,22 @@ const EMPTY_PAGINATION: PaginationData = {
   limit: PAGE_SIZE,
 };
 
-const getErrorMessage = (error: unknown, fallback: string) => {
-  if (!axios.isAxiosError<ApiErrorResponse>(error)) return fallback;
-  return error.response?.data?.errors?.[0]?.message
-    || error.response?.data?.message
-    || fallback;
-};
+/**
+ * Hai bảng dùng `table-layout: fixed`: cột "Sự cố" lấy phần còn lại, các cột khác
+ * cố định. Trước đây hàng chờ có 8 cột tự co giãn (rộng ~1400 px) nên ở 1440 px
+ * với thanh điều hướng, nút "Phân công" nằm ngoài vùng nhìn thấy. "Hạng" gộp với
+ * "Điểm ưu tiên"; "Loại", người báo và "Vị trí" xếp dưới tiêu đề.
+ */
+const QUEUE_COLUMNS = { priority: 180, votes: 110, reportedAt: 104, actions: 160 } as const;
+const ASSIGNED_COLUMNS = { priority: 180, department: 210, sla: 216, actions: 104 } as const;
+const minTableWidth = (columns: Record<string, number>, titleMin: number) => (
+  Object.values(columns).reduce((sum, width) => sum + width, 0) + titleMin
+);
+
+const bodyCellSx = { ...cellSx, px: 1.5 };
+const headSx = { ...headCellSx, px: 1.5 };
+// Nền đặc (kể cả khi hover) để cột thao tác dính phải không lộ chữ cuộn bên dưới.
+const rowSx = { bgcolor: 'background.paper', '&:hover': { bgcolor: '#F5F8FA' } };
 
 const getDepartmentLabel = (issue: Issue) => {
   if (!issue.departmentId) return '—';
@@ -128,7 +135,7 @@ const AssignmentManagement: React.FC = () => {
     } catch (error) {
       setSnack({
         open: true,
-        message: getErrorMessage(error, 'Không thể tải hàng chờ phân công.'),
+        message: getApiErrorMessage(error, 'Không thể tải hàng chờ phân công.'),
         severity: 'error',
       });
     } finally {
@@ -151,7 +158,7 @@ const AssignmentManagement: React.FC = () => {
     } catch (error) {
       setSnack({
         open: true,
-        message: getErrorMessage(error, 'Không thể tải danh sách đã phân công.'),
+        message: getApiErrorMessage(error, 'Không thể tải danh sách đã phân công.'),
         severity: 'error',
       });
     } finally {
@@ -177,7 +184,7 @@ const AssignmentManagement: React.FC = () => {
     } catch (error) {
       setSnack({
         open: true,
-        message: getErrorMessage(error, 'Không thể tính lại điểm ưu tiên.'),
+        message: getApiErrorMessage(error, 'Không thể tính lại điểm ưu tiên.'),
         severity: 'error',
       });
     } finally {
@@ -229,7 +236,7 @@ const AssignmentManagement: React.FC = () => {
     } catch (error) {
       setSnack({
         open: true,
-        message: getErrorMessage(error, 'Không thể thu hồi phân công.'),
+        message: getApiErrorMessage(error, 'Không thể thu hồi phân công.'),
         severity: 'error',
       });
     } finally {
@@ -307,30 +314,34 @@ const AssignmentManagement: React.FC = () => {
               </FormControl>
             </Stack>
             <TableContainer sx={{ mt: 1 }}>
-              <Table size="small">
+              <Table size="small" sx={{ tableLayout: 'fixed', minWidth: minTableWidth(QUEUE_COLUMNS, 260) }}>
                 <TableHead>
                   <TableRow>
-                    {['Hạng', 'Điểm ưu tiên', 'Sự cố', 'Loại', 'Vị trí', 'Đồng thuận', 'Ngày báo', 'Thao tác'].map((heading) => (
-                      <TableCell key={heading} sx={headCellSx}>{heading}</TableCell>
-                    ))}
+                    <TableCell sx={{ ...headSx, width: QUEUE_COLUMNS.priority }}>Hạng · Ưu tiên</TableCell>
+                    <TableCell sx={headSx}>Sự cố</TableCell>
+                    <TableCell sx={{ ...headSx, width: QUEUE_COLUMNS.votes }}>Đồng thuận</TableCell>
+                    <TableCell sx={{ ...headSx, width: QUEUE_COLUMNS.reportedAt }}>Ngày báo</TableCell>
+                    <TableCell align="right" sx={{ ...headSx, ...stickyActionHeadSx, width: QUEUE_COLUMNS.actions }}>
+                      Thao tác
+                    </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {queueLoading ? [...Array(4)].map((_, rowIndex) => (
                     <TableRow key={rowIndex}>
-                      {[...Array(8)].map((__, cellIndex) => (
-                        <TableCell key={cellIndex} sx={cellSx}>
+                      {[...Array(5)].map((__, cellIndex) => (
+                        <TableCell key={cellIndex} sx={bodyCellSx}>
                           <Skeleton
                             variant="rounded"
-                            height={cellIndex === 2 ? 22 : 15}
-                            width={cellIndex === 1 ? '85%' : '60%'}
+                            height={cellIndex === 1 ? 22 : 15}
+                            width={cellIndex === 0 ? '85%' : '60%'}
                           />
                         </TableCell>
                       ))}
                     </TableRow>
                   )) : queue.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} sx={{ ...cellSx, textAlign: 'center', py: 6 }}>
+                      <TableCell colSpan={5} sx={{ ...bodyCellSx, textAlign: 'center', py: 6 }}>
                         <AssignmentTurnedIn sx={{ fontSize: 46, color: '#10B981', mb: 1 }} />
                         <Typography color="text.secondary">
                           Không còn sự cố chờ phân công.
@@ -339,50 +350,42 @@ const AssignmentManagement: React.FC = () => {
                     </TableRow>
                   ) : queue.map((issue, index) => {
                     const priority = (queuePagination.current - 1) * PAGE_SIZE + index + 1;
-                    const category = CATEGORY_MAP[issue.category];
+                    const category = CATEGORY_MAP[issue.category] || CATEGORY_MAP.other;
+                    const reporterName = typeof issue.userId === 'string' ? 'Người dân' : issue.userId.name;
                     return (
-                      <TableRow
-                        key={issue._id}
-                        hover
-                        sx={{ '&:hover': { bgcolor: 'rgba(11,94,142,0.04)' } }}
-                      >
-                        <TableCell sx={cellSx}>
-                          <Chip
-                            size="small"
-                            label={`#${priority}`}
-                            sx={{
-                              height: 23,
-                              fontWeight: 700,
-                              bgcolor: priority <= 3 ? 'rgba(239,68,68,0.12)' : '#EAF2F4',
-                              color: priority <= 3 ? '#FCA5A5' : 'text.secondary',
-                            }}
-                          />
+                      <TableRow key={issue._id} hover sx={rowSx}>
+                        <TableCell sx={bodyCellSx}>
+                          <Stack spacing={0.75} alignItems="flex-start">
+                            <Chip
+                              size="small"
+                              label={`#${priority}`}
+                              aria-label={`Hạng ${priority} trong hàng chờ`}
+                              sx={{
+                                height: 22,
+                                fontWeight: 700,
+                                bgcolor: priority <= 3 ? STATUS_MAP.reported.bg : '#EAF2F4',
+                                color: priority <= 3 ? STATUS_MAP.reported.text : 'text.secondary',
+                              }}
+                            />
+                            <PriorityBadge issue={issue} />
+                          </Stack>
                         </TableCell>
-                        <TableCell sx={{ ...cellSx, whiteSpace: 'nowrap' }}>
-                          <PriorityBadge issue={issue} />
+                        <TableCell sx={bodyCellSx}>
+                          <Tooltip title={issue.title} placement="top-start" enterDelay={500}>
+                            <Typography variant="body2" fontWeight={600} noWrap>{issue.title}</Typography>
+                          </Tooltip>
+                          <Stack direction="row" spacing={0.75} alignItems="center" mt={0.35} minWidth={0}>
+                            <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: category.color, flexShrink: 0 }} />
+                            <Typography variant="caption" color="text.secondary" noWrap>
+                              {category.label} · {reporterName}
+                            </Typography>
+                          </Stack>
+                          <Stack direction="row" spacing={0.5} alignItems="center" mt={0.25} minWidth={0}>
+                            <LocationOn sx={{ fontSize: 14, color: 'text.secondary', flexShrink: 0 }} />
+                            <Typography variant="caption" color="text.secondary" noWrap>{issue.location}</Typography>
+                          </Stack>
                         </TableCell>
-                        <TableCell sx={{ ...cellSx, minWidth: 210, maxWidth: 300 }}>
-                          <Typography variant="body2" fontWeight={600} noWrap>{issue.title}</Typography>
-                          <Typography variant="caption" color="text.secondary" noWrap display="block">
-                            {typeof issue.userId === 'string' ? 'Người dân' : issue.userId.name}
-                          </Typography>
-                        </TableCell>
-                        <TableCell sx={cellSx}>
-                          <Chip
-                            size="small"
-                            label={`${category.icon} ${category.label}`}
-                            sx={{
-                              height: 23,
-                              fontSize: '0.7rem',
-                              bgcolor: `${category.color}1F`,
-                              color: category.color,
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell sx={{ ...cellSx, maxWidth: 250 }}>
-                          <Typography variant="caption" noWrap display="block">{issue.location}</Typography>
-                        </TableCell>
-                        <TableCell sx={cellSx}>
+                        <TableCell sx={bodyCellSx}>
                           <Stack direction="row" alignItems="center" spacing={0.5}>
                             <ThumbUp sx={{ fontSize: 16, color: '#F59E0B' }} />
                             <Typography fontWeight={700} color="#F59E0B">
@@ -390,36 +393,13 @@ const AssignmentManagement: React.FC = () => {
                             </Typography>
                           </Stack>
                         </TableCell>
-                        <TableCell sx={{ ...cellSx, whiteSpace: 'nowrap' }}>
+                        <TableCell sx={{ ...bodyCellSx, whiteSpace: 'nowrap' }}>
                           <Typography variant="caption" color="text.secondary">
                             {new Date(issue.createdAt).toLocaleDateString('vi-VN')}
                           </Typography>
                         </TableCell>
-                        <TableCell sx={cellSx}>
-                          <Stack
-                            direction={{ xs: 'column', sm: 'row' }}
-                            spacing={0.75}
-                            alignItems={{ xs: 'stretch', sm: 'center' }}
-                          >
-                            <Button
-                              variant="outlined"
-                              size="small"
-                              startIcon={<OpenInNew fontSize="small" />}
-                              onClick={() => navigate(`/issues/${issue._id}`)}
-                              sx={{
-                                minWidth: 116,
-                                whiteSpace: 'nowrap',
-                                textTransform: 'none',
-                                borderColor: '#BAE6FD',
-                                color: '#0B5E8E',
-                                '&:hover': {
-                                  borderColor: '#0B5E8E',
-                                  bgcolor: 'rgba(11,94,142,0.06)',
-                                },
-                              }}
-                            >
-                              Xem chi tiết
-                            </Button>
+                        <TableCell align="right" sx={{ ...bodyCellSx, ...stickyActionCellSx }}>
+                          <Stack direction="row" spacing={0.75} justifyContent="flex-end" alignItems="center">
                             <Button
                               variant="contained"
                               size="small"
@@ -428,6 +408,16 @@ const AssignmentManagement: React.FC = () => {
                             >
                               Phân công
                             </Button>
+                            <Tooltip title="Xem chi tiết">
+                              <IconButton
+                                size="small"
+                                aria-label={`Xem chi tiết ${issue.title}`}
+                                onClick={() => navigate(`/issues/${issue._id}`)}
+                                sx={{ color: 'primary.main' }}
+                              >
+                                <OpenInNew fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
                           </Stack>
                         </TableCell>
                       </TableRow>
@@ -450,22 +440,26 @@ const AssignmentManagement: React.FC = () => {
         ) : (
           <>
             <TableContainer sx={{ mt: 1 }}>
-              <Table size="small">
+              <Table size="small" sx={{ tableLayout: 'fixed', minWidth: minTableWidth(ASSIGNED_COLUMNS, 240) }}>
                 <TableHead>
                   <TableRow>
-                    {['Sự cố', 'Ưu tiên', 'Đơn vị', 'Cán bộ', 'Phân công lúc', 'SLA', 'Thao tác'].map((heading) => (
-                      <TableCell key={heading} sx={headCellSx}>{heading}</TableCell>
-                    ))}
+                    <TableCell sx={headSx}>Sự cố</TableCell>
+                    <TableCell sx={{ ...headSx, width: ASSIGNED_COLUMNS.priority }}>Ưu tiên</TableCell>
+                    <TableCell sx={{ ...headSx, width: ASSIGNED_COLUMNS.department }}>Đơn vị · Cán bộ</TableCell>
+                    <TableCell sx={{ ...headSx, width: ASSIGNED_COLUMNS.sla }}>SLA</TableCell>
+                    <TableCell align="right" sx={{ ...headSx, ...stickyActionHeadSx, width: ASSIGNED_COLUMNS.actions }}>
+                      Thao tác
+                    </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {assignedLoading ? [...Array(4)].map((_, rowIndex) => (
                     <TableRow key={rowIndex}>
-                      {[...Array(7)].map((__, cellIndex) => (
-                        <TableCell key={cellIndex} sx={cellSx}>
+                      {[...Array(5)].map((__, cellIndex) => (
+                        <TableCell key={cellIndex} sx={bodyCellSx}>
                           <Skeleton
                             variant="rounded"
-                            height={cellIndex === 4 ? 23 : 15}
+                            height={cellIndex === 3 ? 23 : 15}
                             width={cellIndex === 0 ? '85%' : '65%'}
                           />
                         </TableCell>
@@ -473,88 +467,84 @@ const AssignmentManagement: React.FC = () => {
                     </TableRow>
                   )) : assignedIssues.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} sx={{ ...cellSx, textAlign: 'center', py: 6 }}>
+                      <TableCell colSpan={5} sx={{ ...bodyCellSx, textAlign: 'center', py: 6 }}>
                         <Typography color="text.secondary">
                           Chưa có sự cố đang được đơn vị xử lý.
                         </Typography>
                       </TableCell>
                     </TableRow>
-                  ) : assignedIssues.map((issue) => (
-                    <TableRow
-                      key={issue._id}
-                      hover
-                      sx={{ '&:hover': { bgcolor: 'rgba(11,94,142,0.04)' } }}
-                    >
-                      <TableCell sx={{ ...cellSx, minWidth: 210, maxWidth: 300 }}>
-                        <Typography variant="body2" fontWeight={600} noWrap>{issue.title}</Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {CATEGORY_MAP[issue.category].icon} {CATEGORY_MAP[issue.category].label}
-                        </Typography>
-                      </TableCell>
-                      <TableCell sx={{ ...cellSx, whiteSpace: 'nowrap' }}>
-                        <PriorityBadge issue={issue} />
-                      </TableCell>
-                      <TableCell sx={{ ...cellSx, minWidth: 180 }}>
-                        <Typography variant="caption">{getDepartmentLabel(issue)}</Typography>
-                      </TableCell>
-                      <TableCell sx={{ ...cellSx, minWidth: 140 }}>
-                        <Typography variant="caption">{getAssigneeName(issue)}</Typography>
-                      </TableCell>
-                      <TableCell sx={{ ...cellSx, whiteSpace: 'nowrap' }}>
-                        <Typography variant="caption" color="text.secondary">
-                          {issue.assignedAt
-                            ? new Date(issue.assignedAt).toLocaleString('vi-VN')
-                            : '—'}
-                        </Typography>
-                      </TableCell>
-                      <TableCell sx={{ ...cellSx, minWidth: 155 }}>
-                        <SlaBadge
-                          status={issue.slaStatus}
-                          dueAt={issue.dueAt}
-                          showRemaining
-                        />
-                      </TableCell>
-                      <TableCell sx={cellSx}>
-                        <Stack
-                          direction={{ xs: 'column', sm: 'row' }}
-                          spacing={0.75}
-                          alignItems={{ xs: 'stretch', sm: 'center' }}
-                        >
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            startIcon={<OpenInNew fontSize="small" />}
-                            onClick={() => navigate(`/issues/${issue._id}`)}
-                            sx={{
-                              minWidth: 116,
-                              whiteSpace: 'nowrap',
-                              textTransform: 'none',
-                              borderColor: '#BAE6FD',
-                              color: '#0B5E8E',
-                              '&:hover': {
-                                borderColor: '#0B5E8E',
-                                bgcolor: 'rgba(11,94,142,0.06)',
-                              },
-                            }}
-                          >
-                            Xem chi tiết
-                          </Button>
-                          <Tooltip title="Thu hồi phân công">
-                            <IconButton
-                              size="small"
-                              onClick={() => {
-                                setUnassignTarget(issue);
-                                setUnassignNote('');
-                              }}
-                              sx={{ color: '#EF4444' }}
-                            >
-                              <LinkOff fontSize="small" />
-                            </IconButton>
+                  ) : assignedIssues.map((issue) => {
+                    const category = CATEGORY_MAP[issue.category] || CATEGORY_MAP.other;
+                    return (
+                      <TableRow key={issue._id} hover sx={rowSx}>
+                        <TableCell sx={bodyCellSx}>
+                          <Tooltip title={issue.title} placement="top-start" enterDelay={500}>
+                            <Typography variant="body2" fontWeight={600} noWrap>{issue.title}</Typography>
                           </Tooltip>
-                        </Stack>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                          <Stack direction="row" spacing={0.75} alignItems="center" mt={0.35} minWidth={0}>
+                            <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: category.color, flexShrink: 0 }} />
+                            <Typography variant="caption" color="text.secondary" noWrap>
+                              {category.label} · {issue.location}
+                            </Typography>
+                          </Stack>
+                        </TableCell>
+                        <TableCell sx={bodyCellSx}>
+                          <Stack alignItems="flex-start">
+                            <PriorityBadge issue={issue} />
+                          </Stack>
+                        </TableCell>
+                        <TableCell sx={bodyCellSx}>
+                          <Typography variant="caption" display="block" sx={{ overflowWrap: 'anywhere' }}>
+                            {getDepartmentLabel(issue)}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" display="block" sx={{ overflowWrap: 'anywhere' }}>
+                            Cán bộ: {getAssigneeName(issue)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell sx={bodyCellSx}>
+                          <Stack alignItems="flex-start">
+                            <SlaBadge
+                              status={issue.slaStatus}
+                              dueAt={issue.dueAt}
+                              showRemaining
+                            />
+                          </Stack>
+                          <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
+                            Phân công {issue.assignedAt
+                              ? new Date(issue.assignedAt).toLocaleString('vi-VN')
+                              : '—'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right" sx={{ ...bodyCellSx, ...stickyActionCellSx }}>
+                          <Stack direction="row" spacing={0.5} justifyContent="flex-end" alignItems="center">
+                            <Tooltip title="Xem chi tiết">
+                              <IconButton
+                                size="small"
+                                aria-label={`Xem chi tiết ${issue.title}`}
+                                onClick={() => navigate(`/issues/${issue._id}`)}
+                                sx={{ color: 'primary.main' }}
+                              >
+                                <OpenInNew fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Thu hồi phân công">
+                              <IconButton
+                                size="small"
+                                aria-label={`Thu hồi phân công ${issue.title}`}
+                                onClick={() => {
+                                  setUnassignTarget(issue);
+                                  setUnassignNote('');
+                                }}
+                                sx={{ color: '#EF4444' }}
+                              >
+                                <LinkOff fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </TableContainer>

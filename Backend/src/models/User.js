@@ -4,13 +4,13 @@ const bcrypt = require('bcryptjs');
 const userSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: [true, 'Name is required'],
+    required: [true, 'Vui lòng nhập họ tên'],
     trim: true,
-    maxlength: [100, 'Name cannot exceed 100 characters']
+    maxlength: [100, 'Họ tên không quá 100 ký tự']
   },
   email: {
     type: String,
-    required: [true, 'Email is required'],
+    required: [true, 'Vui lòng nhập email'],
     unique: true,
     lowercase: true,
     trim: true,
@@ -18,7 +18,7 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    minlength: [6, 'Password must be at least 6 characters'],
+    minlength: [6, 'Mật khẩu phải có ít nhất 6 ký tự'],
     select: false
   },
   // user: người dân báo cáo sự cố
@@ -132,7 +132,7 @@ userSchema.pre('save', async function(next) {
 // Validate password is required for local accounts
 userSchema.pre('validate', function(next) {
   if (this.provider === 'local' && this.isNew && !this.password) {
-    this.invalidate('password', 'Password is required for local accounts');
+    this.invalidate('password', 'Vui lòng nhập mật khẩu');
   }
   // Cán bộ không thuộc đơn vị nào thì không phân quyền được — chặn ngay ở model
   // để không tạo được tài khoản staff "mồ côi" qua bất kỳ đường ghi nào.

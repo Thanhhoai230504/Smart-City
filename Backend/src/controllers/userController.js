@@ -22,7 +22,7 @@ const updateUserRole = async (req, res, next) => {
       metadata: { newRole: user.role },
       request: req,
     });
-    res.json({ success: true, message: `Role updated to ${req.body.role}`, data: { user } });
+    res.json({ success: true, message: 'Đã cập nhật vai trò.', data: { user } });
   } catch (error) {
     next(error);
   }

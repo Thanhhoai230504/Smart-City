@@ -10,6 +10,7 @@ const { OAuth2Client } = require('google-auth-library');
 const User = require('../models/User');
 const ApiError = require('../utils/apiError');
 const { generateTokensForUser } = require('./authService');
+const { revokeAllSessions } = require('./sessionService');
 
 const NAME_MAX_LENGTH = 100; // khớp maxlength của User.name
 
@@ -109,13 +110,32 @@ const findOrCreateGoogleUser = async ({ googleId, email, name, avatar }) => {
   if (normalizedEmail) {
     const local = await User.findOne({ email: normalizedEmail, provider: 'local' });
     if (local) {
+      // Tài khoản local CHƯA xác thực email nghĩa là chưa ai chứng minh mình sở
+      // hữu địa chỉ này — mật khẩu của nó có thể do kẻ xấu đặt khi đăng ký trước
+      // bằng email của nạn nhân. Liên kết mà giữ mật khẩu đó thì ngay khi nạn nhân
+      // đăng nhập Google, kẻ ấy đăng nhập được vào tài khoản của nạn nhân bằng mật
+      // khẩu của mình. Nên: xoá mật khẩu + mã đặt lại mật khẩu, thu hồi mọi phiên,
+      // lấy tên theo hồ sơ Google. Tài khoản ĐÃ xác thực (kể cả tài khoản cũ có
+      // isVerified mặc định true) thì người đặt mật khẩu chính là chủ email → giữ.
+      const wasUnverified = local.isVerified === false;
       local.provider = 'google';
       local.providerId = googleId;
       local.avatar = avatar || null;
       local.isVerified = true;
       local.emailVerificationTokenHash = null;
       local.emailVerificationExpires = null;
+      if (wasUnverified) {
+        local.password = undefined;
+        local.passwordResetTokenHash = null;
+        local.passwordResetExpires = null;
+        local.passwordResetSentAt = null;
+        local.failedLoginAttempts = 0;
+        local.lockUntil = null;
+        const googleName = String(name || '').trim();
+        if (googleName) local.name = googleName.slice(0, NAME_MAX_LENGTH);
+      }
       await local.save();
+      if (wasUnverified) await revokeAllSessions(local._id);
       return local;
     }
   }
@@ -139,7 +159,7 @@ const loginWithGoogleIdToken = async ({ idToken, deviceType, deviceName }) => {
   // Luồng web dựa vào bước /auth/refresh để chặn tài khoản bị khoá; luồng này
   // trả access token ngay nên phải tự kiểm tra.
   if (!user.isActive) {
-    throw ApiError.forbidden('Account has been deactivated.');
+    throw ApiError.forbidden('Tài khoản đã bị khoá.');
   }
   return generateTokensForUser(user, { deviceType, deviceName });
 };
