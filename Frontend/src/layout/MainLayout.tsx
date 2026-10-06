@@ -5,6 +5,7 @@ import Header from './Header';
 import Footer from './Footer';
 import WorkspaceSidebar from './WorkspaceSidebar';
 import { WORKSPACE_SIDEBAR_WIDTH } from './workspaceNav';
+import { HEADER_HEIGHT } from './chrome';
 const ChatbotWidget = lazy(() => import('../components/ChatbotWidget'));
 
 const MainLayout: React.FC = () => {
@@ -31,7 +32,7 @@ const MainLayout: React.FC = () => {
       bgcolor: 'background.default',
     }}>
       <Header />
-      <Box aria-hidden="true" sx={{ height: 64, flexShrink: 0 }} />
+      <Box aria-hidden="true" sx={{ height: HEADER_HEIGHT, flexShrink: 0 }} />
       <Box sx={{ display: 'flex', flexGrow: 1, minWidth: 0, alignItems: 'stretch' }}>
         {isWorkspace && (
           <WorkspaceSidebar

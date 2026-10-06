@@ -17,8 +17,9 @@ export default defineConfig({
         description: 'Hệ thống giám sát đô thị thông minh thành phố Đà Nẵng',
         start_url: '/',
         display: 'standalone',
-        background_color: '#0F172A',
-        theme_color: '#6C63FF',
+        // Xanh biển của header/footer (layout/chrome.ts) — thanh tiêu đề app cài đặt liền màu.
+        background_color: '#08283C',
+        theme_color: '#08283C',
         lang: 'vi',
         icons: [
           {

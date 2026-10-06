@@ -93,18 +93,7 @@ const theme = createTheme({
         },
       },
     },
-    MuiAppBar: {
-      styleOverrides: {
-        root: {
-          color: INK,
-          backgroundColor: 'rgba(255,255,255,0.96)',
-          backgroundImage: 'none',
-          borderBottom: `1px solid ${BORDER}`,
-          boxShadow: '0 1px 2px rgba(23,43,58,0.04)',
-          backdropFilter: 'blur(12px)',
-        },
-      },
-    },
+    // AppBar duy nhất là thanh trên cùng (layout/Header.tsx), tự đặt màu nền tối của nó.
     MuiButton: {
       defaultProps: { disableElevation: true },
       styleOverrides: {

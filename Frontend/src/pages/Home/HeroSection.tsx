@@ -12,6 +12,7 @@ import {
   C, EASE, FONT_DISPLAY, NO_MOTION, SHORT_DESKTOP,
   fadeUp, letterRise, pulseDot, sheen,
 } from './homeStyle';
+import { HEADER_HEIGHT } from '../../layout/chrome';
 import { useFontReady } from './hooks';
 import HeroBackdrop from './HeroBackdrop';
 import LivePanel, { LoadState, Overview } from './LivePanel';
@@ -119,8 +120,11 @@ const HeroSection: React.FC<HeroProps> = ({ isAuthenticated, ...panel }) => {
   return (
     <Box component="section" sx={{
       position: 'relative', overflow: 'hidden',
-      pt: { xs: 4, md: 5 }, pb: { xs: 7, md: 8 },
-      [SHORT_DESKTOP]: { pt: 3, pb: 5 },
+      // Luồn lên dưới thanh trên cùng (đang trong suốt ở đầu trang chủ) để video phủ tới
+      // tận mép trên màn hình; phần đệm trên bù lại đúng chiều cao thanh.
+      mt: `-${HEADER_HEIGHT}px`,
+      pt: { xs: `${HEADER_HEIGHT + 32}px`, md: `${HEADER_HEIGHT + 40}px` }, pb: { xs: 7, md: 8 },
+      [SHORT_DESKTOP]: { pt: `${HEADER_HEIGHT + 24}px`, pb: 5 },
       bgcolor: C.seaDark, color: ON_VIDEO.text,
     }}>
       <HeroBackdrop />

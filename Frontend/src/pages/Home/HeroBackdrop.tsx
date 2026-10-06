@@ -3,8 +3,9 @@ import { Box, IconButton } from '@mui/material';
 import { PauseRounded, PlayArrowRounded } from '@mui/icons-material';
 import { C } from './homeStyle';
 
-// Video 30 giây ghép từ 5 cảnh Đà Nẵng (Bàn Cờ, Linh Ứng, Bảy Mẫu, Hải Vân, Cầu Vàng),
-// 1080p, 2 Mbps, không tiếng; ảnh tĩnh là khung đầu tiên của video.
+// Video ~53 giây, 9 cảnh Đà Nẵng từ bình minh tới đêm (Bàn Cờ, Linh Ứng, Cầu Rồng, Bảy Mẫu,
+// Hải Vân, Cầu Vàng, Bà Nà, Hội An, Công viên Châu Á); cảnh nào có chữ in sẵn thì đã cắt khung
+// để né chữ. 1080p, 2 Mbps, không tiếng; ảnh tĩnh là khung đầu tiên của video.
 const VIDEO_SRC = '/videos/danang-hero.mp4';
 const POSTER_SRC = '/videos/danang-hero.jpg';
 const WIDE = '(min-width: 768px)';
