@@ -80,6 +80,8 @@ const StatusPill: React.FC<{ status: string }> = ({ status }) => {
 /**
  * Bảng "Tình hình xử lý" ở phần đầu trang chủ: số liệu thật (đếm lên khi có) và
  * ba phản ánh mới nhất — người xem thấy ngay hệ thống đang chạy, xử lý thật.
+ * Nền kính mờ nằm trên video: cộng với lớp phủ phía sau, độ tối ≥ 0,78 nên chữ phụ
+ * #B9CDD6 vẫn ≥ 4,5:1; trình duyệt không hỗ trợ backdrop-filter thì dùng nền đặc hơn.
  */
 const LivePanel: React.FC<LivePanelProps> = ({ overview, statsState, statsSlow, statsAt, onRetry, recent }) => {
   const navigate = useNavigate();
@@ -89,16 +91,16 @@ const LivePanel: React.FC<LivePanelProps> = ({ overview, statsState, statsSlow, 
     <Box sx={{
       position: 'relative', overflow: 'hidden',
       borderRadius: '28px', p: { xs: 2.25, md: 2.5, lg: 3 },
-      background: `linear-gradient(160deg, ${C.sea} 0%, #0B4A63 58%, ${C.teal} 130%)`,
+      background: 'rgba(6,30,46,.62)',
+      backdropFilter: 'blur(16px) saturate(140%)',
+      WebkitBackdropFilter: 'blur(16px) saturate(140%)',
+      '@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)))': {
+        background: 'rgba(6,30,46,.9)',
+      },
       color: C.onDark,
-      border: '1px solid rgba(255,255,255,.10)',
-      boxShadow: '0 40px 80px -36px rgba(7,59,92,.65), inset 0 1px 0 rgba(255,255,255,.08)',
+      border: '1px solid rgba(255,255,255,.16)',
+      boxShadow: '0 30px 70px -34px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.1)',
     }}>
-      {/* quầng sáng trang trí */}
-      <Box aria-hidden="true" sx={{
-        position: 'absolute', width: 320, height: 320, right: -120, top: -150, borderRadius: '50%',
-        background: `radial-gradient(closest-side, ${mix(C.aqua, C.sea, 0.2)}, transparent)`, opacity: 0.35,
-      }} />
 
       <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2} sx={{ position: 'relative', mb: 2.25 }}>
         <Box>

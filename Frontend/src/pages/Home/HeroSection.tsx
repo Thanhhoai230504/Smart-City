@@ -10,10 +10,19 @@ import {
 import { Issue } from '../../types';
 import {
   C, EASE, FONT_DISPLAY, NO_MOTION, SHORT_DESKTOP,
-  drift, fadeUp, letterRise, pulseDot, sheen,
+  fadeUp, letterRise, pulseDot, sheen,
 } from './homeStyle';
 import { useFontReady } from './hooks';
+import HeroBackdrop from './HeroBackdrop';
 import LivePanel, { LoadState, Overview } from './LivePanel';
+
+/** Màu chữ trên nền video đã phủ xanh biển (đo trên khung sáng nhất của video). */
+const ON_VIDEO = {
+  text: '#FFFFFF',
+  body: '#DCE9EE', // ≥ 5,7:1 ở vùng chữ
+  soft: '#D3E3EA',
+  line: 'rgba(255,255,255,.22)',
+} as const;
 
 const WORD = 'ĐÀ NẴNG';
 // Font chữ thương hiệu: Archivo đứng (62%) nét 900 — chỉ tải đúng 6 ký tự của
@@ -22,9 +31,9 @@ const WORD = 'ĐÀ NẴNG';
 const WORD_FONT = `900 extra-condensed 100px ${FONT_DISPLAY.split(',')[0]}`;
 
 /**
- * "ĐÀ NẴNG" cỡ lớn: từng chữ trồi lên (như bản cũ), sau đó một vệt sáng xanh biển
- * lướt qua lần lượt từng chữ. Chữ chỉ bắt đầu hiện khi font đã tải — không nhảy
- * từ font dự phòng sang.
+ * "ĐÀ NẴNG" cỡ lớn: từng chữ trồi lên (như bản cũ), sau đó một vệt sáng lướt qua lần
+ * lượt từng chữ. Tông sáng (trắng → xanh nước nhạt) vì nằm trên nền video tối. Chữ chỉ
+ * bắt đầu hiện khi font đã tải — không nhảy từ font dự phòng sang.
  */
 const Wordmark: React.FC = () => {
   const ready = useFontReady(WORD_FONT, WORD);
@@ -58,7 +67,7 @@ const Wordmark: React.FC = () => {
             <Box component="span" sx={{
               display: 'inline-block',
               pt: '0.36em',
-              backgroundImage: `linear-gradient(105deg, ${C.blueDeep} 0%, ${C.blue} 38%, ${C.aqua} 50%, ${C.blue} 62%, ${C.blueDeep} 100%)`,
+              backgroundImage: 'linear-gradient(105deg, #BCE4EE 0%, #EAF7FA 38%, #FFFFFF 50%, #EAF7FA 62%, #BCE4EE 100%)',
               backgroundSize: '320% 100%',
               backgroundPosition: '100% 0',
               WebkitBackgroundClip: 'text',
@@ -95,9 +104,9 @@ interface HeroProps {
 }
 
 /**
- * Phần đầu trang chủ, hai cột: bên trái "ĐÀ NẴNG" chiếm trọn bề ngang cột → tiêu đề
- * nói rõ hệ thống làm gì → hai nút hành động; bên phải bảng "Tình hình xử lý".
- * Màn hẹp xếp một cột, bảng nằm dưới nút.
+ * Phần đầu trang chủ, hai cột trên nền video Đà Nẵng (xem HeroBackdrop): bên trái
+ * "ĐÀ NẴNG" chiếm trọn bề ngang cột → tiêu đề nói rõ hệ thống làm gì → hai nút hành
+ * động; bên phải bảng "Tình hình xử lý" dạng kính mờ. Màn hẹp xếp một cột, bảng nằm dưới nút.
  */
 const HeroSection: React.FC<HeroProps> = ({ isAuthenticated, ...panel }) => {
   const navigate = useNavigate();
@@ -112,32 +121,9 @@ const HeroSection: React.FC<HeroProps> = ({ isAuthenticated, ...panel }) => {
       position: 'relative', overflow: 'hidden',
       pt: { xs: 4, md: 5 }, pb: { xs: 7, md: 8 },
       [SHORT_DESKTOP]: { pt: 3, pb: 5 },
-      background: `linear-gradient(180deg, #FFFFFF 0%, ${C.bg} 70%)`,
+      bgcolor: C.seaDark, color: ON_VIDEO.text,
     }}>
-      {/* nền: hai quầng màu biển trôi chậm + lưới mờ. Kích thước theo bề ngang (vw) có
-          trần — vmax trên điện thoại dựng đứng làm quầng phình phủ kín chữ. */}
-      <Box aria-hidden="true" sx={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
-        <Box sx={{
-          position: 'absolute', width: 'min(70vw, 1100px)', height: 'min(70vw, 1100px)', left: 'max(-26vw, -400px)', top: 'max(-34vw, -520px)', borderRadius: '50%',
-          background: 'radial-gradient(closest-side, rgba(11,94,142,.15), transparent)',
-          animation: `${drift} 24s ease-in-out infinite`, [NO_MOTION]: { animation: 'none' },
-        }} />
-        <Box sx={{
-          position: 'absolute', width: 'min(62vw, 980px)', height: 'min(62vw, 980px)', right: 'max(-24vw, -380px)', top: 'max(-10vw, -160px)', borderRadius: '50%',
-          background: 'radial-gradient(closest-side, rgba(12,110,116,.13), transparent)',
-          animation: `${drift} 30s ease-in-out -8s infinite reverse`, [NO_MOTION]: { animation: 'none' },
-        }} />
-        <Box sx={{
-          position: 'absolute', width: 'min(50vw, 800px)', height: 'min(50vw, 800px)', left: '25%', top: '38%', borderRadius: '50%',
-          background: 'radial-gradient(closest-side, rgba(194,65,12,.06), transparent)',
-        }} />
-        <Box sx={{
-          position: 'absolute', inset: 0, opacity: 0.55,
-          backgroundImage: 'linear-gradient(rgba(11,94,142,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(11,94,142,.07) 1px, transparent 1px)',
-          backgroundSize: '72px 72px',
-          maskImage: 'radial-gradient(ellipse at 30% 22%, black 15%, transparent 65%)',
-        }} />
-      </Box>
+      <HeroBackdrop />
 
       <Container maxWidth="xl" sx={{ position: 'relative', zIndex: 1 }}>
         <Box sx={{
@@ -167,18 +153,18 @@ const HeroSection: React.FC<HeroProps> = ({ isAuthenticated, ...panel }) => {
             <Box sx={{
               display: 'inline-flex', alignItems: 'center', gap: 1, flexWrap: 'wrap',
               px: 1.75, py: 0.8, borderRadius: 999,
-              bgcolor: 'rgba(255,255,255,.85)', border: `1px solid ${C.line}`,
-              boxShadow: '0 10px 26px -18px rgba(15,34,51,.5)',
+              bgcolor: 'rgba(255,255,255,.1)', border: `1px solid ${ON_VIDEO.line}`,
+              backdropFilter: 'blur(8px)',
             }}>
               <Box sx={{
                 width: 8, height: 8, borderRadius: '50%', bgcolor: C.mint,
                 animation: `${pulseDot} 2.4s ease-out infinite`, [NO_MOTION]: { animation: 'none' },
               }} />
-              <Typography component="span" sx={{ fontSize: 13.5, fontWeight: 700, color: C.ink }}>
+              <Typography component="span" sx={{ fontSize: 13.5, fontWeight: 700, color: ON_VIDEO.text }}>
                 Cổng phản ánh sự cố đô thị
               </Typography>
               {/* Màn hẹp bỏ vế này — ngay dưới đã là chữ ĐÀ NẴNG — để dòng không gãy đôi. */}
-              <Typography component="span" sx={{ display: { xs: 'none', sm: 'inline' }, fontSize: 13.5, color: C.muted }}>
+              <Typography component="span" sx={{ display: { xs: 'none', sm: 'inline' }, fontSize: 13.5, color: ON_VIDEO.soft }}>
                 · Thành phố Đà Nẵng
               </Typography>
             </Box>
@@ -191,7 +177,7 @@ const HeroSection: React.FC<HeroProps> = ({ isAuthenticated, ...panel }) => {
 
           <Box sx={{ gridArea: 'copy', alignSelf: 'start', minWidth: 0, maxWidth: 660 }}>
             <Typography component="h1" sx={{
-              fontWeight: 800, color: C.ink,
+              fontWeight: 800, color: ON_VIDEO.text,
               fontSize: { xs: '1.7rem', sm: '2.1rem', md: '2.5rem' },
               [SHORT_DESKTOP]: { fontSize: '2.05rem' },
               lineHeight: 1.16, letterSpacing: '-0.03em',
@@ -199,7 +185,7 @@ const HeroSection: React.FC<HeroProps> = ({ isAuthenticated, ...panel }) => {
             }}>
               Báo sự cố đô thị trong 1 phút —{' '}
               <Box component="span" sx={{
-                backgroundImage: `linear-gradient(90deg, ${C.blue}, ${C.teal})`,
+                backgroundImage: 'linear-gradient(90deg, #8ED8E8, #A3E8C8)',
                 WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent',
               }}>
                 theo dõi đến khi xử lý xong.
@@ -208,7 +194,7 @@ const HeroSection: React.FC<HeroProps> = ({ isAuthenticated, ...panel }) => {
 
             <Typography sx={{
               mt: { xs: 1.75, md: 2 },
-              color: C.body, fontSize: { xs: 15.5, md: 17 }, lineHeight: 1.65,
+              color: ON_VIDEO.body, fontSize: { xs: 15.5, md: 17 }, lineHeight: 1.65,
               [SHORT_DESKTOP]: { fontSize: 15.5, mt: 1.5 },
               ...appear(shown, 480),
             }}>
@@ -257,8 +243,9 @@ const HeroSection: React.FC<HeroProps> = ({ isAuthenticated, ...panel }) => {
                 startIcon={<MapRounded />}
                 sx={{
                   px: 3.25, py: 1.6, borderRadius: '14px', fontSize: 16, fontWeight: 700, textTransform: 'none',
-                  color: C.blue, bgcolor: 'rgba(255,255,255,.9)', borderColor: C.line, borderWidth: 1.5,
-                  '&:hover': { borderColor: C.blue, bgcolor: '#EEF5FA', borderWidth: 1.5 },
+                  color: ON_VIDEO.text, bgcolor: 'rgba(255,255,255,.08)', borderColor: 'rgba(255,255,255,.45)', borderWidth: 1.5,
+                  backdropFilter: 'blur(6px)',
+                  '&:hover': { borderColor: '#FFFFFF', bgcolor: 'rgba(255,255,255,.16)', borderWidth: 1.5 },
                 }}
               >
                 Xem bản đồ sự cố
@@ -271,8 +258,8 @@ const HeroSection: React.FC<HeroProps> = ({ isAuthenticated, ...panel }) => {
             }}>
               {['Miễn phí cho người dân', 'Chuyển đúng đơn vị, có hạn xử lý', 'Ảnh minh chứng khi hoàn tất'].map((t) => (
                 <Stack key={t} direction="row" spacing={0.75} alignItems="center">
-                  <CheckCircleRounded sx={{ fontSize: 18, color: '#2F7D64' }} />
-                  <Typography sx={{ fontSize: 13.5, color: C.muted, fontWeight: 500 }}>{t}</Typography>
+                  <CheckCircleRounded sx={{ fontSize: 18, color: C.mint }} />
+                  <Typography sx={{ fontSize: 13.5, color: ON_VIDEO.soft, fontWeight: 500 }}>{t}</Typography>
                 </Stack>
               ))}
             </Stack>
