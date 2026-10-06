@@ -33,12 +33,12 @@ const Wordmark: React.FC = () => {
       role="img"
       aria-label="Đà Nẵng"
       sx={{
-        display: 'flex', alignItems: 'flex-end', justifyContent: 'center', flexWrap: 'nowrap',
+        display: 'flex', alignItems: 'flex-end', flexWrap: 'nowrap',
         fontFamily: FONT_DISPLAY, fontWeight: 900, fontStretch: '62%',
-        // Cả chữ rộng ~3,3em: 23vw vẫn vừa khung ở mọi bề ngang ≥ 900 px; chặn theo
-        // chiều cao để nút Báo cáo luôn nằm trong màn đầu.
-        fontSize: { xs: '27vw', sm: '25vw', md: 'clamp(150px, min(23vw, 38vh), 340px)' },
-        [SHORT_DESKTOP]: { fontSize: 'clamp(130px, 31vh, 250px)' },
+        // Cả chữ rộng ~3,28em nên 30,4cqi (theo bề ngang cột chứa nó) là vừa khít
+        // cột trái; chặn theo chiều cao để nút Báo cáo luôn nằm trong màn đầu.
+        fontSize: { xs: 'min(30.4cqi, 40vh)', md: 'min(30.4cqi, 38vh, 340px)' },
+        [SHORT_DESKTOP]: { fontSize: 'min(30.4cqi, 31vh)' },
         lineHeight: 0.84,
         letterSpacing: '-0.012em',
         userSelect: 'none',
@@ -95,9 +95,9 @@ interface HeroProps {
 }
 
 /**
- * Phần đầu trang chủ, căn giữa: dòng giới thiệu → "ĐÀ NẴNG" chiếm trọn bề ngang →
- * tiêu đề nói rõ hệ thống làm gì → hai nút hành động. Bảng "Tình hình xử lý" là
- * dải rộng ngay bên dưới (cuộn tới là số liệu đếm lên).
+ * Phần đầu trang chủ, hai cột: bên trái "ĐÀ NẴNG" chiếm trọn bề ngang cột → tiêu đề
+ * nói rõ hệ thống làm gì → hai nút hành động; bên phải bảng "Tình hình xử lý".
+ * Màn hẹp xếp một cột, bảng nằm dưới nút.
  */
 const HeroSection: React.FC<HeroProps> = ({ isAuthenticated, ...panel }) => {
   const navigate = useNavigate();
@@ -110,8 +110,8 @@ const HeroSection: React.FC<HeroProps> = ({ isAuthenticated, ...panel }) => {
   return (
     <Box component="section" sx={{
       position: 'relative', overflow: 'hidden',
-      pt: { xs: 4, md: 5 }, pb: { xs: 7, md: 10 },
-      [SHORT_DESKTOP]: { pt: 3 },
+      pt: { xs: 4, md: 5 }, pb: { xs: 7, md: 8 },
+      [SHORT_DESKTOP]: { pt: 3, pb: 5 },
       background: `linear-gradient(180deg, #FFFFFF 0%, ${C.bg} 70%)`,
     }}>
       {/* nền: hai quầng màu biển trôi chậm + lưới mờ. Kích thước theo bề ngang (vw) có
@@ -135,133 +135,159 @@ const HeroSection: React.FC<HeroProps> = ({ isAuthenticated, ...panel }) => {
           position: 'absolute', inset: 0, opacity: 0.55,
           backgroundImage: 'linear-gradient(rgba(11,94,142,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(11,94,142,.07) 1px, transparent 1px)',
           backgroundSize: '72px 72px',
-          maskImage: 'radial-gradient(ellipse at 50% 22%, black 15%, transparent 65%)',
+          maskImage: 'radial-gradient(ellipse at 30% 22%, black 15%, transparent 65%)',
         }} />
       </Box>
 
-      <Container maxWidth="xl" sx={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
-        {/* dòng giới thiệu — câu đầu tiên người xem đọc được */}
-        <Box sx={{ mb: { xs: 2, md: 2.5 }, [SHORT_DESKTOP]: { mb: 1.5 }, ...appear(shown, 0) }}>
-          <Box sx={{
-            display: 'inline-flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', justifyContent: 'center',
-            px: 1.75, py: 0.8, borderRadius: 999,
-            bgcolor: 'rgba(255,255,255,.85)', border: `1px solid ${C.line}`,
-            boxShadow: '0 10px 26px -18px rgba(15,34,51,.5)',
-          }}>
+      <Container maxWidth="xl" sx={{ position: 'relative', zIndex: 1 }}>
+        <Box sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(0, 1fr) clamp(360px, 32vw, 480px)' },
+          gridTemplateAreas: {
+            xs: '"eyebrow" "word" "copy" "panel"',
+            md: '"eyebrow eyebrow" "word panel" "copy panel"',
+          },
+          // Bảng bên phải thường cao hơn chữ + tiêu đề: phần dư dồn hết vào hàng cuối
+          // (1fr) để tiêu đề vẫn sát ngay dưới "ĐÀ NẴNG" thay vì bị đẩy xuống.
+          gridTemplateRows: { md: 'auto auto 1fr' },
+          columnGap: { md: 5, lg: 6 },
+          rowGap: { xs: 2.5, md: 2 },
+          // Màn thấp thì cỡ "ĐÀ NẴNG" bị chặn theo chiều cao, chữ không còn phủ hết cột
+          // trái: thu cả khối về đúng bề ngang chữ cần (3,3em + khe + bảng) và căn
+          // giữa, để chữ luôn chạm sát mép cột và khoảng trống chia đều hai bên.
+          maxWidth: {
+            md: 'calc(3.3 * min(38vh, 340px) + 40px + clamp(360px, 32vw, 480px))',
+            lg: 'calc(3.3 * min(38vh, 340px) + 48px + clamp(360px, 32vw, 480px))',
+          },
+          mx: 'auto',
+          [SHORT_DESKTOP]: { rowGap: 1.5, maxWidth: 'calc(3.3 * 31vh + 48px + clamp(360px, 32vw, 480px))' },
+        }}>
+          {/* dòng giới thiệu — câu đầu tiên người xem đọc được */}
+          <Box sx={{ gridArea: 'eyebrow', ...appear(shown, 0) }}>
             <Box sx={{
-              width: 8, height: 8, borderRadius: '50%', bgcolor: C.mint,
-              animation: `${pulseDot} 2.4s ease-out infinite`, [NO_MOTION]: { animation: 'none' },
-            }} />
-            <Typography component="span" sx={{ fontSize: 13.5, fontWeight: 700, color: C.ink }}>
-              Cổng phản ánh sự cố đô thị
-            </Typography>
-            {/* Màn hẹp bỏ vế này — ngay dưới đã là chữ ĐÀ NẴNG — để dòng không gãy đôi. */}
-            <Typography component="span" sx={{ display: { xs: 'none', sm: 'inline' }, fontSize: 13.5, color: C.muted }}>
-              · Thành phố Đà Nẵng
-            </Typography>
+              display: 'inline-flex', alignItems: 'center', gap: 1, flexWrap: 'wrap',
+              px: 1.75, py: 0.8, borderRadius: 999,
+              bgcolor: 'rgba(255,255,255,.85)', border: `1px solid ${C.line}`,
+              boxShadow: '0 10px 26px -18px rgba(15,34,51,.5)',
+            }}>
+              <Box sx={{
+                width: 8, height: 8, borderRadius: '50%', bgcolor: C.mint,
+                animation: `${pulseDot} 2.4s ease-out infinite`, [NO_MOTION]: { animation: 'none' },
+              }} />
+              <Typography component="span" sx={{ fontSize: 13.5, fontWeight: 700, color: C.ink }}>
+                Cổng phản ánh sự cố đô thị
+              </Typography>
+              {/* Màn hẹp bỏ vế này — ngay dưới đã là chữ ĐÀ NẴNG — để dòng không gãy đôi. */}
+              <Typography component="span" sx={{ display: { xs: 'none', sm: 'inline' }, fontSize: 13.5, color: C.muted }}>
+                · Thành phố Đà Nẵng
+              </Typography>
+            </Box>
           </Box>
-        </Box>
 
-        <Wordmark />
-
-        <Typography component="h1" sx={{
-          mt: { xs: 2.5, md: 3 }, mx: 'auto', maxWidth: 980,
-          fontWeight: 800, color: C.ink,
-          fontSize: { xs: '1.7rem', sm: '2.1rem', md: '2.6rem' },
-          [SHORT_DESKTOP]: { fontSize: '2.1rem', mt: 2 },
-          lineHeight: 1.16, letterSpacing: '-0.03em',
-          ...appear(shown, 380),
-        }}>
-          Báo sự cố đô thị trong 1 phút —{' '}
-          <Box component="span" sx={{
-            display: { md: 'block' },
-            backgroundImage: `linear-gradient(90deg, ${C.blue}, ${C.teal})`,
-            WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent',
-          }}>
-            theo dõi đến khi xử lý xong.
+          {/* `containerType` để cỡ chữ "ĐÀ NẴNG" tính theo bề ngang cột trái (cqi). */}
+          <Box sx={{ gridArea: 'word', minWidth: 0, containerType: 'inline-size' }}>
+            <Wordmark />
           </Box>
-        </Typography>
 
-        <Typography sx={{
-          mt: { xs: 1.75, md: 2 }, mx: 'auto', maxWidth: 720,
-          color: C.body, fontSize: { xs: 15.5, md: 17.5 }, lineHeight: 1.65,
-          [SHORT_DESKTOP]: { fontSize: 15.5, mt: 1.5 },
-          ...appear(shown, 500),
-        }}>
-          Ổ gà, rác tồn đọng, đèn đường hỏng, ngập nước, cây đổ… Chụp ảnh và gửi: AI gợi ý loại sự cố,
-          hệ thống chuyển đúng đơn vị phụ trách và báo cho bạn ở từng bước xử lý.
-        </Typography>
+          <Box sx={{ gridArea: 'copy', alignSelf: 'start', minWidth: 0, maxWidth: 660 }}>
+            <Typography component="h1" sx={{
+              fontWeight: 800, color: C.ink,
+              fontSize: { xs: '1.7rem', sm: '2.1rem', md: '2.5rem' },
+              [SHORT_DESKTOP]: { fontSize: '2.05rem' },
+              lineHeight: 1.16, letterSpacing: '-0.03em',
+              ...appear(shown, 350),
+            }}>
+              Báo sự cố đô thị trong 1 phút —{' '}
+              <Box component="span" sx={{
+                backgroundImage: `linear-gradient(90deg, ${C.blue}, ${C.teal})`,
+                WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent',
+              }}>
+                theo dõi đến khi xử lý xong.
+              </Box>
+            </Typography>
 
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="center" sx={{
-          mt: { xs: 3, md: 3.5 }, [SHORT_DESKTOP]: { mt: 2.5 },
-          ...appear(shown, 620),
-        }}>
-          <Button
-            size="large"
-            // Khách cũng đi thẳng tới /report: ProtectedRoute chuyển sang đăng nhập kèm
-            // `from`, đăng nhập xong quay lại đúng form báo cáo thay vì về trang chủ.
-            onClick={() => navigate('/report')}
-            startIcon={<AddAPhotoRounded />}
-            endIcon={<ArrowForwardRounded className="cta-arrow" />}
-            sx={{
-              position: 'relative', overflow: 'hidden',
-              px: 3.25, py: 1.6, borderRadius: '14px', fontSize: 16, fontWeight: 700, textTransform: 'none',
-              bgcolor: C.accent, color: '#FFFFFF',
-              boxShadow: '0 16px 30px -14px rgba(194,65,12,.75)',
-              transition: `transform 250ms ${EASE}, box-shadow 250ms ${EASE}, background-color 200ms ease`,
-              '& .cta-arrow': { transition: `transform 300ms ${EASE}` },
-              // vệt sáng lướt qua khi rê chuột
-              '&::after': {
-                content: '""', position: 'absolute', top: 0, bottom: 0, width: '40%', left: '-60%',
-                background: 'linear-gradient(100deg, transparent, rgba(255,255,255,.35), transparent)',
-                transform: 'skewX(-18deg)', transition: `left 700ms ${EASE}`,
-              },
-              '&:hover': {
-                bgcolor: C.accentHover, transform: 'translateY(-2px)',
-                boxShadow: '0 22px 36px -14px rgba(154,52,18,.8)',
-              },
-              '&:hover::after': { left: '120%' },
-              '&:hover .cta-arrow': { transform: 'translateX(4px)' },
-            }}
-          >
-            {isAuthenticated ? 'Báo cáo sự cố' : 'Đăng nhập để báo cáo'}
-          </Button>
-          <Button
-            size="large"
-            variant="outlined"
-            onClick={() => navigate('/map')}
-            startIcon={<MapRounded />}
-            sx={{
-              px: 3.25, py: 1.6, borderRadius: '14px', fontSize: 16, fontWeight: 700, textTransform: 'none',
-              color: C.blue, bgcolor: 'rgba(255,255,255,.9)', borderColor: C.line, borderWidth: 1.5,
-              '&:hover': { borderColor: C.blue, bgcolor: '#EEF5FA', borderWidth: 1.5 },
-            }}
-          >
-            Xem bản đồ sự cố
-          </Button>
-        </Stack>
+            <Typography sx={{
+              mt: { xs: 1.75, md: 2 },
+              color: C.body, fontSize: { xs: 15.5, md: 17 }, lineHeight: 1.65,
+              [SHORT_DESKTOP]: { fontSize: 15.5, mt: 1.5 },
+              ...appear(shown, 480),
+            }}>
+              Ổ gà, rác tồn đọng, đèn đường hỏng, ngập nước, cây đổ… Chụp ảnh và gửi: AI gợi ý loại sự cố,
+              hệ thống chuyển đúng đơn vị phụ trách và báo cho bạn ở từng bước xử lý.
+            </Typography>
 
-        <Stack direction="row" spacing={{ xs: 1.5, md: 3 }} useFlexGap flexWrap="wrap" justifyContent="center" sx={{
-          mt: { xs: 2.5, md: 3 }, rowGap: 1, [SHORT_DESKTOP]: { mt: 2 },
-          ...appear(shown, 740),
-        }}>
-          {['Miễn phí cho người dân', 'Chuyển đúng đơn vị, có hạn xử lý', 'Ảnh minh chứng khi hoàn tất'].map((t) => (
-            <Stack key={t} direction="row" spacing={0.75} alignItems="center">
-              <CheckCircleRounded sx={{ fontSize: 18, color: '#2F7D64' }} />
-              <Typography sx={{ fontSize: 13.5, color: C.muted, fontWeight: 500 }}>{t}</Typography>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{
+              mt: { xs: 3, md: 3.25 }, [SHORT_DESKTOP]: { mt: 2.25 },
+              ...appear(shown, 600),
+            }}>
+              <Button
+                size="large"
+                // Khách cũng đi thẳng tới /report: ProtectedRoute chuyển sang đăng nhập kèm
+                // `from`, đăng nhập xong quay lại đúng form báo cáo thay vì về trang chủ.
+                onClick={() => navigate('/report')}
+                startIcon={<AddAPhotoRounded />}
+                endIcon={<ArrowForwardRounded className="cta-arrow" />}
+                sx={{
+                  position: 'relative', overflow: 'hidden',
+                  px: 3.25, py: 1.6, borderRadius: '14px', fontSize: 16, fontWeight: 700, textTransform: 'none',
+                  bgcolor: C.accent, color: '#FFFFFF',
+                  boxShadow: '0 16px 30px -14px rgba(194,65,12,.75)',
+                  transition: `transform 250ms ${EASE}, box-shadow 250ms ${EASE}, background-color 200ms ease`,
+                  '& .cta-arrow': { transition: `transform 300ms ${EASE}` },
+                  // vệt sáng lướt qua khi rê chuột
+                  '&::after': {
+                    content: '""', position: 'absolute', top: 0, bottom: 0, width: '40%', left: '-60%',
+                    background: 'linear-gradient(100deg, transparent, rgba(255,255,255,.35), transparent)',
+                    transform: 'skewX(-18deg)', transition: `left 700ms ${EASE}`,
+                  },
+                  '&:hover': {
+                    bgcolor: C.accentHover, transform: 'translateY(-2px)',
+                    boxShadow: '0 22px 36px -14px rgba(154,52,18,.8)',
+                  },
+                  '&:hover::after': { left: '120%' },
+                  '&:hover .cta-arrow': { transform: 'translateX(4px)' },
+                }}
+              >
+                {isAuthenticated ? 'Báo cáo sự cố' : 'Đăng nhập để báo cáo'}
+              </Button>
+              <Button
+                size="large"
+                variant="outlined"
+                onClick={() => navigate('/map')}
+                startIcon={<MapRounded />}
+                sx={{
+                  px: 3.25, py: 1.6, borderRadius: '14px', fontSize: 16, fontWeight: 700, textTransform: 'none',
+                  color: C.blue, bgcolor: 'rgba(255,255,255,.9)', borderColor: C.line, borderWidth: 1.5,
+                  '&:hover': { borderColor: C.blue, bgcolor: '#EEF5FA', borderWidth: 1.5 },
+                }}
+              >
+                Xem bản đồ sự cố
+              </Button>
             </Stack>
-          ))}
-        </Stack>
 
-        <Box sx={{ mt: { xs: 5, md: 7 }, mx: 'auto', maxWidth: 1120, textAlign: 'left', ...appear(shown, 860) }}>
-          <LivePanel
-            overview={panel.overview}
-            statsState={panel.statsState}
-            statsSlow={panel.statsSlow}
-            statsAt={panel.statsAt}
-            onRetry={panel.onRetryStats}
-            recent={panel.recent}
-          />
+            <Stack direction="row" spacing={{ xs: 1.5, md: 2.5 }} useFlexGap flexWrap="wrap" sx={{
+              mt: { xs: 2.5, md: 3 }, rowGap: 1, [SHORT_DESKTOP]: { mt: 2 },
+              ...appear(shown, 720),
+            }}>
+              {['Miễn phí cho người dân', 'Chuyển đúng đơn vị, có hạn xử lý', 'Ảnh minh chứng khi hoàn tất'].map((t) => (
+                <Stack key={t} direction="row" spacing={0.75} alignItems="center">
+                  <CheckCircleRounded sx={{ fontSize: 18, color: '#2F7D64' }} />
+                  <Typography sx={{ fontSize: 13.5, color: C.muted, fontWeight: 500 }}>{t}</Typography>
+                </Stack>
+              ))}
+            </Stack>
+          </Box>
+
+          <Box sx={{ gridArea: 'panel', alignSelf: 'center', minWidth: 0, mt: { xs: 2.5, md: 0 }, ...appear(shown, 420) }}>
+            <LivePanel
+              overview={panel.overview}
+              statsState={panel.statsState}
+              statsSlow={panel.statsSlow}
+              statsAt={panel.statsAt}
+              onRetry={panel.onRetryStats}
+              recent={panel.recent}
+            />
+          </Box>
         </Box>
       </Container>
     </Box>

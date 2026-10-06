@@ -43,7 +43,7 @@ const StatTile: React.FC<{
   const value = useCountUp(target, state === 'ready');
   return (
     <Box sx={{
-      p: { xs: 1.6, md: 2 }, borderRadius: '18px',
+      p: { xs: 1.6, lg: 2 }, borderRadius: '18px',
       bgcolor: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.09)',
       minWidth: 0,
     }}>
@@ -52,7 +52,7 @@ const StatTile: React.FC<{
         <Skeleton variant="rounded" width="60%" height={30} sx={{ bgcolor: 'rgba(244,248,250,.14)', my: '3px' }} />
       ) : (
         <Typography sx={{
-          fontSize: { xs: 24, md: 28 }, fontWeight: 800, lineHeight: 1.2, letterSpacing: '-0.02em',
+          fontSize: { xs: 24, lg: 28 }, fontWeight: 800, lineHeight: 1.2, letterSpacing: '-0.02em',
           color: C.onDark, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap',
         }}>
           {target == null ? '—' : format(value)}
@@ -88,7 +88,7 @@ const LivePanel: React.FC<LivePanelProps> = ({ overview, statsState, statsSlow, 
   return (
     <Box sx={{
       position: 'relative', overflow: 'hidden',
-      borderRadius: '28px', p: { xs: 2.25, md: 3 },
+      borderRadius: '28px', p: { xs: 2.25, md: 2.5, lg: 3 },
       background: `linear-gradient(160deg, ${C.sea} 0%, #0B4A63 58%, ${C.teal} 130%)`,
       color: C.onDark,
       border: '1px solid rgba(255,255,255,.10)',
@@ -122,11 +122,9 @@ const LivePanel: React.FC<LivePanelProps> = ({ overview, statsState, statsSlow, 
         </Box>
       </Stack>
 
-      <Box sx={{
-        position: 'relative', display: 'grid', alignItems: 'start',
-        gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(0, 1fr) minmax(0, 1.08fr)' },
-        columnGap: { md: 4 },
-      }}>
+      {/* Bảng nằm ở cột phải của phần đầu trang (màn hẹp: dưới nút) nên xếp dọc:
+          số liệu 2×2 rồi đến các phản ánh mới nhất. */}
+      <Box sx={{ position: 'relative' }}>
         <Box>
           <Box
             aria-busy={statsState === 'loading'}
@@ -157,11 +155,7 @@ const LivePanel: React.FC<LivePanelProps> = ({ overview, statsState, statsSlow, 
         </Box>
 
         {/* phản ánh mới nhất */}
-        <Box sx={{
-          mt: { xs: 2.5, md: 0 }, pt: { xs: 2.25, md: 0.5 }, pl: { md: 4 },
-          borderTop: { xs: '1px solid rgba(255,255,255,.10)', md: 'none' },
-          borderLeft: { md: '1px solid rgba(255,255,255,.10)' },
-        }}>
+        <Box sx={{ mt: 2.5, pt: 2.25, borderTop: '1px solid rgba(255,255,255,.10)' }}>
           <Typography sx={{ fontFamily: FONT_MONO, fontSize: 11.5, letterSpacing: '.08em', color: C.onDarkMuted, mb: 1.25 }}>
             VỪA ĐƯỢC PHẢN ÁNH
           </Typography>

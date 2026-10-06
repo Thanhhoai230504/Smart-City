@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   Box, IconButton, Typography, TextField, Stack, Paper, Chip, Avatar, Fade, Zoom,
 } from '@mui/material';
-import { Close, Send, SmartToy, Person } from '@mui/icons-material';
+import { Close, Send, SupportAgent, Person } from '@mui/icons-material';
 import { chatbotApi } from '../api/chatbotApi';
 
 interface Message {
@@ -60,7 +60,7 @@ const ChatbotWidget: React.FC = () => {
             transition: 'all 0.3s',
           }}
         >
-          <SmartToy />
+          <SupportAgent />
         </IconButton>
       </Zoom>
 
@@ -79,7 +79,7 @@ const ChatbotWidget: React.FC = () => {
           <Stack direction="row" alignItems="center" justifyContent="space-between"
             sx={{ px: 2, py: 1.5, bgcolor: '#176B87' }}>
             <Stack direction="row" alignItems="center" spacing={1}>
-              <SmartToy sx={{ fontSize: 22 }} />
+              <SupportAgent sx={{ fontSize: 22, color: '#fff' }} />
               <Box>
                 <Typography fontWeight={700} fontSize={14} color="#fff">Trợ lý AI Đà Nẵng</Typography>
               <Typography fontSize={10} color="rgba(255,255,255,0.78)">Smart City Dashboard</Typography>
@@ -101,7 +101,7 @@ const ChatbotWidget: React.FC = () => {
                 sx={{ mb: 1.5 }}>
                 {msg.role === 'assistant' && (
                   <Avatar sx={{ width: 28, height: 28, mr: 1, bgcolor: '#176B87', fontSize: 14 }}>
-                    <SmartToy sx={{ fontSize: 16 }} />
+                    <SupportAgent sx={{ fontSize: 16 }} />
                   </Avatar>
                 )}
                 <Box sx={{
@@ -123,7 +123,7 @@ const ChatbotWidget: React.FC = () => {
             {loading && (
               <Stack direction="row" sx={{ mb: 1.5 }}>
                 <Avatar sx={{ width: 28, height: 28, mr: 1, bgcolor: '#176B87' }}>
-                  <SmartToy sx={{ fontSize: 16 }} />
+                  <SupportAgent sx={{ fontSize: 16 }} />
                 </Avatar>
                 <Box sx={{ px: 1.5, py: 1, borderRadius: '12px', bgcolor: '#F7FAFA', border: '1px solid #E1EAED' }}>
                   <Typography variant="body2" fontSize={13} color="text.secondary">

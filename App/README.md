@@ -1,7 +1,8 @@
 # Smart City Đà Nẵng — App di động (Flutter)
 
-App cho **người dân** (báo cáo sự cố, theo dõi, đánh giá, mở lại) và **cán bộ hiện trường**
-(nhận việc, gọi người báo cáo, hoàn tất kèm ảnh minh chứng). Quản trị viên dùng website —
+App cho **người dân** (báo cáo sự cố — kể cả khi offline, theo dõi, đánh giá, mở lại) và **cán bộ hiện trường**
+(nhận việc, đổi trạng thái, gọi người báo cáo, hoàn tất kèm ảnh minh chứng). Khách chưa đăng nhập vẫn
+xem được bản đồ, danh sách sự cố, thống kê, camera, trợ lý AI. Quản trị viên dùng website —
 xem `KE-HOACH-FLUTTER-APP.md` mục 1.3.
 
 Flutter **3.41.4** / Dart **3.11.1** (ghim trong `pubspec.yaml` và CI).
@@ -25,7 +26,13 @@ flutter run --dart-define-from-file=config/dev.json
 HTTP thường chỉ được bật cho bản **debug** (`android/app/src/debug/AndroidManifest.xml`).
 
 Biến tuỳ chọn: `MAP_TILE_URL`, `MAP_ATTRIBUTION` (mặc định dùng cùng nguồn tile với web —
-không phải API chính thức của Google, xem `lib/core/config/app_config.dart`).
+không phải API chính thức của Google, xem `lib/core/config/app_config.dart`). `APP_ENV` = `dev`
+(mặc định) / `prod` — bản `prod` ẩn dòng "Máy chủ (bản phát triển)" trong Cài đặt và chi tiết kỹ
+thuật của lỗi đăng nhập Google.
+
+Đăng nhập Google: nút chỉ hiện trên **Android** và khi backend có `GOOGLE_CLIENT_ID` — app lấy client
+ID từ `GET /api/app/config` (`googleSignIn.serverClientId`), không qua `--dart-define`. SHA-1 của
+khoá ký phải có trong OAuth client Android (xem "Phát hành Android").
 
 ### Dữ liệu demo cục bộ (không đụng Atlas)
 
@@ -42,31 +49,37 @@ và mật khẩu nằm ở đầu `Backend/src/seeds/seedAppDemo.js`. Chạy bac
 
 ```bash
 flutter analyze        # 0 issue
-flutter test           # unit + widget
+flutter test           # unit + widget — 329 test
 ```
+
+Lần chạy đủ gần nhất: 06/10/2026 — 329/329 test qua, `flutter analyze` sạch. CI chạy cả hai lệnh với
+Flutter 3.41.4.
 
 | Nhóm | Bảo đảm gì (tiêu chí nghiệm thu của kế hoạch) |
 |---|---|
 | `test/core/network/refresh_interceptor_test.dart` | 3 request 401 đồng thời → **đúng 1** lần refresh (0.4); refresh lúc mở app chạy song song interceptor vẫn 1 lần; mất mạng lúc refresh **không** đăng xuất |
 | `test/data/models_test.dart` | parse bằng **JSON thật từ API** (`test/fixtures/api/`, chụp bằng `tool/capture_fixtures.js`) — union type id/object, khách không có `phone` (0.6) |
 | `test/data/meta_test.dart` | bản dự phòng đóng gói khớp API thật; cold start không mạng vẫn có nhãn (0.7) |
-| `test/core/theme/contrast_test.dart` | **0 cặp chữ dưới 4.5:1** ở cả hai theme, đọc thẳng `app_colors.dart` (0.5) |
-| `test/widgets/layout_test.dart` | 11 màn chính × sáng/tối × **chữ 1.6×** trên màn 360dp — không tràn layout (0.5) |
-| `test/features/offline_queue_test.dart` | gửi tuần tự; 429 dừng và hẹn lại; 400 không chặn cả hàng (3.6) |
-| `test/features/staff_and_rules_test.dart` | ảnh minh chứng **trước**, trạng thái **sau**; lỗi bước 2 không upload lại (4.5); 4 mã chặn mở lại + biên ngày 30 (3.8); SLA đủ 6 trạng thái (4.7) |
+| `test/core/theme/contrast_test.dart` | **0 cặp chữ dưới 4.5:1** ở cả hai theme, đọc thẳng `app_colors.dart` (0.5); màu đồ hoạ trạng thái và icon trắng trên ghim bản đồ ≥ 3:1 |
+| `test/widgets/layout_test.dart` | 18 màn × sáng/tối × **chữ 1.0× và 1.6×** trên màn 360×720dp — không tràn layout (0.5) |
+| `test/features/offline_queue_test.dart` | gửi tuần tự; 429 dừng và hẹn lại; 400 không chặn cả hàng (3.6); phiếu chờ chỉ tài khoản đã soạn thấy và gửi được |
+| `test/features/staff_and_rules_test.dart` | ảnh minh chứng **trước**, trạng thái **sau**; lỗi bước 2 không upload lại (4.5); 5 mã chặn mở lại + biên ngày 30 (3.8); SLA đủ 6 trạng thái (4.7) |
 | `test/core/debounce_test.dart` | gõ nhanh 10 ký tự → 1 request (3.5); kéo bản đồ 10 lần → ≤ 2 request (2.5) |
 | `test/core/router/route_guard_test.dart` | người dân vào cổng cán bộ → về home (1.7) |
 
-`test/flutter_test_config.dart` nạp font Roboto thật từ Flutter SDK — font mặc định của
-`flutter_test` rộng gấp ~2 lần nên test bố cục sẽ báo tràn sai.
+`test/flutter_test_config.dart` nạp font thật: **Be Vietnam Pro** của app (từ `assets/fonts/`) cùng
+Roboto + Material Icons từ Flutter SDK. Font mặc định của `flutter_test` vẽ mỗi ký tự thành ô vuông
+rộng bằng cỡ chữ nên test bố cục báo tràn sai — hoặc bỏ sót chỗ tràn thật; Be Vietnam Pro rộng hơn
+Roboto, đo bằng đúng font app dùng mới bắt được chữ tràn trên máy thật.
 
 ## Cấu trúc
 
 ```
 lib/
 ├── core/        config · network (Dio + 3 interceptor) · theme · router · widgets · utils
+│                · platform (mạng, vị trí, Google Sign-In, thông tin app) · storage (prefs)
 ├── data/        models (fromJson phòng thủ) · repositories · local (Hive) · socket
-└── features/    auth · home · issues · report (wizard + hàng đợi offline) · map
+└── features/    auth · home · issues · my_issues · report (wizard + hàng đợi offline) · map
                  · staff · notifications · profile · public_info · settings · update
 ```
 
@@ -76,7 +89,7 @@ lib/
 |---|---|---|
 | Model `freezed` + `build_runner` | `fromJson` viết tay qua `core/utils/json.dart` | Field union (id/object) vẫn phải viết converter riêng; bỏ bước sinh mã giúp CI và người đọc đơn giản hơn. Độ an toàn kiểu do test parse bằng fixture thật bảo đảm |
 | `drift` cho hàng đợi | `hive_ce` | Hàng đợi là khoá–giá trị; Hive chạy cả Android, iOS và web (bản xem thử) không cần SQLite native |
-| Golden test | Layout test (không tràn ở 1.6×, hai theme) | Ảnh golden render khác nhau giữa Windows và CI Linux; thứ cần bảo đảm là "không vỡ layout" |
+| Golden test | Layout test (không tràn ở chữ 1.0× và 1.6×, hai theme) | Ảnh golden render khác nhau giữa Windows và CI Linux; thứ cần bảo đảm là "không vỡ layout" |
 | `workmanager` chạy nền | Chưa dùng | Kế hoạch 1.4.5: không được phụ thuộc chạy nền. App thử gửi lại khi mở lại và khi mạng đổi — chạy đúng trên cả hai nền tảng |
 | `permission_handler` | Dùng API quyền của `geolocator` + `image_picker` | Đủ ba nhánh quyền vị trí mà bớt một plugin |
 

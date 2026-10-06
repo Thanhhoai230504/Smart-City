@@ -34,7 +34,8 @@ abstract final class AppFeatures {
   static const myIssues = FeatureStyle(Icons.assignment_ind_outlined, _teal);
   static const pending = FeatureStyle(Icons.schedule_send_outlined, _teal);
   static const badges = FeatureStyle(Icons.emoji_events_outlined, Color(0xFFF59E0B));
-  static const chatbot = FeatureStyle(Icons.smart_toy_outlined, Color(0xFF8B5CF6));
+  // Người đeo tai nghe như bản đầu (người dùng muốn giữ, không dùng hình robot).
+  static const chatbot = FeatureStyle(Icons.support_agent, Color(0xFF8B5CF6));
 
   static const account = Color(0xFF64748B);
 }
