@@ -1,12 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   Box,
   Button,
-  Card,
-  CardContent,
-  CardMedia,
+  ButtonBase,
   Chip,
   Collapse,
   Container,
@@ -14,35 +11,35 @@ import {
   InputAdornment,
   MenuItem,
   Pagination as MuiPagination,
-  Skeleton,
   Stack,
-  Tab,
-  Tabs,
   TextField,
   Typography,
 } from '@mui/material';
 import {
-  AccessTime,
-  AddCircleOutline,
-  ArrowForward,
-  BrokenImageOutlined,
-  BusinessOutlined,
   CalendarMonth,
+  CheckRounded,
   Close,
-  FilterList,
-  LocationOn,
-  NotificationsActive,
+  EventRounded,
+  GridViewRounded,
+  NotificationsActiveRounded,
   Search,
-  ThumbUp,
+  SearchOffRounded,
+  ViewAgendaRounded,
 } from '@mui/icons-material';
 import { AppDispatch, RootState } from '../../store/store';
 import { fetchIssues } from '../../store/slices/issueSlice';
 import { getProfileThunk } from '../../store/slices/authSlice';
 import { authApi } from '../../api/authApi';
 import { CATEGORY_MAP, DA_NANG_DISTRICTS, STATUS_MAP } from '../../utils/constants';
-import { timeAgo } from '../../utils/helpers';
-import { Issue } from '../../types';
-import SlaBadge from '../../components/SlaBadge';
+import { C, FONT_MONO, mix, prefersReducedMotion } from '../Home/homeStyle';
+import { categoryColor, categoryIcon } from '../Home/categoryIcons';
+import IssuesHero from './IssuesHero';
+import IssueCard, { IssueCardSkeleton, IssueView } from './IssueCard';
+import { pillRowSx, pillSx, softFieldSx as fieldSx } from '../../components/filterStyles';
+
+/** 12 thẻ mỗi trang: chia đều cho lưới 2 và 3 cột. */
+const PAGE_SIZE = 12;
+const VIEW_KEY = 'issues-view';
 
 const STATUS_TABS = [
   { value: '', label: 'Tất cả' },
@@ -52,67 +49,30 @@ const STATUS_TABS = [
   { value: 'rejected', label: 'Từ chối' },
 ];
 
-const IssueThumbnail: React.FC<{
-  issue: Issue;
-  category: { label: string; color: string; icon: string };
-}> = ({ issue, category }) => {
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => setFailed(false), [issue.imageUrl]);
-
-  if (issue.imageUrl && !failed) {
-    return (
-      <CardMedia
-        component="img"
-        image={issue.imageUrl}
-        loading="lazy"
-        decoding="async"
-        alt={issue.title}
-        onError={() => setFailed(true)}
-        sx={{
-          width: { xs: '100%', sm: 224 },
-          minWidth: { sm: 224 },
-          height: { xs: 176, sm: 168 },
-          objectFit: 'cover',
-          borderRight: { xs: 0, sm: '1px solid #D8E1E7' },
-          borderBottom: { xs: '1px solid #D8E1E7', sm: 0 },
-        }}
-      />
-    );
+const readView = (): IssueView => {
+  try {
+    return window.localStorage.getItem(VIEW_KEY) === 'list' ? 'list' : 'grid';
+  } catch {
+    return 'grid';
   }
-
-  return (
-    <Box
-      sx={{
-        width: { xs: '100%', sm: 224 },
-        minWidth: { sm: 224 },
-        height: { xs: 150, sm: 168 },
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 0.75,
-        bgcolor: '#EEF3F5',
-        color: 'text.secondary',
-        borderRight: { xs: 0, sm: '1px solid #D8E1E7' },
-        borderBottom: { xs: '1px solid #D8E1E7', sm: 0 },
-      }}
-    >
-      <BrokenImageOutlined sx={{ fontSize: 30, color: category.color }} />
-      <Typography variant="caption" fontWeight={650}>{category.label}</Typography>
-      <Typography variant="caption" color="text.disabled">Chưa có ảnh hiện trường</Typography>
-    </Box>
-  );
 };
 
-const getDepartmentName = (issue: Issue) => {
-  if (!issue.departmentId || typeof issue.departmentId === 'string') return 'Chưa phân công';
-  return issue.departmentId.name;
-};
+const RowLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <Typography component="span" sx={{
+    width: { md: 112 }, flexShrink: 0, pt: { md: 1.25 },
+    fontFamily: FONT_MONO, fontSize: 11.5, fontWeight: 700, letterSpacing: '.12em', color: C.muted,
+  }}>
+    {children}
+  </Typography>
+);
 
+/**
+ * Trang danh sách sự cố công khai. Phần đầu nền xanh biển (`IssuesHero`), thanh tìm kiếm nổi
+ * đè lên mép dưới phần đầu, hai hàng lọc nhanh (trạng thái, loại sự cố) dạng viên thuốc, khu
+ * vực theo dõi (khi đã đăng nhập), rồi danh sách dạng lưới hoặc danh sách (nhớ lựa chọn).
+ */
 const IssuesPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const navigate = useNavigate();
   const { issues, pagination, loading } = useSelector((state: RootState) => state.issues);
   const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
 
@@ -128,11 +88,21 @@ const IssuesPage: React.FC = () => {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [view, setView] = useState<IssueView>(readView);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => () => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
   }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(VIEW_KEY, view);
+    } catch {
+      /* chế độ riêng tư chặn localStorage — chỉ không nhớ được lựa chọn */
+    }
+  }, [view]);
 
   const handleSearchChange = useCallback((value: string) => {
     setSearchInput(value);
@@ -169,6 +139,16 @@ const IssuesPage: React.FC = () => {
     }
   };
 
+  const pickStatus = (next: string) => {
+    setStatus(next);
+    setPage(1);
+  };
+
+  const pickCategory = (next: string) => {
+    setCategory(next);
+    setPage(1);
+  };
+
   const handleClearAll = () => {
     setStatus('');
     setCategory('');
@@ -182,7 +162,7 @@ const IssuesPage: React.FC = () => {
   };
 
   useEffect(() => {
-    const params: Record<string, string | number> = { page, limit: 10, sort: sortBy };
+    const params: Record<string, string | number> = { page, limit: PAGE_SIZE, sort: sortBy };
     if (status) params.status = status;
     if (category) params.category = category;
     if (search) params.search = search;
@@ -194,620 +174,370 @@ const IssuesPage: React.FC = () => {
     return () => request.abort();
   }, [dispatch, page, status, category, sortBy, search, district, dateFrom, dateTo]);
 
+  const total = pagination?.total ?? issues.length;
+
   return (
-    <Container maxWidth="lg" sx={{ py: { xs: 2.5, md: 4 } }}>
-      <Box
-        component="header"
-        sx={{
-          pb: { xs: 2.5, md: 3 },
-          mb: 0,
-          borderBottom: '1px solid',
-          borderColor: 'divider',
-        }}
-      >
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          alignItems={{ sm: 'flex-end' }}
-          justifyContent="space-between"
-          spacing={2}
+    <Box sx={{ bgcolor: C.bg, pb: { xs: 6, md: 9 } }}>
+      <IssuesHero showReportCta={!isAuthenticated} activeStatus={status} onPickStatus={pickStatus} />
+
+      <Container maxWidth="lg" sx={{ position: 'relative', mt: { xs: -7, md: -8 } }}>
+        {/* Thanh tìm kiếm nổi đè lên mép dưới phần đầu */}
+        <Box
+          component="section"
+          aria-label="Công cụ tìm kiếm và lọc sự cố"
+          sx={{
+            p: { xs: 1.5, md: 2 }, borderRadius: '20px', bgcolor: C.white,
+            border: `1px solid ${C.line}`, boxShadow: '0 28px 56px -34px rgba(8,40,60,.6)',
+          }}
         >
-          <Box>
-            <Typography variant="body2" color="primary.main" fontWeight={700} mb={0.75}>
-              Cổng phản ánh cộng đồng
-            </Typography>
-            <Typography variant="h3" component="h1" mb={0.75}>
-              Sự cố đô thị
-            </Typography>
-            <Typography color="text.secondary" sx={{ maxWidth: 620 }}>
-              Theo dõi phản ánh, tiến độ xử lý và kết quả từ các đơn vị phụ trách trên toàn thành phố.
-            </Typography>
+          <Box sx={{
+            display: 'grid', gap: 1.25, alignItems: 'center',
+            gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', md: 'minmax(0, 1fr) 200px 200px auto' },
+          }}>
+            <TextField
+              fullWidth
+              placeholder="Tìm theo tiêu đề, mô tả hoặc địa điểm..."
+              value={searchInput}
+              onChange={(event) => handleSearchChange(event.target.value)}
+              inputProps={{ 'aria-label': 'Tìm sự cố' }}
+              sx={{ ...fieldSx, gridColumn: { xs: '1 / -1', md: 'auto' } }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Search sx={{ fontSize: 22, color: C.muted }} />
+                  </InputAdornment>
+                ),
+                endAdornment: searchInput ? (
+                  <InputAdornment position="end">
+                    <IconButton
+                      size="small"
+                      aria-label="Xóa từ khóa tìm kiếm"
+                      onClick={() => {
+                        setSearchInput('');
+                        setSearch('');
+                        setPage(1);
+                      }}
+                    >
+                      <Close fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ) : null,
+              }}
+            />
+
+            <TextField
+              select
+              label="Quận / Huyện"
+              value={district}
+              onChange={(event) => {
+                setDistrict(event.target.value);
+                setPage(1);
+              }}
+              sx={fieldSx}
+            >
+              <MenuItem value="">Toàn thành phố</MenuItem>
+              {DA_NANG_DISTRICTS.map((item) => (
+                <MenuItem key={item} value={item}>{item}</MenuItem>
+              ))}
+            </TextField>
+
+            <TextField
+              select
+              label="Sắp xếp"
+              value={sortBy}
+              onChange={(event) => {
+                setSortBy(event.target.value);
+                setPage(1);
+              }}
+              sx={fieldSx}
+            >
+              <MenuItem value="-createdAt">Mới nhất</MenuItem>
+              <MenuItem value="createdAt">Cũ nhất</MenuItem>
+              <MenuItem value="-voteCount">Nhiều ủng hộ nhất</MenuItem>
+            </TextField>
+
+            <Button
+              startIcon={<EventRounded />}
+              onClick={() => setShowAdvanced((current) => !current)}
+              aria-expanded={showAdvanced}
+              sx={{
+                gridColumn: { xs: '1 / -1', md: 'auto' }, height: 56, px: 2, borderRadius: '12px', whiteSpace: 'nowrap',
+                fontWeight: 700, border: '1px solid',
+                borderColor: hasAdvancedFilters || showAdvanced ? C.blue : '#DCE6EB',
+                color: hasAdvancedFilters || showAdvanced ? C.blue : C.body,
+                bgcolor: hasAdvancedFilters ? 'rgba(11,94,142,.06)' : C.white,
+                '&:hover': { bgcolor: '#EEF4F7' },
+              }}
+            >
+              Thời gian
+              {hasAdvancedFilters && ` (${[dateFrom, dateTo].filter(Boolean).length})`}
+            </Button>
           </Box>
 
-          <Stack direction="row" spacing={2.5} alignItems="center">
-            <Box sx={{ textAlign: { xs: 'left', sm: 'right' } }}>
-              <Typography variant="h5" component="p" color="text.primary">
-                {pagination?.total ?? 0}
+          <Collapse in={showAdvanced}>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1.25}
+              alignItems={{ sm: 'center' }}
+              sx={{ mt: 1.5, pt: 1.5, borderTop: `1px dashed ${C.line}` }}
+            >
+              <Typography sx={{ minWidth: 120, fontSize: 14, fontWeight: 700, color: C.ink }}>
+                Khoảng thời gian
               </Typography>
-              <Typography variant="caption" color="text.secondary">
-                phản ánh phù hợp
-              </Typography>
+              {[
+                { label: 'Từ ngày', value: dateFrom, set: setDateFrom },
+                { label: 'Đến ngày', value: dateTo, set: setDateTo },
+              ].map((item) => (
+                <TextField
+                  key={item.label}
+                  label={item.label}
+                  type="date"
+                  size="small"
+                  value={item.value}
+                  onChange={(event) => {
+                    item.set(event.target.value);
+                    setPage(1);
+                  }}
+                  InputLabelProps={{ shrink: true }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <CalendarMonth sx={{ fontSize: 18, color: C.muted }} />
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{ ...fieldSx, minWidth: 200 }}
+                />
+              ))}
+            </Stack>
+          </Collapse>
+        </Box>
+
+        {/* Lọc nhanh: trạng thái + loại sự cố */}
+        <Stack spacing={1.5} sx={{ mt: 3 }}>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={{ xs: 1, md: 0 }}>
+            <RowLabel>TRẠNG THÁI</RowLabel>
+            <Box role="group" aria-label="Lọc theo trạng thái" sx={pillRowSx}>
+              {STATUS_TABS.map((item) => {
+                const active = status === item.value;
+                const dot = item.value ? STATUS_MAP[item.value]?.color : null;
+                return (
+                  <ButtonBase key={item.value || 'all'} aria-pressed={active} onClick={() => pickStatus(item.value)} sx={pillSx(active)}>
+                    {dot && <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: dot, boxShadow: active ? '0 0 0 2px rgba(255,255,255,.25)' : 'none' }} />}
+                    {item.label}
+                  </ButtonBase>
+                );
+              })}
             </Box>
-            {!isAuthenticated && (
-              <Button
-                variant="contained"
-                startIcon={<AddCircleOutline />}
-                onClick={() => navigate('/report')}
-                sx={{ whiteSpace: 'nowrap' }}
-              >
-                Báo cáo sự cố
-              </Button>
-            )}
+          </Stack>
+
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={{ xs: 1, md: 0 }}>
+            <RowLabel>LOẠI SỰ CỐ</RowLabel>
+            <Box role="group" aria-label="Lọc theo loại sự cố" sx={pillRowSx}>
+              <ButtonBase aria-pressed={!category} onClick={() => pickCategory('')} sx={pillSx(!category)}>
+                Mọi loại
+              </ButtonBase>
+              {Object.entries(CATEGORY_MAP).map(([key, value]) => {
+                const active = category === key;
+                const Icon = categoryIcon(key);
+                const color = categoryColor(key);
+                return (
+                  <ButtonBase
+                    key={key}
+                    aria-pressed={active}
+                    onClick={() => pickCategory(active ? '' : key)}
+                    sx={{
+                      ...pillSx(active),
+                      ...(active ? {} : { '& svg': { color } }),
+                      // nền đang chọn: màu loại trộn 45% màu chữ chính — chữ trắng ≥ 5:1 với mọi loại
+                      ...(active ? { bgcolor: mix(color, '#0F2233', 0.45), borderColor: mix(color, '#0F2233', 0.45), '&:hover': { bgcolor: mix(color, '#0F2233', 0.55) } } : {}),
+                    }}
+                  >
+                    <Icon sx={{ fontSize: 18 }} />
+                    {value.label}
+                  </ButtonBase>
+                );
+              })}
+            </Box>
           </Stack>
         </Stack>
-      </Box>
 
-      <Box
-        sx={{
-          borderBottom: '1px solid',
-          borderColor: 'divider',
-          mb: 2.5,
-        }}
-      >
-        <Tabs
-          value={status}
-          onChange={(_, nextStatus: string) => {
-            setStatus(nextStatus);
-            setPage(1);
-          }}
-          variant="scrollable"
-          scrollButtons="auto"
-          aria-label="Lọc sự cố theo trạng thái"
-        >
-          {STATUS_TABS.map((item) => (
-            <Tab key={item.value || 'all'} value={item.value} label={item.label} />
-          ))}
-        </Tabs>
-      </Box>
+        {(search || district || hasAdvancedFilters) && (
+          <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mt: 2 }}>
+            <Typography sx={{ fontSize: 13, color: C.muted, mr: 0.25 }}>Đang lọc:</Typography>
+            {search && (
+              <Chip size="small" label={`Từ khóa: ${search}`} onDelete={() => { setSearch(''); setSearchInput(''); setPage(1); }} />
+            )}
+            {district && (
+              <Chip size="small" label={district} onDelete={() => { setDistrict(''); setPage(1); }} />
+            )}
+            {dateFrom && (
+              <Chip size="small" label={`Từ ${dateFrom}`} onDelete={() => { setDateFrom(''); setPage(1); }} />
+            )}
+            {dateTo && (
+              <Chip size="small" label={`Đến ${dateTo}`} onDelete={() => { setDateTo(''); setPage(1); }} />
+            )}
+          </Stack>
+        )}
 
-      {isAuthenticated && (
-        <Box
-          sx={{
-            mb: 2.5,
-            px: { xs: 1.5, sm: 2 },
-            py: 1.5,
-            bgcolor: 'background.paper',
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: 1.5,
-          }}
-        >
-          <Stack
-            direction={{ xs: 'column', md: 'row' }}
-            alignItems={{ md: 'center' }}
-            spacing={{ xs: 1.25, md: 2 }}
-          >
-            <Stack direction="row" alignItems="center" spacing={1} sx={{ minWidth: 205 }}>
-              <NotificationsActive sx={{ fontSize: 19, color: 'primary.main' }} />
+        {isAuthenticated && (
+          <Box sx={{
+            mt: 2.5, p: { xs: 1.75, md: 2 }, borderRadius: '18px', bgcolor: C.white, border: `1px solid ${C.line}`,
+            display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: { md: 'center' }, gap: { xs: 1.5, md: 2.5 },
+          }}>
+            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: { md: 250 } }}>
+              <Box sx={{
+                width: 40, height: 40, flexShrink: 0, borderRadius: '12px', display: 'grid', placeItems: 'center',
+                color: C.blue, bgcolor: 'rgba(11,94,142,.08)',
+              }}>
+                <NotificationsActiveRounded sx={{ fontSize: 21 }} />
+              </Box>
               <Box>
-                <Typography variant="body2" fontWeight={700}>
-                  Khu vực đang theo dõi
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {savingWatch ? 'Đang lưu thay đổi...' : 'Chọn quận để nhận thông báo'}
+                <Typography sx={{ fontSize: 14.5, fontWeight: 700, color: C.ink }}>Khu vực đang theo dõi</Typography>
+                <Typography sx={{ fontSize: 12.5, color: C.muted }}>
+                  {savingWatch ? 'Đang lưu thay đổi...' : 'Chọn quận, huyện để nhận thông báo'}
                 </Typography>
               </Box>
             </Stack>
-
             <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
               {DA_NANG_DISTRICTS.map((item) => {
                 const active = watchedDistricts.includes(item);
                 return (
-                  <Chip
+                  <ButtonBase
                     key={item}
-                    size="small"
-                    label={item}
-                    onClick={() => toggleWatchDistrict(item)}
+                    aria-pressed={active}
                     disabled={savingWatch}
-                    variant={active ? 'filled' : 'outlined'}
+                    onClick={() => toggleWatchDistrict(item)}
                     sx={{
-                      bgcolor: active ? 'primary.main' : 'transparent',
-                      color: active ? 'primary.contrastText' : 'text.secondary',
-                      borderColor: active ? 'primary.main' : 'divider',
-                      '&:hover': {
-                        bgcolor: active ? 'primary.dark' : '#F2F6F8',
-                      },
+                      height: 32, px: 1.25, gap: 0.5, borderRadius: 999, fontSize: 13, fontWeight: 650,
+                      border: '1px solid', borderColor: active ? C.teal : '#D5E1E7',
+                      bgcolor: active ? 'rgba(12,110,116,.1)' : C.white, color: active ? C.teal : C.body,
+                      '&:hover': { bgcolor: active ? 'rgba(12,110,116,.16)' : '#EEF4F7' },
+                      '&.Mui-disabled': { opacity: 0.6 },
+                      '&:focus-visible': { outline: `2px solid ${C.blue}`, outlineOffset: 2 },
                     }}
-                  />
+                  >
+                    {active && <CheckRounded sx={{ fontSize: 16 }} />}
+                    {item}
+                  </ButtonBase>
                 );
               })}
             </Stack>
-          </Stack>
-        </Box>
-      )}
-
-      <Box
-        component="section"
-        aria-label="Công cụ tìm kiếm và lọc sự cố"
-        sx={{
-          mb: 2.5,
-          p: { xs: 1.5, md: 2 },
-          bgcolor: 'background.paper',
-          border: '1px solid',
-          borderColor: 'divider',
-          borderRadius: 1.5,
-        }}
-      >
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: {
-              xs: '1fr',
-              sm: 'minmax(280px, 1fr) 180px',
-              md: 'minmax(320px, 1fr) 170px 170px 165px auto',
-            },
-            gap: 1.25,
-            alignItems: 'center',
-          }}
-        >
-          <TextField
-            fullWidth
-            size="small"
-            placeholder="Tìm theo tiêu đề, mô tả hoặc địa điểm..."
-            value={searchInput}
-            onChange={(event) => handleSearchChange(event.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Search sx={{ fontSize: 21, color: 'text.secondary' }} />
-                </InputAdornment>
-              ),
-              endAdornment: searchInput ? (
-                <InputAdornment position="end">
-                  <IconButton
-                    size="small"
-                    aria-label="Xóa từ khóa tìm kiếm"
-                    onClick={() => {
-                      setSearchInput('');
-                      setSearch('');
-                      setPage(1);
-                    }}
-                  >
-                    <Close fontSize="small" />
-                  </IconButton>
-                </InputAdornment>
-              ) : null,
-            }}
-          />
-
-          <TextField
-            select
-            label="Danh mục"
-            value={category}
-            onChange={(event) => {
-              setCategory(event.target.value);
-              setPage(1);
-            }}
-            size="small"
-          >
-            <MenuItem value="">Tất cả danh mục</MenuItem>
-            {Object.entries(CATEGORY_MAP).map(([key, value]) => (
-              <MenuItem key={key} value={key}>{value.label}</MenuItem>
-            ))}
-          </TextField>
-
-          <TextField
-            select
-            label="Quận / Huyện"
-            value={district}
-            onChange={(event) => {
-              setDistrict(event.target.value);
-              setPage(1);
-            }}
-            size="small"
-          >
-            <MenuItem value="">Toàn thành phố</MenuItem>
-            {DA_NANG_DISTRICTS.map((item) => (
-              <MenuItem key={item} value={item}>{item}</MenuItem>
-            ))}
-          </TextField>
-
-          <TextField
-            select
-            label="Sắp xếp"
-            value={sortBy}
-            onChange={(event) => {
-              setSortBy(event.target.value);
-              setPage(1);
-            }}
-            size="small"
-          >
-            <MenuItem value="-createdAt">Mới nhất</MenuItem>
-            <MenuItem value="createdAt">Cũ nhất</MenuItem>
-            <MenuItem value="-voteCount">Nhiều ủng hộ nhất</MenuItem>
-          </TextField>
-
-          <Button
-            variant={hasAdvancedFilters ? 'outlined' : 'text'}
-            startIcon={<FilterList />}
-            onClick={() => setShowAdvanced((current) => !current)}
-            sx={{
-              minHeight: 40,
-              px: 1.5,
-              whiteSpace: 'nowrap',
-              color: hasAdvancedFilters ? 'primary.main' : 'text.secondary',
-            }}
-          >
-            Thời gian
-            {hasAdvancedFilters && ` (${[dateFrom, dateTo].filter(Boolean).length})`}
-          </Button>
-        </Box>
-
-        <Collapse in={showAdvanced}>
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            spacing={1.25}
-            alignItems={{ sm: 'center' }}
-            sx={{
-              mt: 1.5,
-              pt: 1.5,
-              borderTop: '1px solid',
-              borderColor: 'divider',
-            }}
-          >
-            <Typography variant="body2" fontWeight={650} sx={{ minWidth: 110 }}>
-              Khoảng thời gian
-            </Typography>
-            <TextField
-              label="Từ ngày"
-              type="date"
-              size="small"
-              value={dateFrom}
-              onChange={(event) => {
-                setDateFrom(event.target.value);
-                setPage(1);
-              }}
-              InputLabelProps={{ shrink: true }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <CalendarMonth sx={{ fontSize: 18, color: 'text.secondary' }} />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{ minWidth: 190 }}
-            />
-            <TextField
-              label="Đến ngày"
-              type="date"
-              size="small"
-              value={dateTo}
-              onChange={(event) => {
-                setDateTo(event.target.value);
-                setPage(1);
-              }}
-              InputLabelProps={{ shrink: true }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <CalendarMonth sx={{ fontSize: 18, color: 'text.secondary' }} />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{ minWidth: 190 }}
-            />
-          </Stack>
-        </Collapse>
-
-        {hasAnyFilter && (
-          <Stack
-            direction="row"
-            spacing={0.75}
-            alignItems="center"
-            flexWrap="wrap"
-            useFlexGap
-            sx={{ mt: 1.5 }}
-          >
-            <Typography variant="caption" color="text.secondary" mr={0.25}>
-              Đang lọc:
-            </Typography>
-            {search && (
-              <Chip
-                size="small"
-                label={`Từ khóa: ${search}`}
-                onDelete={() => {
-                  setSearch('');
-                  setSearchInput('');
-                  setPage(1);
-                }}
-              />
-            )}
-            {category && (
-              <Chip
-                size="small"
-                label={CATEGORY_MAP[category]?.label || category}
-                onDelete={() => {
-                  setCategory('');
-                  setPage(1);
-                }}
-              />
-            )}
-            {district && (
-              <Chip
-                size="small"
-                label={district}
-                onDelete={() => {
-                  setDistrict('');
-                  setPage(1);
-                }}
-              />
-            )}
-            {dateFrom && (
-              <Chip
-                size="small"
-                label={`Từ ${dateFrom}`}
-                onDelete={() => {
-                  setDateFrom('');
-                  setPage(1);
-                }}
-              />
-            )}
-            {dateTo && (
-              <Chip
-                size="small"
-                label={`Đến ${dateTo}`}
-                onDelete={() => {
-                  setDateTo('');
-                  setPage(1);
-                }}
-              />
-            )}
-            <Button
-              size="small"
-              color="error"
-              onClick={handleClearAll}
-              sx={{ ml: { sm: 'auto' }, minHeight: 30, py: 0.25 }}
-            >
-              Xóa bộ lọc
-            </Button>
-          </Stack>
+          </Box>
         )}
-      </Box>
 
-      <Stack
-        direction="row"
-        alignItems="baseline"
-        justifyContent="space-between"
-        sx={{ mb: 1.5 }}
-      >
-        <Typography variant="h6" component="h2">
-          Danh sách phản ánh
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {loading ? 'Đang cập nhật...' : `${pagination?.total ?? issues.length} kết quả`}
-        </Typography>
-      </Stack>
-
-      <Stack component="section" aria-label="Danh sách sự cố đô thị" spacing={1.25}>
-        {loading ? (
-          Array.from({ length: 5 }).map((_, index) => (
-            <Card key={index} sx={{ display: 'flex', boxShadow: 'none' }}>
-              <Skeleton
-                variant="rectangular"
-                sx={{ width: { xs: 120, sm: 224 }, minWidth: { xs: 120, sm: 224 }, height: 168 }}
-              />
-              <CardContent sx={{ flex: 1 }}>
-                <Skeleton width="30%" />
-                <Skeleton height={34} width="78%" />
-                <Skeleton width="92%" />
-                <Skeleton width="55%" />
-              </CardContent>
-            </Card>
-          ))
-        ) : issues.length === 0 ? (
-          <Box
-            sx={{
-              py: 8,
-              px: 2,
-              textAlign: 'center',
-              bgcolor: 'background.paper',
-              border: '1px solid',
-              borderColor: 'divider',
-              borderRadius: 1.5,
-            }}
-          >
-            <Search sx={{ fontSize: 40, mb: 1, color: 'text.disabled' }} />
-            <Typography fontWeight={650} mb={0.5}>Không tìm thấy phản ánh phù hợp</Typography>
-            <Typography variant="body2" color="text.secondary" mb={2}>
-              Hãy thử thay đổi từ khóa, khu vực hoặc khoảng thời gian.
+        {/* Danh sách */}
+        <Stack
+          ref={resultsRef}
+          direction="row"
+          alignItems="center"
+          spacing={1.5}
+          sx={{ mt: 4, mb: 2, scrollMarginTop: 88 }}
+        >
+          <Typography component="h2" sx={{ fontSize: { xs: 19, md: 21 }, fontWeight: 800, letterSpacing: '-0.015em', color: C.ink }}>
+            Danh sách phản ánh
+          </Typography>
+          <Box sx={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            <Typography sx={{ fontSize: 14, color: C.muted }}>
+              {loading ? 'Đang cập nhật...' : `${total.toLocaleString('vi-VN')} phản ánh phù hợp`}
             </Typography>
             {hasAnyFilter && (
-              <Button variant="outlined" size="small" onClick={handleClearAll}>
+              <Button size="small" color="error" startIcon={<Close sx={{ fontSize: 16 }} />} onClick={handleClearAll} sx={{ minHeight: 30, py: 0.25, px: 1, borderRadius: '8px', fontWeight: 700 }}>
                 Xóa bộ lọc
               </Button>
             )}
           </Box>
-        ) : (
-          issues.map((issue) => {
-            const issueCategory = CATEGORY_MAP[issue.category] || CATEGORY_MAP.other;
-            const issueStatus = STATUS_MAP[issue.status] || STATUS_MAP.reported;
-            const departmentName = getDepartmentName(issue);
-
-            return (
-              <Card
-                key={issue._id}
-                component="article"
-                role="button"
-                tabIndex={0}
-                aria-label={`Xem chi tiết sự cố ${issue.title}`}
-                onClick={() => navigate(`/issues/${issue._id}`)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    navigate(`/issues/${issue._id}`);
-                  }
-                }}
+          <Box role="group" aria-label="Kiểu hiển thị" sx={{
+            display: { xs: 'none', sm: 'inline-flex' }, p: 0.5, gap: 0.5, borderRadius: '12px',
+            bgcolor: C.white, border: `1px solid ${C.line}`,
+          }}>
+            {[
+              { value: 'grid' as const, label: 'Dạng lưới', Icon: GridViewRounded },
+              { value: 'list' as const, label: 'Dạng danh sách', Icon: ViewAgendaRounded },
+            ].map(({ value, label, Icon }) => (
+              <IconButton
+                key={value}
+                aria-label={label}
+                aria-pressed={view === value}
+                onClick={() => setView(value)}
+                size="small"
                 sx={{
-                  position: 'relative',
-                  display: 'flex',
-                  flexDirection: { xs: 'column', sm: 'row' },
-                  minHeight: { sm: 168 },
-                  overflow: 'hidden',
-                  cursor: 'pointer',
-                  boxShadow: 'none',
-                  borderRadius: 1.5,
-                  contentVisibility: 'auto',
-                  containIntrinsicSize: '168px',
-                  transition: 'border-color 160ms ease, background-color 160ms ease',
-                  '&:hover': {
-                    borderColor: 'primary.main',
-                    bgcolor: '#FBFCFD',
-                  },
-                  '&:focus-visible': {
-                    outline: '2px solid',
-                    outlineColor: 'primary.main',
-                    outlineOffset: 2,
-                  },
+                  width: 34, height: 34, borderRadius: '9px',
+                  color: view === value ? '#FFFFFF' : C.muted,
+                  bgcolor: view === value ? C.seaDark : 'transparent',
+                  '&:hover': { bgcolor: view === value ? C.sea : '#EEF4F7' },
                 }}
               >
-                <IssueThumbnail issue={issue} category={issueCategory} />
+                <Icon sx={{ fontSize: 19 }} />
+              </IconButton>
+            ))}
+          </Box>
+        </Stack>
 
-                <CardContent
-                  sx={{
-                    flex: 1,
-                    minWidth: 0,
-                    p: { xs: 2, sm: 2.25 },
-                    pr: { sm: 6 },
-                    '&:last-child': { pb: { xs: 2, sm: 2.25 } },
-                  }}
-                >
-                  <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap mb={0.9}>
-                    <Chip
-                      label={issueCategory.label}
-                      size="small"
-                      variant="outlined"
-                      sx={{
-                        height: 24,
-                        color: issueCategory.color,
-                        borderColor: `${issueCategory.color}70`,
-                        bgcolor: `${issueCategory.color}0A`,
-                        fontSize: '0.72rem',
-                      }}
-                    />
-                    <Chip
-                      label={issueStatus.label}
-                      size="small"
-                      sx={{
-                        height: 24,
-                        bgcolor: issueStatus.bg,
-                        color: issueStatus.text,
-                        fontSize: '0.72rem',
-                      }}
-                    />
-                    <SlaBadge status={issue.slaStatus} dueAt={issue.dueAt} />
-                  </Stack>
-
-                  <Typography
-                    variant="subtitle1"
-                    component="h3"
-                    fontWeight={700}
-                    sx={{
-                      mb: 0.45,
-                      pr: { sm: 1 },
-                      display: '-webkit-box',
-                      WebkitBoxOrient: 'vertical',
-                      WebkitLineClamp: 1,
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {issue.title}
-                  </Typography>
-
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{
-                      mb: 1,
-                      display: '-webkit-box',
-                      WebkitBoxOrient: 'vertical',
-                      WebkitLineClamp: 1,
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {issue.description}
-                  </Typography>
-
-                  <Stack
-                    direction="row"
-                    spacing={1.75}
-                    alignItems="center"
-                    flexWrap="wrap"
-                    useFlexGap
-                    sx={{ color: 'text.secondary' }}
-                  >
-                    <Stack direction="row" spacing={0.5} alignItems="center" sx={{ minWidth: 0 }}>
-                      <LocationOn sx={{ fontSize: 16 }} />
-                      <Typography
-                        variant="caption"
-                        sx={{
-                          maxWidth: { xs: 240, md: 360 },
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {issue.location}
-                      </Typography>
-                    </Stack>
-                    <Stack direction="row" spacing={0.5} alignItems="center">
-                      <AccessTime sx={{ fontSize: 15 }} />
-                      <Typography variant="caption">{timeAgo(issue.createdAt)}</Typography>
-                    </Stack>
-                    <Stack direction="row" spacing={0.5} alignItems="center">
-                      <ThumbUp sx={{ fontSize: 15 }} />
-                      <Typography variant="caption">{issue.voteCount || 0} lượt ủng hộ</Typography>
-                    </Stack>
-                    <Stack direction="row" spacing={0.5} alignItems="center">
-                      <BusinessOutlined sx={{ fontSize: 15 }} />
-                      <Typography
-                        variant="caption"
-                        color={departmentName === 'Chưa phân công' ? 'text.disabled' : 'text.secondary'}
-                      >
-                        {departmentName}
-                      </Typography>
-                    </Stack>
-                  </Stack>
-                </CardContent>
-
-                <ArrowForward
-                  aria-hidden="true"
-                  sx={{
-                    display: { xs: 'none', sm: 'block' },
-                    position: 'absolute',
-                    right: 18,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    fontSize: 20,
-                    color: 'text.disabled',
-                  }}
-                />
-              </Card>
-            );
-          })
-        )}
-      </Stack>
-
-      {pagination && pagination.pages > 1 && (
-        <Box mt={4} display="flex" justifyContent="center">
-          <MuiPagination
-            count={pagination.pages}
-            page={pagination.current}
-            onChange={(_, nextPage) => setPage(nextPage)}
-            color="primary"
-            shape="rounded"
-          />
+        <Box
+          component="section"
+          aria-label="Danh sách sự cố đô thị"
+          aria-busy={loading}
+          sx={{
+            display: 'grid', gap: { xs: 2, md: 2.5 },
+            gridTemplateColumns: view === 'grid'
+              ? { xs: 'minmax(0, 1fr)', sm: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(3, minmax(0, 1fr))' }
+              : 'minmax(0, 1fr)',
+          }}
+        >
+          {loading ? (
+            Array.from({ length: view === 'grid' ? 6 : 4 }).map((_, index) => (
+              <IssueCardSkeleton key={index} view={view} />
+            ))
+          ) : issues.length === 0 ? (
+            <Box sx={{
+              gridColumn: '1 / -1', py: { xs: 6, md: 8 }, px: 2, textAlign: 'center',
+              bgcolor: C.white, border: `1px dashed #C9D7DE`, borderRadius: '20px',
+            }}>
+              <Box sx={{
+                width: 64, height: 64, mx: 'auto', mb: 2, borderRadius: '50%', display: 'grid', placeItems: 'center',
+                color: C.blue, bgcolor: 'rgba(11,94,142,.08)',
+              }}>
+                <SearchOffRounded sx={{ fontSize: 32 }} />
+              </Box>
+              <Typography sx={{ fontSize: 17, fontWeight: 800, color: C.ink, mb: 0.5 }}>Không tìm thấy phản ánh phù hợp</Typography>
+              <Typography sx={{ fontSize: 14.5, color: C.body, mb: 2.5 }}>
+                Hãy thử thay đổi từ khóa, khu vực, loại sự cố hoặc khoảng thời gian.
+              </Typography>
+              {hasAnyFilter && (
+                <Button variant="outlined" onClick={handleClearAll} sx={{ borderRadius: '10px', fontWeight: 700 }}>
+                  Xóa bộ lọc
+                </Button>
+              )}
+            </Box>
+          ) : (
+            issues.map((issue) => <IssueCard key={issue._id} issue={issue} view={view} />)
+          )}
         </Box>
-      )}
-    </Container>
+
+        {pagination && pagination.pages > 1 && (
+          <Box mt={5} display="flex" justifyContent="center">
+            <MuiPagination
+              count={pagination.pages}
+              page={pagination.current}
+              onChange={(_, nextPage) => {
+                setPage(nextPage);
+                resultsRef.current?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+              }}
+              shape="rounded"
+              sx={{
+                '& .MuiPaginationItem-root': { borderRadius: '10px', fontWeight: 650, color: C.body },
+                '& .MuiPaginationItem-page': { bgcolor: C.white, border: `1px solid ${C.line}` },
+                '& .MuiPaginationItem-root.Mui-selected': {
+                  bgcolor: C.seaDark, borderColor: C.seaDark, color: '#FFFFFF',
+                  '&:hover': { bgcolor: C.sea },
+                },
+              }}
+            />
+          </Box>
+        )}
+      </Container>
+    </Box>
   );
 };
 
