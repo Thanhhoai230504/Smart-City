@@ -85,6 +85,11 @@ export const slideInRight = keyframes`
   from { opacity: 0; transform: translate3d(18px, 0, 0); }
   to { opacity: 1; transform: none; }
 `;
+/** Vệt sáng rộng 18% chạy hết chiều dài một đường ray (18% × 560% ≈ 100%). */
+export const flowAlong = keyframes`
+  from { transform: translateX(-100%); }
+  to { transform: translateX(560%); }
+`;
 export const gradientPan = keyframes`
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }

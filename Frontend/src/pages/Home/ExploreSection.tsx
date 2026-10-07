@@ -11,7 +11,7 @@ import {
 } from '@mui/icons-material';
 import { C, EASE, FONT_MONO, NO_MOTION, prefersReducedMotion, revealSx } from './homeStyle';
 import { useInView, useSandTransition } from './hooks';
-import { SectionHeading } from './HowItWorks';
+import { GradientText, SectionHeading } from './SectionHeading';
 import {
   CameraVisual, EnvVisual, IncidentVisual, MapVisual, SandLayer, TrafficVisual,
 } from './visuals';
@@ -64,7 +64,7 @@ const ExploreSection: React.FC = () => {
             shown={shown}
             dark
             eyebrow="DỮ LIỆU ĐÔ THỊ CÔNG KHAI"
-            title="Theo dõi thành phố mỗi ngày — không cần đăng nhập."
+            title={<>Theo dõi thành phố mỗi ngày — <GradientText dark>không cần đăng nhập.</GradientText></>}
             text="Ngoài phản ánh, hệ thống tổng hợp bản đồ, giao thông, môi trường, camera và thống kê xử lý để mọi người cùng giám sát."
           />
         </Box>

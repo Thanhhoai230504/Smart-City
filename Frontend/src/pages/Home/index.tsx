@@ -22,6 +22,7 @@ import { LoadState, Overview } from './LivePanel';
 const HomePage: React.FC = () => {
   const { isAuthenticated } = useSelector((s: RootState) => s.auth);
   const [overview, setOverview] = useState<Overview | null>(null);
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number> | null>(null);
   const [statsState, setStatsState] = useState<LoadState>('loading');
   const [statsSlow, setStatsSlow] = useState(false);
   const [statsAt, setStatsAt] = useState<Date | null>(null);
@@ -39,6 +40,8 @@ const HomePage: React.FC = () => {
     statisticsApi.getPublicStatistics(ctrl.signal)
       .then(({ data }) => {
         setOverview(data.data?.overview || null);
+        const byCategory: Array<{ category: string; count: number }> = data.data?.issuesByCategory ?? [];
+        setCategoryCounts(Object.fromEntries(byCategory.map((c) => [c.category, c.count])));
         setStatsAt(new Date());
         setStatsState('ready');
       })
@@ -73,7 +76,7 @@ const HomePage: React.FC = () => {
         recent={recent}
       />
       <HowItWorks />
-      <CategoriesSection />
+      <CategoriesSection counts={categoryCounts} state={statsState} />
       <RolesSection />
       <ExploreSection />
       <FinalCta isAuthenticated={isAuthenticated} />
