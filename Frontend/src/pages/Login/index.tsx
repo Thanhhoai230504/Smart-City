@@ -4,13 +4,24 @@ import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../../store/store';
 import { loginThunk, clearError } from '../../store/slices/authSlice';
 import {
-  Box, Container, Card, CardContent, Typography, TextField, Button,
-  Alert, InputAdornment, IconButton, CircularProgress, Link, Divider,
+  Alert, Box, CircularProgress, IconButton, InputAdornment, Link, TextField, Typography,
 } from '@mui/material';
-import { Email, Lock, Visibility, VisibilityOff, Login as LoginIcon } from '@mui/icons-material';
+import {
+  EmailOutlined, LockOutlined, LoginRounded, NotificationsActiveRounded,
+  StarRateRounded, TimelineRounded, Visibility, VisibilityOff,
+} from '@mui/icons-material';
 import { rememberPostLoginPath, resolvePostLoginPath } from '../../utils/authRedirect';
+import AuthShell, { AuthDivider, AuthSubmitButton, GoogleButton } from '../../components/AuthShell';
+import { authFieldSx, authLinkSx } from '../../components/authStyles';
+import { GradientText } from '../Home/SectionHeading';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+const POINTS = [
+  { icon: NotificationsActiveRounded, title: 'Thông báo ngay khi có cập nhật', text: 'Biết khi phản ánh được tiếp nhận, đang xử lý hay đã hoàn tất.' },
+  { icon: TimelineRounded, title: 'Theo dõi từng bước', text: 'Xem trạng thái, hạn xử lý và ảnh minh chứng khi hoàn tất.' },
+  { icon: StarRateRounded, title: 'Đánh giá và yêu cầu mở lại', text: 'Chấm điểm kết quả; chưa hài lòng thì yêu cầu đơn vị xử lý tiếp.' },
+];
 
 const LoginPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -50,81 +61,62 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <Box sx={{
-      minHeight: 'calc(100vh - 70px)', display: 'flex', alignItems: 'center',
-      background: 'linear-gradient(135deg, #F4F7F8 0%, #EAF2F4 100%)',
-      position: 'relative', overflow: 'hidden',
-    }}>
-      <Box sx={{ position: 'absolute', top: -100, right: -100, width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(11,94,142,0.08), transparent 70%)', filter: 'blur(60px)' }} />
+    <AuthShell
+      pitch={<>Theo dõi phản ánh của bạn <GradientText dark>đến khi xử lý xong.</GradientText></>}
+      pitchText="Đăng nhập để báo sự cố mới, xem tiến độ xử lý và nhận thông báo ngay khi có cập nhật."
+      points={POINTS}
+      title="Đăng nhập"
+      subtitle="Chào mừng bạn trở lại Smart City Đà Nẵng."
+    >
+      {(error || oauthError) && (
+        <Alert severity="error" sx={{ mb: 3, borderRadius: '12px' }} onClose={() => dispatch(clearError())}>
+          {error || 'Đăng nhập bằng Google thất bại. Vui lòng thử lại.'}
+        </Alert>
+      )}
 
-      <Container maxWidth="sm">
-        <Card sx={{ p: { xs: 2, md: 4 }, bgcolor: '#FFFFFF' }}>
-          <CardContent>
-            <Box textAlign="center" mb={4}>
-              <Box sx={{
-                width: 56, height: 56, borderRadius: '16px', mx: 'auto', mb: 2,
-                background: '#176B87',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem',
-              }}>🏙️</Box>
-              <Typography variant="h4" fontWeight={700}>Đăng nhập</Typography>
-              <Typography color="text.secondary" mt={1}>Chào mừng bạn trở lại Smart City</Typography>
-            </Box>
+      <GoogleButton onClick={handleGoogleLogin}>Đăng nhập với Google</GoogleButton>
 
-            {(error || oauthError) && (
-              <Alert severity="error" sx={{ mb: 3 }} onClose={() => dispatch(clearError())}>
-                {error || 'Đăng nhập bằng Google thất bại. Vui lòng thử lại.'}
-              </Alert>
-            )}
+      <AuthDivider>hoặc dùng email</AuthDivider>
 
-            {/* Google Login Button */}
-            <Button
-              fullWidth variant="outlined" size="large"
-              onClick={handleGoogleLogin}
-              sx={{
-                py: 1.4, mb: 3, borderRadius: '12px', textTransform: 'none',
-                borderColor: '#C8D9DE', color: '#18323F', fontWeight: 700,
-                fontSize: '0.95rem',
-                '&:hover': { borderColor: '#176B87', bgcolor: '#EFF7F9' },
-              }}
-              startIcon={
-                <Box component="img" src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-                  sx={{ width: 20, height: 20 }} />
-              }
-            >
-              Đăng nhập với Google
-            </Button>
+      <Box component="form" onSubmit={handleSubmit}>
+        <TextField
+          fullWidth label="Email" type="email" autoComplete="email"
+          value={email} onChange={(e) => setEmail(e.target.value)}
+          required sx={{ ...authFieldSx, mb: 2.25 }}
+          InputProps={{ startAdornment: <InputAdornment position="start"><EmailOutlined /></InputAdornment> }}
+        />
+        <TextField
+          fullWidth label="Mật khẩu" type={showPass ? 'text' : 'password'} autoComplete="current-password"
+          value={password} onChange={(e) => setPassword(e.target.value)}
+          required sx={authFieldSx}
+          InputProps={{
+            startAdornment: <InputAdornment position="start"><LockOutlined /></InputAdornment>,
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton aria-label={showPass ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'} onClick={() => setShowPass(!showPass)} edge="end">
+                  {showPass ? <VisibilityOff /> : <Visibility />}
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
+        />
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1.25, mb: 3 }}>
+          <Link component={RouterLink} to="/forgot-password" sx={{ ...authLinkSx, fontSize: 14 }}>Quên mật khẩu?</Link>
+        </Box>
 
-            <Divider sx={{ mb: 3, '&::before, &::after': { borderColor: '#DCE7EB' } }}>
-              <Typography variant="caption" color="text.secondary" px={1}>hoặc đăng nhập bằng email</Typography>
-            </Divider>
+        <AuthSubmitButton
+          disabled={loading}
+          startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <LoginRounded />}
+        >
+          {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
+        </AuthSubmitButton>
+      </Box>
 
-            <Box component="form" onSubmit={handleSubmit}>
-              <TextField fullWidth label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                required sx={{ mb: 2.5 }}
-                InputProps={{ startAdornment: <InputAdornment position="start"><Email sx={{ color: 'text.secondary' }} /></InputAdornment> }} />
-              <TextField fullWidth label="Mật khẩu" type={showPass ? 'text' : 'password'}
-                value={password} onChange={(e) => setPassword(e.target.value)}
-                required sx={{ mb: 3 }}
-                InputProps={{
-                  startAdornment: <InputAdornment position="start"><Lock sx={{ color: 'text.secondary' }} /></InputAdornment>,
-                  endAdornment: <InputAdornment position="end"><IconButton aria-label={showPass ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'} onClick={() => setShowPass(!showPass)} edge="end">{showPass ? <VisibilityOff /> : <Visibility />}</IconButton></InputAdornment>,
-                }} />
-              <Button type="submit" fullWidth variant="contained" size="large" disabled={loading}
-                startIcon={loading ? <CircularProgress size={20} /> : <LoginIcon />} sx={{ py: 1.5, mb: 2.5 }}>
-                {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
-              </Button>
-              <Typography textAlign="center" color="text.secondary">
-                Chưa có tài khoản?{' '}
-                <Link component={RouterLink} to="/register" sx={{ color: 'primary.main', fontWeight: 600 }}>Đăng ký ngay</Link>
-              </Typography>
-              <Typography variant="body2" color="text.secondary" textAlign="center" mt={1}>
-                <Link component={RouterLink} to="/forgot-password" sx={{ color: 'primary.main', fontWeight: 600 }}>Quên mật khẩu?</Link>
-              </Typography>
-            </Box>
-          </CardContent>
-        </Card>
-      </Container>
-    </Box>
+      <Typography sx={{ mt: 3, textAlign: 'center', fontSize: 15, color: '#3F5563' }}>
+        Chưa có tài khoản?{' '}
+        <Link component={RouterLink} to="/register" sx={authLinkSx}>Đăng ký ngay</Link>
+      </Typography>
+    </AuthShell>
   );
 };
 

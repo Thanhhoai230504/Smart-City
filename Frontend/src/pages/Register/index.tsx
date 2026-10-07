@@ -4,13 +4,24 @@ import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../../store/store';
 import { registerThunk, clearError } from '../../store/slices/authSlice';
 import {
-  Box, Container, Card, CardContent, Typography, TextField, Button,
-  Alert, InputAdornment, IconButton, CircularProgress, Link, Divider,
+  Alert, Box, CircularProgress, IconButton, InputAdornment, Link, TextField, Typography,
 } from '@mui/material';
-import { Person, Email, Lock, Visibility, VisibilityOff, PersonAdd } from '@mui/icons-material';
+import {
+  AddAPhotoRounded, EmailOutlined, LocationOnRounded, LockOutlined, NotificationsActiveRounded,
+  PersonAddRounded, PersonOutlineRounded, Visibility, VisibilityOff,
+} from '@mui/icons-material';
 import { getPasswordLengthError, PASSWORD_HINT } from '../../utils/password';
+import AuthShell, { AuthDivider, AuthSubmitButton, GoogleButton } from '../../components/AuthShell';
+import { authFieldSx, authLinkSx } from '../../components/authStyles';
+import { GradientText } from '../Home/SectionHeading';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+const POINTS = [
+  { icon: AddAPhotoRounded, title: 'Báo sự cố trong khoảng 1 phút', text: 'Chụp ảnh, AI gợi ý loại sự cố, vị trí lấy tự động từ GPS.' },
+  { icon: NotificationsActiveRounded, title: 'Nhận thông báo từng bước', text: 'Theo dõi tiến độ cho tới khi sự cố được xử lý xong.' },
+  { icon: LocationOnRounded, title: 'Theo dõi khu vực của bạn', text: 'Chọn quận, huyện để được báo khi có sự cố mới gần bạn.' },
+];
 
 const RegisterPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -54,82 +65,72 @@ const RegisterPage: React.FC = () => {
   };
 
   return (
-    <Box sx={{
-      minHeight: 'calc(100vh - 70px)', display: 'flex', alignItems: 'center',
-      background: 'linear-gradient(135deg, #F4F7F8 0%, #EAF2F4 100%)',
-      position: 'relative', overflow: 'hidden',
-    }}>
-      <Box sx={{ position: 'absolute', bottom: -100, left: -100, width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(16,185,129,0.1), transparent 70%)', filter: 'blur(60px)' }} />
+    <AuthShell
+      pitch={<>Cùng giữ cho Đà Nẵng <GradientText dark>an toàn và sạch đẹp hơn.</GradientText></>}
+      pitchText="Tài khoản miễn phí cho người dân — báo sự cố, theo dõi xử lý và đánh giá kết quả trên cả web lẫn ứng dụng Android."
+      points={POINTS}
+      title="Tạo tài khoản"
+      subtitle="Miễn phí — chỉ cần họ tên, email và mật khẩu."
+    >
+      {(error || localError) && (
+        <Alert severity="error" sx={{ mb: 3, borderRadius: '12px' }} onClose={() => { dispatch(clearError()); setLocalError(''); }}>
+          {error || localError}
+        </Alert>
+      )}
 
-      <Container maxWidth="sm">
-        <Card sx={{ p: { xs: 2, md: 4 }, bgcolor: '#FFFFFF' }}>
-          <CardContent>
-            <Box textAlign="center" mb={4}>
-              <Box sx={{
-                width: 56, height: 56, borderRadius: '16px', mx: 'auto', mb: 2,
-                background: '#3A806D',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem',
-              }}>👤</Box>
-              <Typography variant="h4" fontWeight={700}>Đăng ký</Typography>
-              <Typography color="text.secondary" mt={1}>Tạo tài khoản Smart City Dashboard</Typography>
-            </Box>
+      <GoogleButton onClick={handleGoogleRegister}>Đăng ký với Google</GoogleButton>
 
-            {(error || localError) && <Alert severity="error" sx={{ mb: 3 }} onClose={() => { dispatch(clearError()); setLocalError(''); }}>{error || localError}</Alert>}
+      <AuthDivider>hoặc dùng email</AuthDivider>
 
-            {/* Google Register Button */}
-            <Button
-              fullWidth variant="outlined" size="large"
-              onClick={handleGoogleRegister}
-              sx={{
-                py: 1.4, mb: 3, borderRadius: '12px', textTransform: 'none',
-                borderColor: '#C8D9DE', color: '#18323F', fontWeight: 700,
-                fontSize: '0.95rem',
-                '&:hover': { borderColor: '#176B87', bgcolor: '#EFF7F9' },
-              }}
-              startIcon={
-                <Box component="img" src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-                  sx={{ width: 20, height: 20 }} />
-              }
-            >
-              Đăng ký với Google
-            </Button>
+      <Box component="form" onSubmit={handleSubmit}>
+        <TextField
+          fullWidth label="Họ và tên" autoComplete="name"
+          value={name} onChange={(e) => setName(e.target.value)}
+          required sx={{ ...authFieldSx, mb: 2.25 }}
+          InputProps={{ startAdornment: <InputAdornment position="start"><PersonOutlineRounded /></InputAdornment> }}
+        />
+        <TextField
+          fullWidth label="Email" type="email" autoComplete="email"
+          value={email} onChange={(e) => setEmail(e.target.value)}
+          required sx={{ ...authFieldSx, mb: 2.25 }}
+          InputProps={{ startAdornment: <InputAdornment position="start"><EmailOutlined /></InputAdornment> }}
+        />
+        <TextField
+          fullWidth label="Mật khẩu" type={showPass ? 'text' : 'password'} autoComplete="new-password"
+          value={password} onChange={(e) => setPassword(e.target.value)}
+          required helperText={PASSWORD_HINT} sx={{ ...authFieldSx, mb: 2.25 }}
+          error={password.length > 0 && getPasswordLengthError(password) !== null}
+          InputProps={{
+            startAdornment: <InputAdornment position="start"><LockOutlined /></InputAdornment>,
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton aria-label={showPass ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'} onClick={() => setShowPass(!showPass)} edge="end">
+                  {showPass ? <VisibilityOff /> : <Visibility />}
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
+        />
+        <TextField
+          fullWidth label="Xác nhận mật khẩu" type={showPass ? 'text' : 'password'} autoComplete="new-password"
+          value={confirmPwd} onChange={(e) => setConfirmPwd(e.target.value)}
+          required sx={{ ...authFieldSx, mb: 3.5 }}
+          InputProps={{ startAdornment: <InputAdornment position="start"><LockOutlined /></InputAdornment> }}
+        />
 
-            <Divider sx={{ mb: 3, '&::before, &::after': { borderColor: '#DCE7EB' } }}>
-              <Typography variant="caption" color="text.secondary" px={1}>hoặc đăng ký bằng email</Typography>
-            </Divider>
+        <AuthSubmitButton
+          disabled={loading}
+          startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <PersonAddRounded />}
+        >
+          {loading ? 'Đang tạo tài khoản...' : 'Đăng ký'}
+        </AuthSubmitButton>
+      </Box>
 
-            <Box component="form" onSubmit={handleSubmit}>
-              <TextField fullWidth label="Họ và tên" value={name} onChange={(e) => setName(e.target.value)}
-                required sx={{ mb: 2.5 }}
-                InputProps={{ startAdornment: <InputAdornment position="start"><Person sx={{ color: 'text.secondary' }} /></InputAdornment> }} />
-              <TextField fullWidth label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                required sx={{ mb: 2.5 }}
-                InputProps={{ startAdornment: <InputAdornment position="start"><Email sx={{ color: 'text.secondary' }} /></InputAdornment> }} />
-              <TextField fullWidth label="Mật khẩu" type={showPass ? 'text' : 'password'}
-                value={password} onChange={(e) => setPassword(e.target.value)}
-                required helperText={PASSWORD_HINT} sx={{ mb: 2.5 }}
-                error={password.length > 0 && getPasswordLengthError(password) !== null}
-                InputProps={{
-                  startAdornment: <InputAdornment position="start"><Lock sx={{ color: 'text.secondary' }} /></InputAdornment>,
-                  endAdornment: <InputAdornment position="end"><IconButton aria-label={showPass ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'} onClick={() => setShowPass(!showPass)} edge="end">{showPass ? <VisibilityOff /> : <Visibility />}</IconButton></InputAdornment>,
-                }} />
-              <TextField fullWidth label="Xác nhận mật khẩu" type={showPass ? 'text' : 'password'}
-                value={confirmPwd} onChange={(e) => setConfirmPwd(e.target.value)}
-                required sx={{ mb: 3 }}
-                InputProps={{ startAdornment: <InputAdornment position="start"><Lock sx={{ color: 'text.secondary' }} /></InputAdornment> }} />
-              <Button type="submit" fullWidth variant="contained" size="large" disabled={loading}
-                startIcon={loading ? <CircularProgress size={20} /> : <PersonAdd />} sx={{ py: 1.5, mb: 2.5 }}>
-                {loading ? 'Đang tạo tài khoản...' : 'Đăng ký'}
-              </Button>
-              <Typography textAlign="center" color="text.secondary">
-                Đã có tài khoản?{' '}
-                <Link component={RouterLink} to="/login" sx={{ color: 'primary.main', fontWeight: 600 }}>Đăng nhập</Link>
-              </Typography>
-            </Box>
-          </CardContent>
-        </Card>
-      </Container>
-    </Box>
+      <Typography sx={{ mt: 3, textAlign: 'center', fontSize: 15, color: '#3F5563' }}>
+        Đã có tài khoản?{' '}
+        <Link component={RouterLink} to="/login" sx={authLinkSx}>Đăng nhập</Link>
+      </Typography>
+    </AuthShell>
   );
 };
 
