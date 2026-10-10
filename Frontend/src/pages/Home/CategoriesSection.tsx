@@ -5,8 +5,14 @@ import { AutoAwesomeRounded, ArrowForwardRounded } from '@mui/icons-material';
 import { C, EASE, NO_MOTION, mix, revealSx } from './homeStyle';
 import { useInView } from './hooks';
 import { categoryColor, categoryIcon } from './categoryIcons';
-import { GradientText, SectionHeading } from './SectionHeading';
+import { SectionHeading } from './SectionHeading';
 import type { LoadState } from './LivePanel';
+import potholePhoto from '../../assets/categories/pothole.webp';
+import garbagePhoto from '../../assets/categories/garbage.webp';
+import streetlightPhoto from '../../assets/categories/streetlight.webp';
+import floodingPhoto from '../../assets/categories/flooding.webp';
+import treePhoto from '../../assets/categories/tree.webp';
+import otherPhoto from '../../assets/categories/other.webp';
 
 const CATEGORIES = [
   { key: 'pothole', title: 'Ổ gà, hư hỏng mặt đường', text: 'Mặt đường lún, nứt, sụt; nắp cống hở hoặc vỡ.' },
@@ -20,9 +26,25 @@ const CATEGORIES = [
 /** Hai thẻ rộng gấp đôi để lưới có nhịp (kiểu "bento"); thứ tự đọc vẫn theo danh sách trên. */
 const WIDE = new Set(['pothole', 'other']);
 
+/**
+ * Ảnh hiện trường của từng loại (WebP trong assets/categories). Ảnh phủ kín thẻ kiểu
+ * `object-fit: cover`; `position` là điểm giữ lại khi khung thẻ cắt bớt ảnh.
+ */
+const PHOTOS: Record<string, { src: string; position?: string }> = {
+  pothole: { src: potholePhoto },
+  garbage: { src: garbagePhoto, position: '85% center' }, // giữ người đang chỉ vào đống rác
+  streetlight: { src: streetlightPhoto },
+  flooding: { src: floodingPhoto },
+  tree: { src: treePhoto },
+  other: { src: otherPhoto, position: 'center 65%' }, // vỉa hè bong gạch: lấy thêm phần gạch vỡ phía dưới
+};
+
 const tint = (color: string, t: number) => mix(color, '#FFFFFF', t);
-/** Chữ mang màu loại sự cố: trộn 45% màu chữ chính — mọi loại đều ≥ 5:1 trên nền gần trắng. */
-const ink = (color: string) => mix(color, '#0F2233', 0.45);
+/** Màu hex kèm độ trong suốt, cho lớp phủ nhuốm màu loại sự cố. */
+const alpha = (hex: string, a: number) => {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+};
 
 interface CategoriesProps {
   /** Số phản ánh theo loại từ `GET /statistics` (`issuesByCategory`); `null` khi chưa có. */
@@ -32,8 +54,9 @@ interface CategoriesProps {
 
 /**
  * Sáu loại sự cố người dân có thể phản ánh, xếp lưới bento: màn ≥ 900 px bốn cột (ổ gà và
- * "khác" rộng gấp đôi), màn hẹp hai cột. Mỗi thẻ nhuốm màu của loại, có icon lớn mờ ở góc,
- * số phản ánh thật và thanh so với loại nhiều nhất; bấm thẻ để mở form báo cáo.
+ * "khác" rộng gấp đôi), màn hẹp hai cột. Mỗi thẻ là ảnh hiện trường của loại đó, phủ lớp tối
+ * dần xuống dưới (nhuốm màu của loại) để chữ trắng luôn đọc được; số phản ánh thật và thanh
+ * so với loại nhiều nhất nằm ở đáy thẻ; bấm thẻ để mở form báo cáo.
  */
 const CategoriesSection: React.FC<CategoriesProps> = ({ counts, state }) => {
   const navigate = useNavigate();
@@ -55,7 +78,7 @@ const CategoriesSection: React.FC<CategoriesProps> = ({ counts, state }) => {
         <SectionHeading
           shown={shown}
           eyebrow="BẠN CÓ THỂ PHẢN ÁNH"
-          title={<>Những sự cố bạn gặp <GradientText>hằng ngày trên đường phố.</GradientText></>}
+          title="Những sự cố bạn gặp hằng ngày trên đường phố."
           text="Chọn đúng loại giúp đơn vị phụ trách nhận việc nhanh hơn — nhưng nếu không chắc, cứ chụp ảnh và gửi."
         />
 
@@ -68,6 +91,7 @@ const CategoriesSection: React.FC<CategoriesProps> = ({ counts, state }) => {
             const color = categoryColor(cat.key);
             const wide = WIDE.has(cat.key);
             const count = counts?.[cat.key] ?? 0;
+            const photo = PHOTOS[cat.key];
             return (
               <ButtonBase
                 key={cat.key}
@@ -77,33 +101,42 @@ const CategoriesSection: React.FC<CategoriesProps> = ({ counts, state }) => {
                   gridColumn: wide ? 'span 2' : undefined,
                   position: 'relative', overflow: 'hidden', isolation: 'isolate',
                   display: 'flex', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'flex-start', textAlign: 'left',
-                  minHeight: { md: 248 }, p: { xs: 2, md: 3 }, borderRadius: { xs: '20px', md: '26px' },
-                  background: `linear-gradient(150deg, ${tint(color, 0.88)} 0%, #FFFFFF 62%)`,
-                  border: `1px solid ${tint(color, 0.76)}`,
-                  transition: `translate 350ms ${EASE}, box-shadow 350ms ${EASE}, border-color 250ms ease`,
+                  minHeight: { xs: 236, md: 290 }, p: { xs: 2, md: 3 }, borderRadius: { xs: '20px', md: '26px' },
+                  // nền tối cùng tông khi ảnh chưa tải xong
+                  color: '#FFFFFF', bgcolor: mix(color, '#0B1620', 0.72),
+                  transition: `translate 350ms ${EASE}, box-shadow 350ms ${EASE}`,
                   '&:hover, &:focus-visible': {
                     translate: '0 -6px',
-                    borderColor: tint(color, 0.45),
-                    boxShadow: `0 30px 48px -32px ${mix(color, '#0F2233', 0.25)}`,
+                    boxShadow: `0 30px 48px -28px ${mix(color, '#0F2233', 0.35)}`,
                   },
-                  '&:hover .cat-deco, &:focus-visible .cat-deco': { rotate: '-4deg', scale: '1.08' },
+                  '&:hover .cat-photo, &:focus-visible .cat-photo': { scale: '1.06' },
                   '&:hover .cat-chip, &:focus-visible .cat-chip': { rotate: '-6deg' },
                   '&:hover .cat-go, &:focus-visible .cat-go': { opacity: 1, translate: '0 0' },
                   ...revealSx(shown, 150 + i * 90),
                 }}
               >
-                {/* icon lớn mờ ở góc — trang trí */}
-                <Icon className="cat-deco" aria-hidden="true" sx={{
-                  position: 'absolute', zIndex: -1,
-                  // thẻ rộng trên màn ≥ 900 px: góc dưới phải (thanh số liệu chỉ rộng 360 px);
-                  // còn lại: góc trên phải để không đè lên thanh số liệu
-                  right: wide ? { xs: -22, md: 28 } : -22,
-                  bottom: wide ? { xs: 'auto', md: -30 } : 'auto',
-                  top: wide ? { xs: -24, md: 'auto' } : -24,
-                  fontSize: wide ? { xs: 104, md: 190 } : { xs: 104, md: 136 },
-                  color: tint(color, 0.8), opacity: 0.55, rotate: '-14deg',
-                  transition: `rotate 500ms ${EASE}, scale 500ms ${EASE}`,
-                  [NO_MOTION]: { transition: 'none' },
+                {/* ảnh hiện trường — chỉ để minh hoạ, tên thẻ đã có trong aria-label */}
+                <Box
+                  component="img"
+                  className="cat-photo"
+                  src={photo.src}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  sx={{
+                    position: 'absolute', inset: 0, zIndex: -2, width: '100%', height: '100%',
+                    objectFit: 'cover', objectPosition: photo.position ?? 'center',
+                    transition: `scale 700ms ${EASE}`,
+                    [NO_MOTION]: { transition: 'none' },
+                  }}
+                />
+                {/* lớp phủ: hơi tối ở mép trên cho icon, tối hẳn ở đáy cho chữ, nhuốm màu loại ở góc dưới */}
+                <Box aria-hidden="true" sx={{
+                  position: 'absolute', inset: 0, zIndex: -1,
+                  background: [
+                    `linear-gradient(20deg, ${alpha(color, 0.42)} 0%, ${alpha(color, 0)} 55%)`,
+                    'linear-gradient(180deg, rgba(6,20,32,.38) 0%, rgba(6,20,32,.06) 26%, rgba(6,20,32,.66) 50%, rgba(6,20,32,.95) 100%)',
+                  ].join(', '),
                 }} />
 
                 <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: { xs: 1.5, md: 2.25 } }}>
@@ -126,36 +159,43 @@ const CategoriesSection: React.FC<CategoriesProps> = ({ counts, state }) => {
                   </Box>
                 </Stack>
 
-                <Typography component="h3" sx={{
-                  fontSize: { xs: 15.5, md: wide ? 21 : 18 }, fontWeight: 800, color: C.ink, letterSpacing: '-0.015em', mb: 0.75,
-                }}>
-                  {cat.title}
-                </Typography>
-                <Typography sx={{ fontSize: { xs: 13.5, md: 15 }, lineHeight: 1.6, color: C.body, maxWidth: wide ? 360 : 'none' }}>
-                  {cat.text}
-                </Typography>
+                {/* chữ dồn xuống đáy thẻ — phần lớp phủ tối nhất */}
+                <Box sx={{ mt: 'auto', width: '100%' }}>
+                  <Typography component="h3" sx={{
+                    fontSize: { xs: 15.5, md: wide ? 21 : 18 }, fontWeight: 800, color: '#FFFFFF', letterSpacing: '-0.015em', mb: 0.5,
+                    textShadow: '0 1px 2px rgba(0,0,0,.35)',
+                  }}>
+                    {cat.title}
+                  </Typography>
+                  <Typography sx={{
+                    fontSize: { xs: 13.5, md: 15 }, lineHeight: 1.55, color: 'rgba(255,255,255,.9)', maxWidth: wide ? 380 : 'none',
+                    textShadow: '0 1px 2px rgba(0,0,0,.4)',
+                  }}>
+                    {cat.text}
+                  </Typography>
 
-                {/* số phản ánh thật + thanh so với loại nhiều nhất; lỗi tải thì ẩn hẳn */}
-                {state !== 'error' && (
-                  <Box sx={{ mt: 'auto', pt: { xs: 1.75, md: 2.5 }, width: '100%', maxWidth: wide ? 360 : 'none' }}>
-                    {state === 'ready' && counts ? (
-                      <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: ink(color), mb: 0.75 }}>
-                        {count.toLocaleString('vi-VN')} phản ánh
-                      </Typography>
-                    ) : (
-                      <Box sx={{ width: 76, height: 10, my: '4px', mb: 1, borderRadius: 6, bgcolor: tint(color, 0.8) }} />
-                    )}
-                    <Box sx={{ height: 6, borderRadius: 6, bgcolor: tint(color, 0.84), overflow: 'hidden' }}>
-                      <Box sx={{
-                        height: '100%', borderRadius: 6,
-                        width: shown && counts ? `${Math.max(4, (count / max) * 100)}%` : 0,
-                        background: `linear-gradient(90deg, ${tint(color, 0.35)}, ${color})`,
-                        transition: `width 1200ms ${EASE} ${300 + i * 90}ms`,
-                        [NO_MOTION]: { transition: 'none' },
-                      }} />
+                  {/* số phản ánh thật + thanh so với loại nhiều nhất; lỗi tải thì ẩn hẳn */}
+                  {state !== 'error' && (
+                    <Box sx={{ pt: { xs: 1.5, md: 2 }, width: '100%', maxWidth: wide ? 360 : 'none' }}>
+                      {state === 'ready' && counts ? (
+                        <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#FFFFFF', mb: 0.75 }}>
+                          {count.toLocaleString('vi-VN')} phản ánh
+                        </Typography>
+                      ) : (
+                        <Box sx={{ width: 76, height: 10, my: '4px', mb: 1, borderRadius: 6, bgcolor: 'rgba(255,255,255,.25)' }} />
+                      )}
+                      <Box sx={{ height: 6, borderRadius: 6, bgcolor: 'rgba(255,255,255,.22)', overflow: 'hidden' }}>
+                        <Box sx={{
+                          height: '100%', borderRadius: 6,
+                          width: shown && counts ? `${Math.max(4, (count / max) * 100)}%` : 0,
+                          background: `linear-gradient(90deg, ${tint(color, 0.35)}, ${color})`,
+                          transition: `width 1200ms ${EASE} ${300 + i * 90}ms`,
+                          [NO_MOTION]: { transition: 'none' },
+                        }} />
+                      </Box>
                     </Box>
-                  </Box>
-                )}
+                  )}
+                </Box>
               </ButtonBase>
             );
           })}

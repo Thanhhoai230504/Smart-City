@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, Container, Stack, Typography } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import {
   AdminPanelSettingsRounded,
   CheckRounded,
@@ -11,7 +12,10 @@ import {
 } from '@mui/icons-material';
 import { C, EASE, NO_MOTION, mix, revealSx } from './homeStyle';
 import { useInView } from './hooks';
-import { GradientText, SectionHeading } from './SectionHeading';
+import { SectionHeading } from './SectionHeading';
+import citizenArt from '../../assets/roles/citizen.webp';
+import staffArt from '../../assets/roles/staff.webp';
+import adminArt from '../../assets/roles/admin.webp';
 
 const WEB = { icon: LanguageRounded, label: 'Web' };
 const ANDROID = { icon: PhoneAndroidRounded, label: 'Ứng dụng Android' };
@@ -24,6 +28,7 @@ const ANDROID = { icon: PhoneAndroidRounded, label: 'Ứng dụng Android' };
 const ROLES = [
   {
     icon: GroupsRounded,
+    art: citizenArt,
     title: 'Người dân',
     tagline: 'Phản ánh và theo dõi đến khi xử lý xong',
     from: C.blue,
@@ -38,6 +43,7 @@ const ROLES = [
   },
   {
     icon: EngineeringRounded,
+    art: staffArt,
     title: 'Cán bộ đơn vị',
     tagline: 'Nhận việc, xử lý tại hiện trường, báo kết quả',
     from: C.teal,
@@ -52,6 +58,7 @@ const ROLES = [
   },
   {
     icon: AdminPanelSettingsRounded,
+    art: adminArt,
     title: 'Quản trị viên',
     tagline: 'Điều phối và đo hiệu quả toàn thành phố',
     from: C.seaDark,
@@ -67,8 +74,9 @@ const ROLES = [
 ];
 
 /**
- * Ba thẻ vai trò: đầu thẻ là dải màu riêng của vai trò (vòng tròn đồng tâm và icon lớn mờ
- * làm hoạ tiết), thân thẻ là bốn việc chính, chân thẻ ghi nền tảng sử dụng.
+ * Ba thẻ vai trò: đầu thẻ là hình minh hoạ vai trò, icon và tên vai trò đè lên hình (lớp phủ
+ * màu riêng của vai trò đậm dần xuống đáy), thân thẻ là bốn việc chính, chân thẻ ghi nền tảng
+ * sử dụng.
  */
 const RolesSection: React.FC = () => {
   const [ref, shown] = useInView<HTMLDivElement>({ threshold: 0.15 });
@@ -82,7 +90,7 @@ const RolesSection: React.FC = () => {
         <SectionHeading
           shown={shown}
           eyebrow="MỘT HỆ THỐNG · BA VAI TRÒ"
-          title={<>Người dân, cán bộ và quản trị <GradientText>cùng làm việc trên một nền tảng.</GradientText></>}
+          title="Người dân, cán bộ và quản trị cùng làm việc trên một nền tảng."
           text="Phản ánh không dừng ở việc gửi đi: mỗi vai trò có công cụ riêng để sự cố được xử lý đến nơi đến chốn."
         />
 
@@ -100,39 +108,56 @@ const RolesSection: React.FC = () => {
                   translate: '0 -6px',
                   boxShadow: `0 36px 60px -40px ${mix(role.from, '#000000', 0.1)}`,
                 },
-                '&:hover .role-rings': { scale: '1.12', rotate: '10deg' },
                 '&:hover .role-icon': { rotate: '-6deg' },
+                '&:hover .role-art': { scale: '1.04' },
                 ...revealSx(shown, 150 + i * 140),
               }}>
-                {/* đầu thẻ */}
+                {/* đầu thẻ: hình minh hoạ vai trò làm nền, icon và tên đè lên; lớp phủ màu vai trò
+                    đậm dần xuống đáy để chữ trắng luôn đọc được */}
                 <Box sx={{
-                  position: 'relative', overflow: 'hidden', px: 3, pt: 3, pb: 3.25, color: '#FFFFFF',
-                  background: `linear-gradient(135deg, ${role.from} 0%, ${role.to} 100%)`,
+                  position: 'relative', isolation: 'isolate', overflow: 'hidden',
+                  aspectRatio: '16 / 10', display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                  px: 3, pt: 2.5, pb: 2.75, color: '#FFFFFF', bgcolor: role.from,
                 }}>
-                  <Box className="role-rings" aria-hidden="true" sx={{
-                    position: 'absolute', right: -70, top: -80, width: 240, height: 240, borderRadius: '50%',
-                    background: 'repeating-radial-gradient(circle, rgba(255,255,255,.16) 0 1px, rgba(255,255,255,0) 1px 22px)',
-                    transition: `scale 600ms ${EASE}, rotate 600ms ${EASE}`,
-                    [NO_MOTION]: { transition: 'none' },
-                  }} />
-                  <Icon aria-hidden="true" sx={{
-                    position: 'absolute', right: 22, top: 20, fontSize: 88, color: 'rgba(255,255,255,.12)',
+                  <Box
+                    component="img"
+                    className="role-art"
+                    src={role.art}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    sx={{
+                      position: 'absolute', inset: 0, zIndex: -2, width: '100%', height: '100%', objectFit: 'cover',
+                      transition: `scale 700ms ${EASE}`,
+                      [NO_MOTION]: { transition: 'none' },
+                    }}
+                  />
+                  <Box aria-hidden="true" sx={{
+                    position: 'absolute', inset: 0, zIndex: -1,
+                    background: `linear-gradient(180deg, ${alpha(role.from, 0)} 34%, ${alpha(role.from, 0.78)} 66%, ${alpha(role.to, 0.96)} 100%)`,
                   }} />
                   <Box className="role-icon" sx={{
-                    position: 'relative', width: 52, height: 52, mb: 2, borderRadius: '16px',
-                    display: 'grid', placeItems: 'center',
-                    bgcolor: 'rgba(255,255,255,.16)', border: '1px solid rgba(255,255,255,.3)',
-                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,.2)',
+                    width: 48, height: 48, borderRadius: '15px', display: 'grid', placeItems: 'center',
+                    bgcolor: alpha(role.from, 0.86), border: '1px solid rgba(255,255,255,.35)',
+                    boxShadow: '0 8px 18px -10px rgba(0,0,0,.55)',
                     transition: `rotate 400ms ${EASE}`,
                   }}>
-                    <Icon sx={{ fontSize: 28 }} />
+                    <Icon sx={{ fontSize: 26 }} />
                   </Box>
-                  <Typography component="h3" sx={{ position: 'relative', fontSize: 22, fontWeight: 800, letterSpacing: '-0.015em', lineHeight: 1.2 }}>
-                    {role.title}
-                  </Typography>
-                  <Typography sx={{ position: 'relative', mt: 0.5, fontSize: 14.5, lineHeight: 1.5, color: 'rgba(255,255,255,.94)' }}>
-                    {role.tagline}
-                  </Typography>
+                  <Box>
+                    <Typography component="h3" sx={{
+                      fontSize: 22, fontWeight: 800, letterSpacing: '-0.015em', lineHeight: 1.2,
+                      textShadow: '0 1px 3px rgba(0,0,0,.35)',
+                    }}>
+                      {role.title}
+                    </Typography>
+                    <Typography sx={{
+                      mt: 0.5, fontSize: 14.5, lineHeight: 1.5, color: 'rgba(255,255,255,.94)',
+                      textShadow: '0 1px 2px rgba(0,0,0,.35)',
+                    }}>
+                      {role.tagline}
+                    </Typography>
+                  </Box>
                 </Box>
 
                 {/* thân thẻ */}

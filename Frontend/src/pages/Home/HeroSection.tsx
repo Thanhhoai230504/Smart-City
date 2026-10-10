@@ -187,13 +187,7 @@ const HeroSection: React.FC<HeroProps> = ({ isAuthenticated, ...panel }) => {
               lineHeight: 1.16, letterSpacing: '-0.03em',
               ...appear(shown, 350),
             }}>
-              Báo sự cố đô thị trong 1 phút —{' '}
-              <Box component="span" sx={{
-                backgroundImage: 'linear-gradient(90deg, #8ED8E8, #A3E8C8)',
-                WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent',
-              }}>
-                theo dõi đến khi xử lý xong.
-              </Box>
+              Báo sự cố đô thị trong 1 phút — theo dõi đến khi xử lý xong.
             </Typography>
 
             <Typography sx={{

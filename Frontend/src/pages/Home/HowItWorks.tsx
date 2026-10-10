@@ -2,7 +2,7 @@ import React from 'react';
 import { Box, Container, Typography } from '@mui/material';
 import { C, EASE, FONT_MONO, NO_MOTION, drawX, flowAlong, popIn, revealSx } from './homeStyle';
 import { useInView } from './hooks';
-import { GradientText, SectionHeading } from './SectionHeading';
+import { SectionHeading } from './SectionHeading';
 import { ProgressVisual, RateVisual, RouteVisual, SnapVisual } from './stepVisuals';
 
 const STEPS = [
@@ -64,7 +64,7 @@ const HowItWorks: React.FC = () => {
         <SectionHeading
           shown={shown}
           eyebrow="CÁCH HỆ THỐNG HOẠT ĐỘNG"
-          title={<>Từ một bức ảnh đến kết quả xử lý — <GradientText>minh bạch ở từng bước.</GradientText></>}
+          title="Từ một bức ảnh đến kết quả xử lý — minh bạch ở từng bước."
           text="Mọi phản ánh đều có người nhận, có hạn xử lý và được cập nhật công khai, để người dân biết chính xác sự cố của mình đang ở đâu."
         />
 
