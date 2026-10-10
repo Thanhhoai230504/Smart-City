@@ -48,3 +48,14 @@ export const timeAgo = (dateString: string): string => {
   if (seconds < 604800) return `${Math.floor(seconds / 86400)} ngày trước`;
   return formatDateShort(dateString);
 };
+
+/**
+ * Ảnh Cloudinary: chèn phép biến đổi (cỡ, chất lượng, định dạng) ngay sau `/upload/` để xin
+ * bản vừa chỗ hiển thị thay vì ảnh gốc, ví dụ `c_limit,w_720,q_auto,f_auto` cho thẻ sự cố.
+ * Ảnh ở nơi khác giữ nguyên.
+ */
+export const cloudinarySized = (url: string, transform: string): string => (
+  url.includes('res.cloudinary.com/') && url.includes('/upload/')
+    ? url.replace('/upload/', `/upload/${transform}/`)
+    : url
+);

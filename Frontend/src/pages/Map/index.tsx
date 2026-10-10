@@ -1,4 +1,6 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { flushSync } from 'react-dom';
+import { useNavigationType } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../../store/store';
 import { fetchPlaces } from '../../store/slices/placeSlice';
@@ -9,18 +11,19 @@ import { BASE_TILE_ATTRIBUTION, BASE_TILE_URL } from '../../utils/mapTiles';
 import L from 'leaflet';
 import 'leaflet.heat';
 import 'leaflet/dist/leaflet.css';
-import {
-  Box, Paper, Typography, FormControlLabel, Switch, Stack,
-  ToggleButton, ToggleButtonGroup, Fab, TextField, InputAdornment,
-  Slider, Chip, Collapse, Button, IconButton, CircularProgress,
-} from '@mui/material';
-import {
-  Layers, MyLocation, Search, FilterAlt, ExpandMore, ExpandLess,
-  Directions, Close,
-} from '@mui/icons-material';
+import { Box, ButtonBase, Tooltip, useMediaQuery } from '@mui/material';
+import { CenterFocusStrongRounded } from '@mui/icons-material';
 import { DA_NANG_CENTER, DEFAULT_ZOOM, PLACE_TYPE_MAP, CATEGORY_MAP, STATUS_MAP } from '../../utils/constants';
 import { Place, MapIssue, EnvironmentData } from '../../types';
-import { geoApi, TRAFFIC_TILE_URL } from '../../api/geoApi';
+import { TRAFFIC_TILE_URL } from '../../api/geoApi';
+import { loadMapView, saveMapView } from '../../utils/mapView';
+import { filterMapIssues, filterMapPlaces, MapFilter } from '../../utils/mapFilters';
+import { C } from '../Home/homeStyle';
+import IssuePreviewCard from './IssuePreviewCard';
+import LayerPanel from './LayerPanel';
+import RoutePanel from './RoutePanel';
+import { DEFAULT_LAYERS, DENSITY_GRADIENT, MapLayerState } from './mapLayers';
+import { LatLngTuple, useRoutePlanner } from './useRoutePlanner';
 
 // Mọi lời gọi Goong/TomTom đi qua backend proxy để API key không rời khỏi server
 // — xem api/geoApi.ts. Trước đây key nằm công khai trong bundle.
@@ -33,18 +36,22 @@ const iconCache = new Map<string, L.DivIcon>();
  * - 'outline' (địa điểm, môi trường): nền trắng, viền màu loại, nhỏ hơn — lùi ra sau.
  * Trước đây mọi lớp đều là chấm màu đặc: bệnh viện và sự cố cùng đỏ, trường học
  * trùng xanh với ngập nước, công viên trùng xanh lá với cây đổ.
+ * 'selected' là ghim sự cố đang mở thẻ xem nhanh: to hơn, có vòng sáng cùng màu.
+ * Biểu tượng bên trong ẩn với trình đọc màn hình; tên đọc lên lấy từ `title` của Marker.
  */
-const makeIcon = (emoji: string, color: string, variant: 'solid' | 'outline' = 'solid') => {
+const makeIcon = (emoji: string, color: string, variant: 'solid' | 'selected' | 'outline' = 'solid') => {
   const cacheKey = `${emoji}-${color}-${variant}`;
   const cached = iconCache.get(cacheKey);
   if (cached) return cached;
 
-  const size = variant === 'solid' ? 32 : 26;
-  const look = variant === 'solid'
-    ? `background:${color};border:2px solid white;font-size:16px`
-    : `background:#FFFFFF;border:2px solid ${color};font-size:13px`;
+  const size = { solid: 32, selected: 42, outline: 26 }[variant];
+  const look = {
+    solid: `background:${color};border:2px solid white;font-size:16px;box-shadow:0 2px 8px rgba(0,0,0,0.3)`,
+    selected: `background:${color};border:3px solid white;font-size:20px;box-shadow:0 0 0 5px ${color}59,0 6px 16px rgba(8,40,60,0.45)`,
+    outline: `background:#FFFFFF;border:2px solid ${color};font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,0.3)`,
+  }[variant];
   const icon = L.divIcon({
-    html: `<div style="${look};width:${size}px;height:${size}px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.3)">${emoji}</div>`,
+    html: `<div aria-hidden="true" style="${look};width:${size}px;height:${size}px;border-radius:50%;display:flex;align-items:center;justify-content:center">${emoji}</div>`,
     className: '', iconSize: [size, size], iconAnchor: [size / 2, size], popupAnchor: [0, -size],
   });
   iconCache.set(cacheKey, icon);
@@ -53,24 +60,32 @@ const makeIcon = (emoji: string, color: string, variant: 'solid' | 'outline' = '
 
 const envIcon = makeIcon('🌡️', '#2F7D64', 'outline');
 
-// Heatmap layer component
+// Điểm đi/đến của tuyến: cùng hình với cột chấm — đường chấm — ghim ở bảng "Chỉ đường".
+const routeStartIcon = L.divIcon({
+  html: '<div aria-hidden="true" style="width:18px;height:18px;border-radius:50%;background:#FFFFFF;border:4px solid #10B981;box-shadow:0 2px 6px rgba(8,40,60,.45)"></div>',
+  className: '', iconSize: [18, 18], iconAnchor: [9, 9],
+});
+const routeEndIcon = L.divIcon({
+  html: '<svg aria-hidden="true" width="30" height="38" viewBox="0 0 30 38"><path d="M15 36.5S27 24.2 27 15A12 12 0 0 0 3 15c0 9.2 12 21.5 12 21.5z" fill="#E5484D" stroke="#FFFFFF" stroke-width="2"/><circle cx="15" cy="15" r="4.5" fill="#FFFFFF"/></svg>',
+  className: '', iconSize: [30, 38], iconAnchor: [15, 37],
+});
+
+// `leaflet.heat` gắn `heatLayer` vào L nhưng không kèm kiểu TypeScript.
+type HeatLayerFactory = (points: [number, number, number][], options: Record<string, unknown>) => L.Layer;
+const heatLayer: HeatLayerFactory = (points, options) =>
+  (L as unknown as { heatLayer: HeatLayerFactory }).heatLayer(points, options);
+
 const HeatmapLayer: React.FC<{ points: [number, number, number][] }> = ({ points }) => {
   const map = useMap();
 
   useEffect(() => {
     if (points.length === 0) return;
-    const heat = (L as any).heatLayer(points, {
+    const heat = heatLayer(points, {
       radius: 30,
       blur: 25,
       maxZoom: 17,
       max: 1.0,
-      gradient: {
-        0.2: '#2563EB',
-        0.4: '#10B981',
-        0.6: '#F59E0B',
-        0.8: '#F97316',
-        1.0: '#EF4444',
-      },
+      gradient: DENSITY_GRADIENT,
     }).addTo(map);
     return () => { map.removeLayer(heat); };
   }, [map, points]);
@@ -78,13 +93,30 @@ const HeatmapLayer: React.FC<{ points: [number, number, number][] }> = ({ points
   return null;
 };
 
+/** Nút đưa bản đồ về trung tâm Đà Nẵng; chặn sự kiện để bấm nút không kéo hay nhấp vào bản đồ. */
 const RecenterButton: React.FC = () => {
   const map = useMap();
+  const guard = useCallback((el: HTMLButtonElement | null) => {
+    if (el) L.DomEvent.disableClickPropagation(el);
+  }, []);
   return (
-    <Fab size="small" onClick={() => map.setView([DA_NANG_CENTER.lat, DA_NANG_CENTER.lng], DEFAULT_ZOOM)}
-      sx={{ position: 'absolute', bottom: 20, right: 20, zIndex: 1000, bgcolor: 'background.paper', color: 'primary.main' }}>
-      <MyLocation />
-    </Fab>
+    <Tooltip title="Về trung tâm Đà Nẵng" placement="left">
+      <ButtonBase
+        ref={guard}
+        aria-label="Về trung tâm Đà Nẵng"
+        onClick={() => map.setView([DA_NANG_CENTER.lat, DA_NANG_CENTER.lng], DEFAULT_ZOOM)}
+        sx={{
+          // thẳng hàng với nút trợ lý ảo ở trên (ChatbotWidget)
+          position: 'absolute', zIndex: 1000, bottom: 20, right: { xs: 22, sm: 30 },
+          width: 44, height: 44, borderRadius: '14px', color: C.blue, bgcolor: C.white,
+          border: `1px solid ${C.line}`, boxShadow: '0 14px 28px -16px rgba(8,40,60,.65)',
+          '&:hover': { bgcolor: C.bg },
+          '&:focus-visible': { outline: `2px solid ${C.blue}`, outlineOffset: 2 },
+        }}
+      >
+        <CenterFocusStrongRounded sx={{ fontSize: 22 }} />
+      </ButtonBase>
+    </Tooltip>
   );
 };
 
@@ -148,13 +180,69 @@ const MapIssueLoader: React.FC<{
   return null;
 };
 
-// Distance calculation (Haversine)
-const getDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+/**
+ * Ghim đang chọn: kéo nhẹ bản đồ nếu ghim nằm sát mép hoặc bị thẻ xem nhanh che (đo vị trí thẻ
+ * thật — `offsetTop` không bị hiệu ứng trượt vào làm lệch); bấm nền bản đồ hoặc mở popup địa
+ * điểm/môi trường thì đóng thẻ. Bấm ghim không tính là bấm nền — marker của Leaflet không cho
+ * sự kiện click lan lên bản đồ.
+ */
+const IssueSelection: React.FC<{
+  issue: MapIssue | null;
+  cardRef: React.RefObject<HTMLDivElement>;
+  onDismiss: () => void;
+}> = ({ issue, cardRef, onDismiss }) => {
+  const map = useMapEvents({ click: onDismiss, popupopen: onDismiss });
+
+  useEffect(() => {
+    if (!issue) return;
+    const card = cardRef.current;
+    // Thẻ và bản đồ cùng nằm trong một khung `position: relative`, nên offsetTop tính từ đỉnh bản đồ.
+    const coveredBelow = card ? map.getContainer().clientHeight - card.offsetTop : 0;
+    map.panInside([issue.latitude, issue.longitude], {
+      paddingTopLeft: [32, 72],
+      paddingBottomRight: [32, coveredBelow + 32],
+    });
+  }, [issue, map, cardRef]);
+
+  return null;
+};
+
+/**
+ * Tìm được tuyến thì đưa cả tuyến vào khung nhìn như app, chừa chỗ cho các bảng đang mở: màn rộng
+ * bảng nằm hai bên, màn hẹp bảng nằm trên cùng (đo kích thước bảng thật lúc canh).
+ */
+const RouteFitter: React.FC<{ path: LatLngTuple[]; overlays: React.RefObject<HTMLElement>[] }> = ({ path, overlays }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    if (path.length < 2) return;
+    const box = map.getContainer().getBoundingClientRect();
+    let left = 32;
+    let right = 32;
+    let top = 32;
+    overlays.forEach((overlay) => {
+      const r = overlay.current?.getBoundingClientRect();
+      if (!r) return;
+      if (box.width < 900) top = Math.max(top, r.bottom - box.top + 24);
+      else if (r.left - box.left < box.width / 2) left = Math.max(left, r.right - box.left + 24);
+      else right = Math.max(right, box.right - r.left + 24);
+    });
+    map.fitBounds(L.latLngBounds(path), { paddingTopLeft: [left, top], paddingBottomRight: [right, 40], maxZoom: 16 });
+  }, [path, map, overlays]);
+
+  return null;
+};
+
+/** Ghi khung nhìn sau mỗi lần kéo/zoom để "Quay lại" từ trang chi tiết về đúng chỗ (utils/mapView). */
+const ViewSaver: React.FC = () => {
+  useMapEvents({
+    moveend: (e) => {
+      const map = e.target as L.Map;
+      const center = map.getCenter();
+      saveMapView({ lat: center.lat, lng: center.lng, zoom: map.getZoom() });
+    },
+  });
+  return null;
 };
 
 const MapPage: React.FC = () => {
@@ -164,49 +252,39 @@ const MapPage: React.FC = () => {
   const [issues, setIssues] = useState<MapIssue[]>([]);
   const [issuesLoading, setIssuesLoading] = useState(false);
 
-  const [showPlaces, setShowPlaces] = useState(true);
-  const [showIssues, setShowIssues] = useState(true);
-  const [showEnv, setShowEnv] = useState(true);
-  const [showTraffic, setShowTraffic] = useState(true);
-  const [showHeatmap, setShowHeatmap] = useState(false);
-  const [placeFilter, setPlaceFilter] = useState<string[]>([]);
+  // Quay lại từ trang chi tiết (hoặc tải lại trang) thì mở đúng khung nhìn cũ; vào từ menu thì về trung tâm.
+  const navigationType = useNavigationType();
+  const [initialView] = useState(() => (navigationType === 'POP' ? loadMapView() : null));
 
-  // Search & filter states
-  const [searchText, setSearchText] = useState('');
-  const [radiusKm, setRadiusKm] = useState(0);
-  const [issueTimeFilter, setIssueTimeFilter] = useState<string>('all');
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [showLayerPanel, setShowLayerPanel] = useState(true);
+  // Sự cố đang mở thẻ xem nhanh (bản web của bottom sheet trên app) và ghim của nó, để trả tiêu điểm khi đóng.
+  const [selectedIssue, setSelectedIssue] = useState<MapIssue | null>(null);
+  const selectedMarkerRef = useRef<HTMLElement | null>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
+  const startInputRef = useRef<HTMLInputElement>(null);
 
-  // Routing
+  const [layers, setLayers] = useState<MapLayerState>(DEFAULT_LAYERS);
+  const [filter, setFilter] = useState<MapFilter>({ search: '', radiusKm: 0, time: 'all' });
+
+  // Dưới 900 px hai bảng cùng nằm ở mép trên nên mỗi lúc chỉ mở một bảng (nút "Chỉ đường" ẩn khi
+  // bảng lớp đang mở), và bảng lớp thu gọn sẵn để không che bản đồ khi vừa vào trang.
+  const compact = useMediaQuery('(max-width:899.95px)', { noSsr: true });
+  const [showLayerPanel, setShowLayerPanel] = useState(!compact);
   const [showRouting, setShowRouting] = useState(false);
-  const [routeStart, setRouteStart] = useState('');
-  const [routeEnd, setRouteEnd] = useState('');
-  const [routeStartCoord, setRouteStartCoord] = useState<[number, number] | null>(null);
-  const [routeEndCoord, setRouteEndCoord] = useState<[number, number] | null>(null);
-  const [routePath, setRoutePath] = useState<[number, number][]>([]);
-  const [routeInfo, setRouteInfo] = useState<{ distance: string; time: string; delay: string } | null>(null);
-  const [routeLoading, setRouteLoading] = useState(false);
+  const layerPanelRef = useRef<HTMLDivElement>(null);
+  const routePanelRef = useRef<HTMLElement>(null);
+  const overlayRefs = useMemo(() => [layerPanelRef, routePanelRef], []);
 
-  // Autocomplete suggestions
-  const [startSuggestions, setStartSuggestions] = useState<any[]>([]);
-  const [endSuggestions, setEndSuggestions] = useState<any[]>([]);
-  const startTimerRef = useRef<any>(null);
-  const endTimerRef = useRef<any>(null);
+  const route = useRoutePlanner();
+  const { setPoint } = route;
 
   useEffect(() => {
     // Nêu trần tường minh thay vì dựa vào mặc định của server. Địa điểm là dữ
     // liệu tĩnh và ít (bệnh viện, trường học, công viên) nên tải một lần rẻ hơn
     // tải theo khung nhìn — bounds sẽ bắt refetch mỗi lần kéo bản đồ. Sự cố thì
-    // ngược lại, nhiều và thay đổi liên tục, nên vẫn dùng bounds (BoundsIssueLoader).
+    // ngược lại, nhiều và thay đổi liên tục, nên vẫn dùng bounds (MapIssueLoader).
     dispatch(fetchPlaces({ limit: '500' }));
     dispatch(fetchEnvironment());
   }, [dispatch]);
-
-  useEffect(() => () => {
-    if (startTimerRef.current) clearTimeout(startTimerRef.current);
-    if (endTimerRef.current) clearTimeout(endTimerRef.current);
-  }, []);
 
   const handleMapIssues = useCallback((nextIssues: MapIssue[]) => {
     setIssues(nextIssues);
@@ -216,420 +294,93 @@ const MapPage: React.FC = () => {
     setIssuesLoading(loading);
   }, []);
 
-  // Filtered places
-  const filteredPlaces = useMemo(() => {
-    let result = placeFilter.length > 0
-      ? places.filter((p) => placeFilter.includes(p.type))
-      : places;
+  const selectIssue = useCallback((issue: MapIssue, marker: L.Marker) => {
+    selectedMarkerRef.current = marker.getElement() ?? null;
+    setSelectedIssue(issue);
+  }, []);
 
-    if (searchText.trim()) {
-      const q = searchText.toLowerCase();
-      result = result.filter((p) =>
-        p.name.toLowerCase().includes(q) || p.address?.toLowerCase().includes(q)
-      );
-    }
+  const dismissPreview = useCallback(() => setSelectedIssue(null), []);
 
-    if (radiusKm > 0) {
-      result = result.filter((p) =>
-        getDistanceKm(DA_NANG_CENTER.lat, DA_NANG_CENTER.lng, p.latitude, p.longitude) <= radiusKm
-      );
-    }
+  const closePreview = useCallback((restoreFocus: boolean) => {
+    setSelectedIssue(null);
+    if (restoreFocus) selectedMarkerRef.current?.focus({ preventScroll: true });
+  }, []);
 
-    return result;
-  }, [places, placeFilter, searchText, radiusKm]);
+  // Tắt lớp sự cố thì đóng luôn thẻ xem nhanh.
+  useEffect(() => {
+    if (!layers.issues) setSelectedIssue(null);
+  }, [layers.issues]);
 
-  // Filtered issues (chỉ hiện reported + processing)
-  const filteredIssues = useMemo(() => {
-    let result = issues.filter((i) => ['reported', 'processing'].includes(i.status));
+  const toggleLayerPanel = () => {
+    if (!showLayerPanel && compact) setShowRouting(false);
+    setShowLayerPanel(!showLayerPanel);
+  };
 
-    if (searchText.trim()) {
-      const q = searchText.toLowerCase();
-      result = result.filter((i) =>
-        i.title.toLowerCase().includes(q) || i.location?.toLowerCase().includes(q)
-      );
-    }
+  const toggleRouting = () => {
+    if (!showRouting && compact) setShowLayerPanel(false);
+    setShowRouting(!showRouting);
+  };
 
-    if (radiusKm > 0) {
-      result = result.filter((i) =>
-        getDistanceKm(DA_NANG_CENTER.lat, DA_NANG_CENTER.lng, i.latitude, i.longitude) <= radiusKm
-      );
-    }
+  // Lọc tại máy — cùng quy tắc với app (utils/mapFilters.ts).
+  const filteredPlaces = useMemo(
+    () => filterMapPlaces(places, layers.placeTypes, filter),
+    [places, layers.placeTypes, filter],
+  );
+  const filteredIssues = useMemo(() => filterMapIssues(issues, filter), [issues, filter]);
+  // Chú giải chỉ liệt kê trạng thái đang có trên bản đồ.
+  const issueStatuses = useMemo(
+    () => (['reported', 'processing'] as const).filter((s) => filteredIssues.some((i) => i.status === s)),
+    [filteredIssues],
+  );
 
-    if (issueTimeFilter !== 'all') {
-      const now = Date.now();
-      const hours: Record<string, number> = { '24h': 24, '7d': 168, '30d': 720 };
-      const cutoff = now - (hours[issueTimeFilter] || 0) * 60 * 60 * 1000;
-      result = result.filter((i) => new Date(i.createdAt).getTime() >= cutoff);
-    }
-
-    return result;
-  }, [issues, searchText, radiusKm, issueTimeFilter]);
-
-  // Heatmap points
   const heatmapPoints: [number, number, number][] = useMemo(
     () => filteredIssues.map((i) => [i.latitude, i.longitude, 0.8]),
     [filteredIssues]
   );
 
-  // Gợi ý địa chỉ (debounced), qua backend proxy.
-  const searchGoong = useCallback(async (input: string, setSuggestions: (s: any[]) => void) => {
-    if (input.trim().length < 2) { setSuggestions([]); return; }
-    try {
-      const { data } = await geoApi.autocomplete(input, {
-        lat: DA_NANG_CENTER.lat, lng: DA_NANG_CENTER.lng, radius: 50, limit: 5,
-      });
-      setSuggestions(data.data.predictions || []);
-    } catch { setSuggestions([]); }
-  }, []);
-
-  const handleStartChange = (val: string) => {
-    setRouteStart(val);
-    if (startTimerRef.current) clearTimeout(startTimerRef.current);
-    startTimerRef.current = setTimeout(() => searchGoong(val, setStartSuggestions), 400);
-  };
-
-  const handleEndChange = (val: string) => {
-    setRouteEnd(val);
-    if (endTimerRef.current) clearTimeout(endTimerRef.current);
-    endTimerRef.current = setTimeout(() => searchGoong(val, setEndSuggestions), 400);
-  };
-
-  // Select a suggestion → get coordinates via Place Detail
-  const selectSuggestion = useCallback(async (
-    prediction: any,
-    setLabel: (s: string) => void,
-    setCoord: (c: [number, number]) => void,
-    setSuggestions: (s: any[]) => void,
-  ) => {
-    setLabel(prediction.description);
-    setSuggestions([]);
-    try {
-      const { data } = await geoApi.placeDetail(prediction.place_id);
-      setCoord([data.data.lat, data.data.lng]);
-    } catch { /* silent */ }
-  }, []);
-
-  const handleFindRoute = useCallback(async () => {
-    if (!routeStartCoord || !routeEndCoord) return;
-    setRouteLoading(true);
-    setRoutePath([]); setRouteInfo(null);
-    try {
-      // Backend đã bóc tách sẵn điểm và tóm tắt, client không phải đọc response thô.
-      const { data } = await geoApi.route(routeStartCoord, routeEndCoord);
-      const r = data.data;
-      if (r.points.length) {
-        setRoutePath(r.points);
-        setRouteInfo({
-          distance: ((r.distanceMeters ?? 0) / 1000).toFixed(1) + ' km',
-          time: Math.ceil((r.durationSeconds ?? 0) / 60) + ' phút',
-          delay: r.trafficDelaySeconds > 0
-            ? Math.ceil(r.trafficDelaySeconds / 60) + ' phút chậm'
-            : 'Không kẹt',
-        });
-      }
-    } catch { /* silent */ }
-    setRouteLoading(false);
-  }, [routeStartCoord, routeEndCoord]);
-
-  const [gpsLoading, setGpsLoading] = useState(false);
-
-  const handleUseMyLocation = useCallback(async () => {
-    if (!navigator.geolocation) return;
-    setGpsLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude, longitude } = pos.coords;
-        setRouteStartCoord([latitude, longitude]);
-        // Reverse geocode via Goong
-        try {
-          // Proxy đã fallback về chính toạ độ khi không tra được địa chỉ.
-          const { data } = await geoApi.reverse(latitude, longitude);
-          setRouteStart(data.data.address);
-        } catch {
-          setRouteStart(`${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
-        }
-        setStartSuggestions([]);
-        setGpsLoading(false);
-      },
-      () => { setGpsLoading(false); },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
-  }, []);
-
-  const clearRoute = () => {
-    setRoutePath([]); setRouteInfo(null); setRouteStart(''); setRouteEnd('');
-    setRouteStartCoord(null); setRouteEndCoord(null); setShowRouting(false);
-    setStartSuggestions([]); setEndSuggestions([]);
-  };
-
-  // Suggestion list style
-  const suggestionBoxSx = {
-    maxHeight: 160, overflowY: 'auto' as const, borderRadius: '8px',
-    bgcolor: '#FFFFFF', border: '1px solid #DCE7EB', color: '#18323F',
-    '& > div': {
-      px: 1.5, py: 0.8, cursor: 'pointer', fontSize: '0.75rem',
-      '&:hover': { bgcolor: '#EFF7F9' },
-    },
-  };
+  // "Chỉ đường" trên thẻ sự cố: điền sẵn điểm đến là sự cố, như app mở trang chỉ đường.
+  const routeToIssue = useCallback((issue: MapIssue) => {
+    // flushSync: bảng chỉ đường phải mở xong (Collapse bỏ `visibility: hidden`) thì mới đặt con trỏ được.
+    flushSync(() => {
+      setSelectedIssue(null);
+      setPoint('end', issue.title, [issue.latitude, issue.longitude]);
+      setShowRouting(true);
+      if (compact) setShowLayerPanel(false);
+    });
+    // Còn thiếu điểm đi nên đưa con trỏ vào ô đó — trừ màn cảm ứng, để bàn phím ảo không che bản đồ.
+    if (window.matchMedia('(pointer: fine)').matches) startInputRef.current?.focus({ preventScroll: true });
+  }, [setPoint, compact]);
 
   return (
     <Box sx={{ height: 'calc(100vh - 64px)', position: 'relative' }}>
-      {/* Layer Control Panel */}
-      <Paper sx={{
-        position: 'absolute', top: 16, left: 16, zIndex: 1000,
-        bgcolor: 'rgba(255,255,255,.96)', backdropFilter: 'blur(12px)',
-        border: '1px solid #DCE7EB', borderRadius: '12px',
-        boxShadow: '0 8px 24px rgba(32,71,83,.12)',
-        width: { xs: 220, sm: 250, md: 280 },
-        maxHeight: showLayerPanel ? { xs: 'calc(100vh - 200px)', md: 'calc(100vh - 120px)' } : 'auto',
-        overflowY: showLayerPanel ? 'auto' : 'hidden',
-        '&::-webkit-scrollbar': { width: 4 },
-        '&::-webkit-scrollbar-thumb': { bgcolor: '#AFC5CC', borderRadius: 2 },
-      }}>
-        {/* Toggle Header */}
-        <Box sx={{ p: 1.5, cursor: 'pointer', userSelect: 'none' }} onClick={() => setShowLayerPanel(!showLayerPanel)}>
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <Layers sx={{ color: 'primary.main', fontSize: 20 }} />
-            {showLayerPanel && <Typography fontWeight={600} fontSize={14} sx={{ flex: 1 }}>Lớp bản đồ</Typography>}
-            {showLayerPanel ? <ExpandLess sx={{ fontSize: 18 }} /> : <ExpandMore sx={{ fontSize: 18 }} />}
-          </Stack>
-        </Box>
+      <LayerPanel
+        ref={layerPanelRef}
+        open={showLayerPanel}
+        onToggle={toggleLayerPanel}
+        layers={layers}
+        onLayersChange={setLayers}
+        filter={filter}
+        onFilterChange={setFilter}
+        issueCount={filteredIssues.length}
+        placeCount={filteredPlaces.length}
+        issueStatuses={issueStatuses}
+        issuesLoading={issuesLoading}
+      />
 
-        <Collapse in={showLayerPanel}>
-          <Box sx={{ px: 1.5, pb: 1.5 }}>
-            {/* Search bar */}
-            <TextField
-              fullWidth size="small" placeholder="Tìm kiếm địa điểm, sự cố..."
-              value={searchText} onChange={(e) => setSearchText(e.target.value)}
-              InputProps={{
-                startAdornment: <InputAdornment position="start"><Search sx={{ color: 'text.secondary', fontSize: 18 }} /></InputAdornment>,
-              }}
-              sx={{ mb: 1.5, '& .MuiOutlinedInput-root': { bgcolor: '#FFFFFF', borderRadius: '9px', fontSize: '0.85rem' } }}
-            />
-
-            <FormControlLabel control={<Switch checked={showPlaces} onChange={(_, c) => setShowPlaces(c)} size="small" />}
-              label={<Typography variant="body2">Địa điểm công cộng</Typography>} sx={{ mb: 0.5 }} />
-            {showPlaces && (
-              <Box sx={{ ml: 4, mb: 1.5 }}>
-                <ToggleButtonGroup size="small" value={placeFilter} onChange={(_, v) => setPlaceFilter(v)} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
-                  {Object.entries(PLACE_TYPE_MAP).map(([key, val]) => (
-                    <ToggleButton key={key} value={key} sx={{ borderRadius: '8px !important', fontSize: '0.7rem', py: 0.3, px: 1, border: '1px solid #D6E5E9 !important' }}>
-                      {val.icon} {val.label}
-                    </ToggleButton>
-                  ))}
-                </ToggleButtonGroup>
-              </Box>
-            )}
-
-            <FormControlLabel control={<Switch checked={showIssues} onChange={(_, c) => setShowIssues(c)} size="small" />}
-              label={<Typography variant="body2">📍 Sự cố đô thị</Typography>} sx={{ mb: 0.5 }} />
-            {showIssues && filteredIssues.length > 0 && (
-              <Stack direction="row" flexWrap="wrap" useFlexGap spacing={0.75} alignItems="center" sx={{ mt: -0.5, mb: 1, ml: 4 }}>
-                {(['reported', 'processing', 'resolved', 'rejected'] as const)
-                  .filter((s) => filteredIssues.some((i: MapIssue) => i.status === s))
-                  .map((s) => (
-                    <Stack key={s} direction="row" spacing={0.5} alignItems="center">
-                      <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: STATUS_MAP[s].color, boxShadow: '0 0 0 1px rgba(0,0,0,0.15)' }} />
-                      <Typography variant="caption">{STATUS_MAP[s].label}</Typography>
-                    </Stack>
-                  ))}
-              </Stack>
-            )}
-
-            <FormControlLabel control={<Switch checked={showHeatmap} onChange={(_, c) => setShowHeatmap(c)} size="small" />}
-              label={<Typography variant="body2">🔥 Heatmap mật độ sự cố</Typography>} sx={{ mb: 0.5 }} />
-
-            <FormControlLabel control={<Switch checked={showEnv} onChange={(_, c) => setShowEnv(c)} size="small" />}
-              label={<Typography variant="body2">🌡️ Môi trường</Typography>} sx={{ mb: 0.5 }} />
-            <FormControlLabel control={<Switch checked={showTraffic} onChange={(_, c) => setShowTraffic(c)} size="small" />}
-              label={<Typography variant="body2">🚗 Giao thông</Typography>} />
-
-            {/* Traffic legend */}
-            {showTraffic && (
-              <Box sx={{ mt: 1, ml: 4 }}>
-                <Stack direction="row" spacing={0.5} alignItems="center" sx={{ fontSize: '0.7rem' }}>
-                  <Box sx={{ width: 12, height: 12, borderRadius: '2px', bgcolor: '#22C55E' }} />
-                  <Typography variant="caption">Thông thoáng</Typography>
-                  <Box sx={{ width: 12, height: 12, borderRadius: '2px', bgcolor: '#EAB308', ml: 0.5 }} />
-                  <Typography variant="caption">Chậm</Typography>
-                  <Box sx={{ width: 12, height: 12, borderRadius: '2px', bgcolor: '#F97316', ml: 0.5 }} />
-                  <Typography variant="caption">Đông</Typography>
-                  <Box sx={{ width: 12, height: 12, borderRadius: '2px', bgcolor: '#EF4444', ml: 0.5 }} />
-                  <Typography variant="caption">Kẹt</Typography>
-                </Stack>
-              </Box>
-            )}
-
-            {/* Advanced Filters */}
-            <Box
-              sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid #DCE7EB', cursor: 'pointer' }}
-              onClick={() => setShowAdvanced(!showAdvanced)}
-            >
-              <Stack direction="row" alignItems="center" justifyContent="space-between">
-                <Stack direction="row" alignItems="center" spacing={0.5}>
-                  <FilterAlt sx={{ fontSize: 16, color: 'primary.main' }} />
-                  <Typography variant="body2" fontWeight={600}>Bộ lọc nâng cao</Typography>
-                </Stack>
-                {showAdvanced ? <ExpandLess sx={{ fontSize: 18 }} /> : <ExpandMore sx={{ fontSize: 18 }} />}
-              </Stack>
-            </Box>
-
-            <Collapse in={showAdvanced}>
-              <Box sx={{ mt: 1.5 }}>
-                <Typography variant="caption" color="text.secondary" mb={0.5} display="block">
-                  Bán kính tìm kiếm: {radiusKm === 0 ? 'Tất cả' : `${radiusKm} km`}
-                </Typography>
-                <Slider
-                  value={radiusKm} onChange={(_, v) => setRadiusKm(v as number)}
-                  min={0} max={20} step={1} size="small"
-                  valueLabelDisplay="auto" valueLabelFormat={(v) => v === 0 ? 'Tất cả' : `${v}km`}
-                  sx={{ mb: 2, color: 'primary.main' }}
-                />
-                <Typography variant="caption" color="text.secondary" mb={0.5} display="block">
-                  Sự cố theo thời gian
-                </Typography>
-                <Stack direction="row" spacing={0.5} flexWrap="wrap" gap={0.5}>
-                  {[
-                    { value: 'all', label: 'Tất cả' },
-                    { value: '24h', label: '24 giờ' },
-                    { value: '7d', label: '7 ngày' },
-                    { value: '30d', label: '30 ngày' },
-                  ].map((opt) => (
-                    <Chip
-                      key={opt.value}
-                      label={opt.label}
-                      size="small"
-                      onClick={() => setIssueTimeFilter(opt.value)}
-                      sx={{
-                        fontSize: '0.7rem',
-                        bgcolor: issueTimeFilter === opt.value ? 'primary.main' : '#EAF2F4',
-                        color: issueTimeFilter === opt.value ? '#fff' : 'text.secondary',
-                        fontWeight: issueTimeFilter === opt.value ? 600 : 400,
-                        '&:hover': { bgcolor: issueTimeFilter === opt.value ? 'primary.dark' : '#DCEEF2' },
-                      }}
-                    />
-                  ))}
-                </Stack>
-                <Typography variant="caption" color="text.secondary" mt={1.5} display="block">
-                  📍 {filteredPlaces.length} địa điểm · {filteredIssues.length} sự cố
-                  {issuesLoading && <CircularProgress size={12} sx={{ ml: 1 }} />}
-                </Typography>
-              </Box>
-            </Collapse>
-          </Box>
-        </Collapse>
-      </Paper>
-
-      {/* Routing Panel */}
-      <Paper sx={{
-        position: 'absolute',
-        top: { xs: 'auto', md: 16 },
-        bottom: { xs: 16, md: 'auto' },
-        right: { xs: 16, md: 16 },
-        left: { xs: 16, md: 'auto' },
-        zIndex: 1000,
-        width: { xs: 'calc(100% - 32px)', sm: 300, md: 300 },
-        bgcolor: 'rgba(255,255,255,.97)', backdropFilter: 'blur(12px)',
-        border: '1px solid #DCE7EB', borderRadius: '12px',
-        boxShadow: '0 8px 24px rgba(32,71,83,.12)',
-        overflow: 'hidden',
-        maxHeight: { xs: '60vh', md: 'none' },
-        overflowY: 'auto',
-      }}>
-        {/* Toggle Button */}
-        <Box sx={{ p: 1.5, cursor: 'pointer' }} onClick={() => setShowRouting(!showRouting)}>
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <Directions sx={{ color: 'primary.main', fontSize: 20 }} />
-            <Typography fontWeight={600} fontSize={14}>🗺️ Chỉ đường</Typography>
-            {showRouting ? <ExpandLess sx={{ fontSize: 18, ml: 'auto' }} /> : <ExpandMore sx={{ fontSize: 18, ml: 'auto' }} />}
-          </Stack>
-        </Box>
-        <Collapse in={showRouting}>
-          <Stack spacing={1.5} sx={{ px: 1.5, pb: 1.5 }}>
-            {/* Start input + suggestions */}
-            <Box sx={{ position: 'relative' }}>
-              <TextField size="small" placeholder="Điểm đi..." value={routeStart} fullWidth
-                onChange={(e) => handleStartChange(e.target.value)}
-                InputProps={{
-                  startAdornment: <InputAdornment position="start"><Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#10B981' }} /></InputAdornment>,
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton aria-label="Dùng vị trí của tôi" size="small" onClick={handleUseMyLocation} disabled={gpsLoading}
-                        sx={{ color: routeStartCoord ? '#10B981' : 'text.secondary', p: 0.5 }}
-                        title="Dùng vị trí hiện tại">
-                        {gpsLoading ? <CircularProgress size={16} /> : <MyLocation sx={{ fontSize: 18 }} />}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-                sx={{ '& .MuiOutlinedInput-root': { bgcolor: '#FFFFFF', borderRadius: '9px', fontSize: '0.8rem' } }}
-              />
-              {startSuggestions.length > 0 && (
-                <Box sx={{ ...suggestionBoxSx, position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, mt: 0.5 }}>
-                  {startSuggestions.map((s: any, i: number) => (
-                    <Box key={i} onClick={() => selectSuggestion(s, setRouteStart, (c) => setRouteStartCoord(c), setStartSuggestions)}>
-                      <Typography variant="caption" noWrap sx={{ display: 'block' }}>📍 {s.description}</Typography>
-                    </Box>
-                  ))}
-                </Box>
-              )}
-            </Box>
-            {/* End input + suggestions */}
-            <Box sx={{ position: 'relative' }}>
-              <TextField size="small" placeholder="Điểm đến..." value={routeEnd} fullWidth
-                onChange={(e) => handleEndChange(e.target.value)}
-                InputProps={{ startAdornment: <InputAdornment position="start"><Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#EF4444' }} /></InputAdornment> }}
-                sx={{ '& .MuiOutlinedInput-root': { bgcolor: '#FFFFFF', borderRadius: '9px', fontSize: '0.8rem' } }}
-              />
-              {endSuggestions.length > 0 && (
-                <Box sx={{ ...suggestionBoxSx, position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, mt: 0.5 }}>
-                  {endSuggestions.map((s: any, i: number) => (
-                    <Box key={i} onClick={() => selectSuggestion(s, setRouteEnd, (c) => setRouteEndCoord(c), setEndSuggestions)}>
-                      <Typography variant="caption" noWrap sx={{ display: 'block' }}>📍 {s.description}</Typography>
-                    </Box>
-                  ))}
-                </Box>
-              )}
-            </Box>
-            <Stack direction="row" spacing={1}>
-              <Button variant="contained" size="small" fullWidth disabled={routeLoading || !routeStartCoord || !routeEndCoord}
-                startIcon={routeLoading ? <CircularProgress size={14} /> : <Directions />}
-                onClick={handleFindRoute}
-                sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 600, py: 0.8 }}>
-                {routeLoading ? 'Đang tìm...' : 'Tìm đường'}
-              </Button>
-              {routePath.length > 0 && (
-                <IconButton aria-label="Xoá chỉ đường" size="small" onClick={clearRoute} sx={{ color: 'text.secondary' }}>
-                  <Close fontSize="small" />
-                </IconButton>
-              )}
-            </Stack>
-            {routeInfo && (
-              <Paper sx={{ p: 1.5, bgcolor: 'rgba(11,94,142,0.06)', border: '1px solid rgba(11,94,142,0.18)', borderRadius: '10px' }}>
-                <Stack direction="row" spacing={2} justifyContent="space-between">
-                  <Box textAlign="center">
-                    <Typography fontWeight={700} fontSize={16} color="primary.main">{routeInfo.distance}</Typography>
-                    <Typography variant="caption" color="text.secondary">Khoảng cách</Typography>
-                  </Box>
-                  <Box textAlign="center">
-                    <Typography fontWeight={700} fontSize={16} color="#10B981">{routeInfo.time}</Typography>
-                    <Typography variant="caption" color="text.secondary">Thời gian</Typography>
-                  </Box>
-                  <Box textAlign="center">
-                    <Typography fontWeight={700} fontSize={16} color={routeInfo.delay === 'Không kẹt' ? '#10B981' : '#F59E0B'}>{routeInfo.delay}</Typography>
-                    <Typography variant="caption" color="text.secondary">Giao thông</Typography>
-                  </Box>
-                </Stack>
-              </Paper>
-            )}
-          </Stack>
-        </Collapse>
-      </Paper>
+      {!(compact && showLayerPanel) && (
+        <RoutePanel
+          ref={routePanelRef}
+          route={route}
+          open={showRouting}
+          onToggle={toggleRouting}
+          startInputRef={startInputRef}
+        />
+      )}
 
       {/* Map */}
       <MapContainer
-        center={[DA_NANG_CENTER.lat, DA_NANG_CENTER.lng]}
-        zoom={DEFAULT_ZOOM}
+        center={initialView ? [initialView.lat, initialView.lng] : [DA_NANG_CENTER.lat, DA_NANG_CENTER.lng]}
+        zoom={initialView?.zoom ?? DEFAULT_ZOOM}
         style={{ height: '100%', width: '100%' }}
         zoomControl={false}
       >
@@ -637,12 +388,15 @@ const MapPage: React.FC = () => {
           onLoad={handleMapIssues}
           onLoading={handleMapIssuesLoading}
         />
+        <IssueSelection issue={selectedIssue} cardRef={previewRef} onDismiss={dismissPreview} />
+        <RouteFitter path={route.path} overlays={overlayRefs} />
+        <ViewSaver />
         <TileLayer attribution={BASE_TILE_ATTRIBUTION} url={BASE_TILE_URL} />
 
         {/* Lớp giao thông TomTom, tile đi qua proxy của backend (key ở server).
             Không còn điều kiện theo API key vì client không biết key nữa; backend
             trả 503 nếu chưa cấu hình và Leaflet chỉ đơn giản không vẽ được tile. */}
-        {showTraffic && (
+        {layers.traffic && (
           <TileLayer
             url={TRAFFIC_FLOW_TILES_URL}
             opacity={0.7}
@@ -650,15 +404,14 @@ const MapPage: React.FC = () => {
           />
         )}
 
-        {/* Heatmap layer */}
-        {showHeatmap && <HeatmapLayer points={heatmapPoints} />}
+        {layers.density && <HeatmapLayer points={heatmapPoints} />}
 
         {/* Places markers */}
-        {showPlaces && filteredPlaces.map((place: Place) => {
+        {layers.places && filteredPlaces.map((place: Place) => {
           const info = PLACE_TYPE_MAP[place.type] || PLACE_TYPE_MAP.hospital;
           return (
             <Marker key={place._id} position={[place.latitude, place.longitude]}
-              icon={makeIcon(info.icon, info.color, 'outline')}>
+              icon={makeIcon(info.icon, info.color, 'outline')} title={`${info.label}: ${place.name}`}>
               <Popup>
                 <div style={{ color: '#333', minWidth: 180 }}>
                   <strong>{info.icon} {place.name}</strong><br />
@@ -671,28 +424,34 @@ const MapPage: React.FC = () => {
           );
         })}
 
-        {/* Issue markers */}
-        {showIssues && filteredIssues.map((issue: MapIssue) => {
+        {/* Issue markers: bấm (hoặc Enter/Space khi đang chọn bằng Tab) mở thẻ xem nhanh. Leaflet chỉ
+            tự xử lý Enter cho marker có popup, nên phải bắt `keypress` ở đây. */}
+        {layers.issues && filteredIssues.map((issue: MapIssue) => {
           const cat = CATEGORY_MAP[issue.category] || CATEGORY_MAP.other;
           const st = STATUS_MAP[issue.status] || STATUS_MAP.reported;
+          const selected = selectedIssue?._id === issue._id;
           return (
             <Marker key={issue._id} position={[issue.latitude, issue.longitude]}
-              icon={makeIcon(cat.icon, st.color)}>
-              <Popup>
-                <div style={{ color: '#333', minWidth: 200 }}>
-                  <strong>{cat.icon} {issue.title}</strong><br />
-                  <span style={{ background: st.bg, color: st.text, padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600 }}>{st.label}</span>
-                  <span style={{ background: '#FFFFFF', color: '#172B3A', border: `1px solid ${cat.color}`, padding: '1px 7px', borderRadius: 4, fontSize: 11, marginLeft: 4 }}>{cat.label}</span>
-                  <br /><span style={{ fontSize: 12, color: '#666' }}>📍 {issue.location}</span>
-                </div>
-              </Popup>
-            </Marker>
+              icon={makeIcon(cat.icon, st.color, selected ? 'selected' : 'solid')}
+              zIndexOffset={selected ? 1000 : 0}
+              title={`${cat.label}: ${issue.title}`}
+              eventHandlers={{
+                click: (e) => selectIssue(issue, e.target),
+                keypress: (e) => {
+                  const { key } = e.originalEvent;
+                  if (key !== 'Enter' && key !== ' ') return;
+                  e.originalEvent.preventDefault();
+                  selectIssue(issue, e.target);
+                },
+              }}
+            />
           );
         })}
 
         {/* Environment markers */}
-        {showEnv && environmentData.map((env: EnvironmentData, i: number) => (
-          <Marker key={`env-${i}`} position={[env.latitude, env.longitude]} icon={envIcon}>
+        {layers.weather && environmentData.map((env: EnvironmentData, i: number) => (
+          <Marker key={`env-${i}`} position={[env.latitude, env.longitude]} icon={envIcon}
+            title={`Thời tiết ${env.location}`}>
             <Popup>
               <div style={{ color: '#333', minWidth: 160 }}>
                 <strong>🌡️ {env.location}</strong><br />
@@ -704,19 +463,33 @@ const MapPage: React.FC = () => {
           </Marker>
         ))}
 
-        {/* Route polyline */}
-        {routePath.length > 0 && (
-          <Polyline positions={routePath} pathOptions={{ color: '#3B82F6', weight: 5, opacity: 0.8 }} />
+        {/* Tuyến đường: viền trắng dưới, nét xanh biển trên để nổi trên lớp giao thông */}
+        {route.path.length > 0 && (
+          <>
+            <Polyline positions={route.path} interactive={false} pathOptions={{ color: '#FFFFFF', weight: 10, opacity: 0.95 }} />
+            <Polyline positions={route.path} interactive={false} pathOptions={{ color: C.blue, weight: 6, opacity: 0.95 }} />
+          </>
         )}
-        {routeStartCoord && (
-          <Marker position={routeStartCoord} icon={makeIcon('🟢', '#10B981')} />
+        {/* điểm đi/đến chỉ để nhìn: không nhận chuột, không nằm trong thứ tự Tab */}
+        {route.start.coord && (
+          <Marker position={route.start.coord} icon={routeStartIcon} interactive={false} keyboard={false} />
         )}
-        {routeEndCoord && (
-          <Marker position={routeEndCoord} icon={makeIcon('🔴', '#EF4444')} />
+        {route.end.coord && (
+          <Marker position={route.end.coord} icon={routeEndIcon} interactive={false} keyboard={false} zIndexOffset={500} />
         )}
 
         <RecenterButton />
       </MapContainer>
+
+      {selectedIssue && (
+        <IssuePreviewCard
+          key={selectedIssue._id}
+          ref={previewRef}
+          issue={selectedIssue}
+          onClose={closePreview}
+          onDirections={() => routeToIssue(selectedIssue)}
+        />
+      )}
     </Box>
   );
 };

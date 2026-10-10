@@ -6,7 +6,7 @@ import {
 } from '@mui/icons-material';
 import { Issue } from '../../types';
 import { CATEGORY_MAP, STATUS_MAP } from '../../utils/constants';
-import { timeAgo } from '../../utils/helpers';
+import { cloudinarySized, timeAgo } from '../../utils/helpers';
 import SlaBadge from '../../components/SlaBadge';
 import { C, EASE, mix } from '../Home/homeStyle';
 import { categoryColor, categoryIcon } from '../Home/categoryIcons';
@@ -17,11 +17,7 @@ export type IssueView = 'grid' | 'list';
  * Ảnh Cloudinary: xin bản thu nhỏ vừa thẻ (rộng tối đa 720 px, chất lượng và định dạng tự
  * chọn — trình duyệt nhận WebP/AVIF). Ảnh mẫu 90 KB còn khoảng 35 KB. Ảnh ở nơi khác giữ nguyên.
  */
-const sized = (url: string) => (
-  url.includes('res.cloudinary.com/') && url.includes('/upload/')
-    ? url.replace('/upload/', '/upload/c_limit,w_720,q_auto,f_auto/')
-    : url
-);
+const sized = (url: string) => cloudinarySized(url, 'c_limit,w_720,q_auto,f_auto');
 
 const departmentName = (issue: Issue) => (
   !issue.departmentId || typeof issue.departmentId === 'string' ? null : issue.departmentId.name

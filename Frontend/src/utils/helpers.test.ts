@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { escapeHtml, formatDate, formatDateShort, timeAgo } from './helpers';
+import { cloudinarySized, escapeHtml, formatDate, formatDateShort, timeAgo } from './helpers';
 
 /**
  * `escapeHtml` là hàng rào chống XSS cho hai chỗ xuất báo cáo.
@@ -74,5 +74,17 @@ describe('timeAgo', () => {
   // Quá một tuần thì "8 ngày trước" kém hữu ích hơn ngày cụ thể.
   it('falls back to a concrete date beyond a week', () => {
     expect(timeAgo(minutesAgo(60 * 24 * 10))).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
+  });
+});
+
+describe('cloudinarySized', () => {
+  it('inserts the transformation right after /upload/', () => {
+    expect(cloudinarySized('https://res.cloudinary.com/demo/image/upload/v17/smart-city/a.jpg', 'c_fill,w_200,h_200'))
+      .toBe('https://res.cloudinary.com/demo/image/upload/c_fill,w_200,h_200/v17/smart-city/a.jpg');
+  });
+
+  it('leaves images hosted elsewhere untouched', () => {
+    const url = 'https://example.com/upload/a.jpg';
+    expect(cloudinarySized(url, 'w_200')).toBe(url);
   });
 });
