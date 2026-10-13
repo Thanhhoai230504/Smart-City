@@ -1,5 +1,5 @@
 {
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/" }
+  "redirects": [
+    { "source": "/:path*", "destination": "https://smartcitydn.io.vn/:path*", "permanent": false }
   ]
 }
