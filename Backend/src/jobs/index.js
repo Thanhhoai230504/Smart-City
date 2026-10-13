@@ -35,6 +35,13 @@ let started = false;
  */
 const startCrons = () => {
   if (started) return false;
+  // CRON_ENABLED=false: chạy API mà không chạy cron. Dùng khi hai server cùng trỏ
+  // một database (vd. VPS chạy thử song song với Render) để email nhắc hạn, báo
+  // cáo tuần/tháng không bị gửi hai lần. Không đặt biến thì chạy cron như cũ.
+  if (process.env.CRON_ENABLED === 'false') {
+    console.log('⏸️  CRON_ENABLED=false — không khởi động cron job');
+    return false;
+  }
   started = true;
 
   for (const [name, start] of JOBS) {

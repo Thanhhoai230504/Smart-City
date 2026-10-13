@@ -43,6 +43,19 @@ describe('startCrons', () => {
     fns.forEach((fn) => expect(fn).toHaveBeenCalledTimes(1));
   });
 
+  // Hai server dùng chung một database (VPS chạy thử song song với Render) thì
+  // chỉ một bên được chạy cron, không thì email nhắc hạn bị gửi hai lần.
+  it('starts no job when CRON_ENABLED=false', () => {
+    process.env.CRON_ENABLED = 'false';
+    try {
+      const { startCrons, fns } = loadFresh();
+      expect(startCrons()).toBe(false);
+      fns.forEach((fn) => expect(fn).not.toHaveBeenCalled());
+    } finally {
+      delete process.env.CRON_ENABLED;
+    }
+  });
+
   it('still starts the remaining jobs if one of them throws', () => {
     const { startCrons, fns } = loadFresh();
     const [, , startSlaCron, startPriorityCron, startEmbeddingCron] = fns;
