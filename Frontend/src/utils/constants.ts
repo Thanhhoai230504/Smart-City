@@ -1,6 +1,14 @@
 export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
 
+/**
+ * Điểm bắt đầu đăng nhập Google trên backend. API_URL đã kết thúc bằng `/api` nên
+ * chỉ nối thêm. Không dùng `replace('/api', '')`: hàm đó xoá chỗ `/api` ĐẦU TIÊN,
+ * mà backend đặt ở `https://api.<tên miền>/api` thì chỗ đầu tiên nằm trong `//api.`
+ * — URL thành đường dẫn tương đối và người dùng rơi vào trang 404.
+ */
+export const googleAuthUrl = (apiUrl: string = API_URL) => `${apiUrl.replace(/\/+$/, '')}/auth/google`;
+
 // Da Nang center coordinates
 export const DA_NANG_CENTER = { lat: 16.0544, lng: 108.2022 };
 export const DEFAULT_ZOOM = 13;

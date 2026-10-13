@@ -10,6 +10,7 @@ import {
   DEPARTMENT_SCORE_LABEL_STYLE,
   EVALUATION_DECISION_STYLE,
   AUDIT_ACTIONS,
+  googleAuthUrl,
 } from './constants';
 import { DEFAULT_REOPEN_RULES } from './reopen';
 import { NOTIFICATION_TYPES } from './constants';
@@ -66,6 +67,21 @@ describe('getAllowedStatusTargets', () => {
       setStatusTransitions(bad as never);
       expect(getAllowedStatusTargets('reported')).toEqual(FALLBACK.reported);
     });
+  });
+});
+
+/**
+ * Backend chuyển từ Render sang tên miền con `api.` thì nút Google dẫn tới
+ * `/.smartcitydn.io.vn/api/api/auth/google` (404): `replace('/api', '')` cũ xoá
+ * nhầm chữ `/api` trong `//api.` thay vì đuôi `/api`.
+ */
+describe('googleAuthUrl', () => {
+  it.each([
+    ['https://api.smartcitydn.io.vn/api', 'https://api.smartcitydn.io.vn/api/auth/google'],
+    ['https://smart-city-tgsf.onrender.com/api', 'https://smart-city-tgsf.onrender.com/api/auth/google'],
+    ['http://localhost:5000/api/', 'http://localhost:5000/api/auth/google'],
+  ])('builds the sign-in URL from %s', (apiUrl, expected) => {
+    expect(googleAuthUrl(apiUrl)).toBe(expected);
   });
 });
 

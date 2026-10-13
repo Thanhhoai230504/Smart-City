@@ -11,11 +11,10 @@ import {
   StarRateRounded, TimelineRounded, Visibility, VisibilityOff,
 } from '@mui/icons-material';
 import { rememberPostLoginPath, resolvePostLoginPath } from '../../utils/authRedirect';
+import { googleAuthUrl } from '../../utils/constants';
 import AuthShell, { AuthDivider, AuthSubmitButton, GoogleButton } from '../../components/AuthShell';
 import { authFieldSx, authLinkSx } from '../../components/authStyles';
 import { GradientText } from '../Home/SectionHeading';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const POINTS = [
   { icon: NotificationsActiveRounded, title: 'Thông báo ngay khi có cập nhật', text: 'Biết khi phản ánh được tiếp nhận, đang xử lý hay đã hoàn tất.' },
@@ -56,8 +55,7 @@ const LoginPage: React.FC = () => {
     // Rời ứng dụng sang Google thì state của router mất — ghi nhớ đích đến để
     // AuthCallback đưa người dùng quay lại sau khi đăng nhập xong.
     rememberPostLoginPath(from);
-    const backendUrl = API_URL.replace('/api', '');
-    window.location.href = `${backendUrl}/api/auth/google`;
+    window.location.href = googleAuthUrl();
   };
 
   return (

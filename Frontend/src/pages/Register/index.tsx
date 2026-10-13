@@ -11,11 +11,10 @@ import {
   PersonAddRounded, PersonOutlineRounded, Visibility, VisibilityOff,
 } from '@mui/icons-material';
 import { getPasswordLengthError, PASSWORD_HINT } from '../../utils/password';
+import { googleAuthUrl } from '../../utils/constants';
 import AuthShell, { AuthDivider, AuthSubmitButton, GoogleButton } from '../../components/AuthShell';
 import { authFieldSx, authLinkSx } from '../../components/authStyles';
 import { GradientText } from '../Home/SectionHeading';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const POINTS = [
   { icon: AddAPhotoRounded, title: 'Báo sự cố trong khoảng 1 phút', text: 'Chụp ảnh, AI gợi ý loại sự cố, vị trí lấy tự động từ GPS.' },
@@ -60,8 +59,7 @@ const RegisterPage: React.FC = () => {
   };
 
   const handleGoogleRegister = () => {
-    const backendUrl = API_URL.replace('/api', '');
-    window.location.href = `${backendUrl}/api/auth/google`;
+    window.location.href = googleAuthUrl();
   };
 
   return (
