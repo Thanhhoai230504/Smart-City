@@ -1,5 +1,6 @@
 {
   "redirects": [
+    { "source": "/", "destination": "https://smartcitydn.io.vn/", "permanent": false },
     { "source": "/:path*", "destination": "https://smartcitydn.io.vn/:path*", "permanent": false }
   ]
 }
