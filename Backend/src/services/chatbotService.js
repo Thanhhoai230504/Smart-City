@@ -1,5 +1,6 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const Issue = require('../models/Issue');
+const { withModelFallback } = require('./geminiModels');
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -95,12 +96,6 @@ const getDbContext = async (message) => {
   } catch { return ''; }
 };
 
-const MODELS = [
-  'gemini-2.5-flash',
-  'gemini-2.0-flash-lite',
-  'gemini-2.0-flash',
-];
-
 const chat = async (message, history = []) => {
   // Cache key = nội dung tin nhắn (không cache nếu hỏi số liệu vì data thay đổi)
   const lowerMsg = message.toLowerCase();
@@ -121,36 +116,34 @@ const chat = async (message, history = []) => {
     parts: [{ text: h.content }],
   }));
 
-  for (const modelName of MODELS) {
-    try {
-      const model = genAI.getGenerativeModel({ model: modelName });
-      const chatSession = model.startChat({
-        history: [
-          { role: 'user', parts: [{ text: 'Hãy giới thiệu bạn là ai.' }] },
-          { role: 'model', parts: [{ text: fullPrompt }] },
-          ...chatHistory,
-        ],
-      });
+  try {
+    // Lỗi của một model (quá tải, hết hạn mức, model bị gỡ…) thì thử model kế tiếp
+    const { value: responseText } = await withModelFallback(
+      genAI,
+      { timeoutMs: 10000, logLabel: 'Chatbot' },
+      async (model) => {
+        const chatSession = model.startChat({
+          history: [
+            { role: 'user', parts: [{ text: 'Hãy giới thiệu bạn là ai.' }] },
+            { role: 'model', parts: [{ text: fullPrompt }] },
+            ...chatHistory,
+          ],
+        });
+        const result = await chatSession.sendMessage(message);
+        return result.response.text();
+      },
+    );
 
-      const result = await chatSession.sendMessage(message);
-      const responseText = result.response.text();
-
-      // Chỉ cache câu hỏi chung, không cache số liệu
-      if (!isStatQuery) {
-        chatCache.set(cacheKey, responseText);
-        setTimeout(() => chatCache.delete(cacheKey), CHAT_CACHE_TTL);
-      }
-
-      return responseText;
-    } catch (error) {
-      console.warn(`Chatbot [${modelName}] failed:`, error.message?.slice(0, 80));
-      if (!error.message?.includes('429') && !error.message?.includes('quota')) {
-        return 'Xin lỗi, tôi gặp sự cố khi xử lý. Vui lòng thử lại sau.';
-      }
+    // Chỉ cache câu hỏi chung, không cache số liệu
+    if (!isStatQuery) {
+      chatCache.set(cacheKey, responseText);
+      setTimeout(() => chatCache.delete(cacheKey), CHAT_CACHE_TTL).unref();
     }
-  }
 
-  return 'Hệ thống AI đang quá tải. Vui lòng thử lại sau 30 giây.';
+    return responseText;
+  } catch {
+    return 'Trợ lý AI đang tạm thời không phản hồi. Vui lòng thử lại sau ít phút.';
+  }
 };
 
 module.exports = { chat };

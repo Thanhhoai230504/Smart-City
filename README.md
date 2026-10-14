@@ -131,7 +131,7 @@ stateDiagram-v2
 | **Backend** | Node.js (CI thử trên 18/20, production chạy 24), Express 4, Mongoose 8 (MongoDB), Socket.IO 4, JWT, bcryptjs, Helmet, express-rate-limit, express-validator, Multer + Cloudinary, node-cron, Nodemailer, Passport (Google OAuth) |
 | **Web** | React 18, TypeScript 5.6, Vite 6, MUI 6, Redux Toolkit, React Router 7, Axios, socket.io-client, Leaflet, Recharts, SheetJS, vite-plugin-pwa |
 | **Ứng dụng Android** | Flutter 3.41 (Dart 3.11), Riverpod, go_router, Dio, Hive, flutter_secure_storage, flutter_map, geolocator, image_picker, socket_io_client, google_sign_in |
-| **AI** | Google Gemini: phân loại ảnh và chatbot (`gemini-2.5-flash`…), embedding `gemini-embedding-001` để dò phản ánh trùng |
+| **AI** | Google Gemini: phân loại ảnh và chatbot (`gemini-3.5-flash-lite`, model nào lỗi thì chuyển sang `gemini-2.5-flash` rồi `gemini-3.1-flash-lite`), embedding `gemini-embedding-001` để dò phản ánh trùng |
 | **Hạ tầng** | VPS Ubuntu 24.04 (Nginx, PM2, HTTPS Let's Encrypt), MongoDB Atlas, Cloudinary, GitHub Actions (CI) |
 | **Kiểm thử** | Jest (backend), Vitest (web), flutter_test (ứng dụng) |
 
@@ -225,9 +225,9 @@ Web đọc `VITE_API_URL` và `VITE_SOCKET_URL` (mặc định trỏ backend c�
 
 ## Kiểm thử
 
-| Thành phần | Lệnh | Kết quả (13/10/2026) |
+| Thành phần | Lệnh | Kết quả (14/10/2026) |
 |---|---|---|
-| Backend | `cd Backend && npm test` | 87 bộ, 845 test đều qua |
+| Backend | `cd Backend && npm test` | 90 bộ, 857 test đều qua |
 | Web | `cd Frontend && npm test` | 216 test đều qua; `npx tsc --noEmit` và `npm run lint` không có lỗi |
 | Ứng dụng | `cd App && flutter analyze && flutter test` | `flutter analyze` không báo lỗi; 329 test đều qua |
 
