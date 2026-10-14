@@ -67,7 +67,7 @@ describe('logger levels', () => {
     expect(console.warn).not.toHaveBeenCalled();
   });
 
-  // Render/CloudWatch parse được JSON một dòng; máy phát triển thì cần dễ đọc.
+  // Công cụ đọc log (jq, CloudWatch…) parse được JSON một dòng; máy phát triển thì cần dễ đọc.
   it('emits one-line JSON in production', () => {
     process.env.NODE_ENV = 'production';
     process.env.LOG_LEVEL = 'info';

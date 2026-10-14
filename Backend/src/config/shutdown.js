@@ -6,9 +6,11 @@ const FORCE_EXIT_MS = 10_000;
 /**
  * Đăng ký tắt có trật tự.
  *
- * Render gửi SIGTERM mỗi lần deploy. Không xử lý thì request đang chạy bị chặt
- * giữa chừng và cron đang chạy dở một batch bị đứt — người dùng thấy lỗi mạng
- * ngẫu nhiên mỗi lần deploy mà không rõ vì sao.
+ * Mỗi lần restart/deploy, PM2 gửi SIGINT (nền tảng như Render gửi SIGTERM). Không
+ * xử lý thì request đang chạy bị chặt giữa chừng và cron đang chạy dở một batch bị
+ * đứt — người dùng thấy lỗi mạng ngẫu nhiên mỗi lần deploy mà không rõ vì sao.
+ * PM2 phải chờ lâu hơn FORCE_EXIT_MS trước khi SIGKILL (`kill_timeout` trong
+ * ecosystem; mặc định chỉ 1,6 s).
  *
  * Tách khỏi server.js để kiểm thử được: trên Windows không gửi được SIGTERM thật
  * (`Stop-Process` và `child.kill` đều terminate cứng, Node bỏ qua tham số signal),

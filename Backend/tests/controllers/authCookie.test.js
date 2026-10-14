@@ -17,9 +17,9 @@ const makeResponse = () => {
 };
 
 /**
- * Web (vercel.app) và API (onrender.com) là hai site khác nhau. Cookie refresh
- * `SameSite=Strict` bị trình duyệt chặn ở request cross-site → phiên web chết sau
- * 15 phút. Mọi nơi set/xoá cookie phải dùng cùng một bộ thuộc tính.
+ * Khi web và API khác site (bản triển khai cũ: vercel.app và onrender.com), cookie
+ * refresh `SameSite=Strict` bị trình duyệt chặn ở request cross-site → phiên web
+ * chết sau 15 phút. Mọi nơi set/xoá cookie phải dùng cùng một bộ thuộc tính.
  */
 describe('AuthController — thuộc tính cookie refresh', () => {
   const originalEnv = process.env.NODE_ENV;

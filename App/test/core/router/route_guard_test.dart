@@ -101,10 +101,12 @@ void main() {
 
     test('--dart-define thắng mọi mặc định, bỏ dấu / thừa', () {
       expect(
-        AppConfig.resolveApiUrl(defined: 'https://x.onrender.com/api/', platform: TargetPlatform.android, isWeb: false),
-        'https://x.onrender.com/api',
+        AppConfig.resolveApiUrl(defined: 'https://api.smartcitydn.io.vn/api/', platform: TargetPlatform.android, isWeb: false),
+        'https://api.smartcitydn.io.vn/api',
       );
-      expect(AppConfig.originOf('https://x.onrender.com/api'), 'https://x.onrender.com');
+      // Host bắt đầu bằng "api." — chỉ được cắt `/api` ở CUỐI. Web từng dùng
+      // replace('/api', '') và xoá nhầm chữ "/api" trong "//api.".
+      expect(AppConfig.originOf('https://api.smartcitydn.io.vn/api'), 'https://api.smartcitydn.io.vn');
     });
   });
 }

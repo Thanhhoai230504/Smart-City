@@ -46,7 +46,7 @@ const openSocket = (userKey: string): SharedSocket => {
     withCredentials: true,
     transports: ['websocket', 'polling'],
     // Không giới hạn số lần nối lại: trước đây chỉ thử 5 lần (~25 giây) rồi bỏ
-    // hẳn, nên server khởi động lại / ngủ đông (Render) hay rớt wifi lâu hơn thế
+    // hẳn, nên server khởi động lại (deploy, bảo trì) hay rớt wifi lâu hơn thế
     // là mất realtime tới khi tải lại trang mà không ai biết.
     reconnectionDelay: 2000,
     reconnectionDelayMax: 10000,

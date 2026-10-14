@@ -64,7 +64,7 @@ class SocketService {
       'forceNew': true,
       'reconnection': true,
       // Không đặt `reconnectionAttempts`: trước đây chỉ thử 5 lần (~25 giây)
-      // rồi bỏ hẳn — server khởi động lại / ngủ đông lâu hơn thế là app mất
+      // rồi bỏ hẳn — server khởi động lại (deploy, bảo trì) lâu hơn thế là app mất
       // realtime tới khi đưa xuống nền rồi mở lại.
       'reconnectionDelay': 2000,
       'reconnectionDelayMax': 10000,

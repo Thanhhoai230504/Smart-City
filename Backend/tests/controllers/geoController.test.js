@@ -5,7 +5,8 @@ const { trafficTile } = require('../../src/controllers/geoController');
 
 /**
  * Tile giao thông được web nhúng bằng thẻ <img> của Leaflet, từ một ORIGIN KHÁC:
- * dev là localhost:3000 gọi localhost:5000, production là Vercel gọi Render.
+ * dev là localhost:3000 gọi localhost:5000, production là smartcitydn.io.vn gọi
+ * api.smartcitydn.io.vn (cùng site nhưng khác origin).
  *
  * `helmet()` mặc định gắn `Cross-Origin-Resource-Policy: same-origin` cho mọi phản
  * hồi, nên trình duyệt chặn toàn bộ tile (net::ERR_BLOCKED_BY_RESPONSE.NotSameOrigin)

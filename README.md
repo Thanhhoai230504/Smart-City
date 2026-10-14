@@ -86,9 +86,9 @@ người dân theo dõi từng bước và đánh giá kết quả.
 flowchart LR
     subgraph C["Người dùng"]
         direction TB
-        WEB["Web SPA / PWA<br/>React · Vite · Vercel"] ~~~ APP["Ứng dụng Android<br/>Flutter"]
+        WEB["Web SPA / PWA<br/>React · Vite"] ~~~ APP["Ứng dụng Android<br/>Flutter"]
     end
-    subgraph S["Máy chủ Node.js · Render"]
+    subgraph S["VPS Ubuntu · Nginx + Node.js (PM2)"]
         direction TB
         API["REST API<br/>Express"] ~~~ WS["Thời gian thực<br/>Socket.IO"] ~~~ CRON["Tác vụ định kỳ<br/>node-cron"]
     end
@@ -128,11 +128,11 @@ stateDiagram-v2
 
 | Thành phần | Công nghệ chính |
 |---|---|
-| **Backend** | Node.js 18/20, Express 4, Mongoose 8 (MongoDB), Socket.IO 4, JWT, bcryptjs, Helmet, express-rate-limit, express-validator, Multer + Cloudinary, node-cron, Nodemailer, Passport (Google OAuth) |
+| **Backend** | Node.js (CI thử trên 18/20, production chạy 24), Express 4, Mongoose 8 (MongoDB), Socket.IO 4, JWT, bcryptjs, Helmet, express-rate-limit, express-validator, Multer + Cloudinary, node-cron, Nodemailer, Passport (Google OAuth) |
 | **Web** | React 18, TypeScript 5.6, Vite 6, MUI 6, Redux Toolkit, React Router 7, Axios, socket.io-client, Leaflet, Recharts, SheetJS, vite-plugin-pwa |
 | **Ứng dụng Android** | Flutter 3.41 (Dart 3.11), Riverpod, go_router, Dio, Hive, flutter_secure_storage, flutter_map, geolocator, image_picker, socket_io_client, google_sign_in |
 | **AI** | Google Gemini: phân loại ảnh và chatbot (`gemini-2.5-flash`…), embedding `gemini-embedding-001` để dò phản ánh trùng |
-| **Hạ tầng** | Render (API), Vercel (web), MongoDB Atlas, Cloudinary, GitHub Actions |
+| **Hạ tầng** | VPS Ubuntu 24.04 (Nginx, PM2, HTTPS Let's Encrypt), MongoDB Atlas, Cloudinary, GitHub Actions (CI) |
 | **Kiểm thử** | Jest (backend), Vitest (web), flutter_test (ứng dụng) |
 
 ## Cấu trúc thư mục
@@ -225,10 +225,10 @@ Web đọc `VITE_API_URL` và `VITE_SOCKET_URL` (mặc định trỏ backend c�
 
 ## Kiểm thử
 
-| Thành phần | Lệnh | Kết quả (06/10/2026) |
+| Thành phần | Lệnh | Kết quả (13/10/2026) |
 |---|---|---|
-| Backend | `cd Backend && npm test` | 87 bộ, 844 test đều qua |
-| Web | `cd Frontend && npm test` | 186 test đều qua; `npx tsc --noEmit` và `npm run lint` không có lỗi |
+| Backend | `cd Backend && npm test` | 87 bộ, 845 test đều qua |
+| Web | `cd Frontend && npm test` | 216 test đều qua; `npx tsc --noEmit` và `npm run lint` không có lỗi |
 | Ứng dụng | `cd App && flutter analyze && flutter test` | `flutter analyze` không báo lỗi; 329 test đều qua |
 
 Mỗi lần push hoặc mở pull request, [GitHub Actions](.github/workflows/ci.yml) chạy 4 nhóm việc:
@@ -239,15 +239,19 @@ Mỗi lần push hoặc mở pull request, [GitHub Actions](.github/workflows/ci
 
 ## Triển khai
 
-| Thành phần | Nền tảng | Ghi chú |
+Bản chạy thật: **https://smartcitydn.io.vn**
+
+Web và API cùng chạy trên một VPS Ubuntu 24.04 đặt tại Việt Nam, chung tên miền `smartcitydn.io.vn` nên là cùng site (cookie refresh không bị chặn như cookie bên thứ ba). Từ ngày 13/10/2026 hệ thống chuyển từ Render (API) và Vercel (web) sang VPS; địa chỉ Vercel cũ tự chuyển hướng sang tên miền mới.
+
+| Thành phần | Địa chỉ | Ghi chú |
 |---|---|---|
-| API + Socket.IO + cron | [Render](https://render.com) | https://smart-city-tgsf.onrender.com/health. Gói miễn phí tự ngủ khi không có truy cập, lần gọi đầu có thể mất khoảng một phút |
-| Web | [Vercel](https://vercel.com) | Build bằng `npm run build`, `vercel.json` chuyển mọi đường dẫn về SPA |
+| Web | https://smartcitydn.io.vn | Nginx phục vụ bản build Vite; mọi đường dẫn không phải tệp trả về `index.html` cho SPA. HTTPS của Let's Encrypt, tự gia hạn |
+| API + Socket.IO + cron | https://api.smartcitydn.io.vn | Nginx chuyển tiếp (cả WebSocket) tới Node.js 24 chạy bằng PM2, một tiến trình. Máy chủ chạy liên tục nên cron không bị gián đoạn, giờ chạy theo giờ Việt Nam. Kiểm tra: [`/health`](https://api.smartcitydn.io.vn/health) |
 | Cơ sở dữ liệu | [MongoDB Atlas](https://www.mongodb.com/atlas) | |
 | Ảnh | [Cloudinary](https://cloudinary.com) | |
-| Ứng dụng Android | APK | `flutter build apk --release --split-per-abi`, xem [App/README.md](App/README.md) |
+| Ứng dụng Android | APK | `flutter build apk --release --split-per-abi --dart-define=API_URL=https://api.smartcitydn.io.vn/api`, xem [App/README.md](App/README.md) |
 
-<!-- Thêm đường dẫn web demo sau khi có: [Xem bản chạy thử](https://<ten-mien>.vercel.app) -->
+Push lên `main` chỉ chạy CI, không tự triển khai. Backend được cập nhật bằng cách kéo mã mới trên VPS, cài lại thư viện khi cần rồi khởi động lại PM2. Web được build trên máy phát triển (gắn `VITE_API_URL`, `VITE_SOCKET_URL` lúc build) rồi đẩy thư mục build lên VPS. Biến môi trường production: xem `Backend/.env.example`, đặt thêm `SERVER_URL=https://api.smartcitydn.io.vn` để Google OAuth gọi lại đúng địa chỉ.
 
 ## Hạn chế và hướng phát triển
 

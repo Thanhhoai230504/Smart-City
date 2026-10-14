@@ -46,21 +46,25 @@ const REFRESH_COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
  * Thuộc tính cookie refresh — MỘT chỗ cho mọi nơi set và xoá cookie (xoá phải
  * khớp thuộc tính lúc set thì trình duyệt mới xoá).
  *
- * Production: web (vercel.app) và API (onrender.com) là HAI site khác nhau — cả
- * hai tên miền nằm trong Public Suffix List — nên mọi request từ web sang API đều
- * là cross-site. Trước đây cookie đặt `SameSite=Strict`: trình duyệt chặn cả lúc
- * set lẫn lúc gửi, /auth/refresh không bao giờ nhận được cookie, nên hết 15 phút
- * access token là người dùng bị đẩy về trang đăng nhập (đăng nhập Google cũng
- * dính sau lần xoay vòng token đầu tiên, vì lần xoay vòng đi qua hàm này).
- * `None` bắt buộc đi kèm `Secure`.
+ * Production giữ `None` để chạy được cả khi web và API là HAI site khác nhau.
+ * Bản triển khai cũ (web trên vercel.app, API trên onrender.com — cả hai nằm trong
+ * Public Suffix List) là như vậy: mọi request từ web sang API đều là cross-site.
+ * Hồi đó cookie đặt `SameSite=Strict`: trình duyệt chặn cả lúc set lẫn lúc gửi,
+ * /auth/refresh không bao giờ nhận được cookie, nên hết 15 phút access token là
+ * người dùng bị đẩy về trang đăng nhập (đăng nhập Google cũng dính sau lần xoay
+ * vòng token đầu tiên, vì lần xoay vòng đi qua hàm này). `None` bắt buộc đi kèm
+ * `Secure`.
+ *
+ * Từ 13/10/2026 web (smartcitydn.io.vn) và API (api.smartcitydn.io.vn) chạy trên
+ * VPS, chung tên miền nên là cùng site: cookie là cookie bên thứ nhất, Safari (ITP)
+ * không còn chặn, và `Lax` cũng đủ — có thể siết lại khi không cần quay về cách
+ * triển khai khác site.
  *
  * Dev: web và API cùng `localhost` (khác cổng vẫn là cùng site) nên `Lax` là đủ
  * và không cần https.
  *
  * `None` không mở ra CSRF đáng kể: /auth/refresh chỉ trả access token trong
- * body, mà CORS chỉ cho đúng CLIENT_URL đọc response. Giới hạn còn lại: Safari
- * (ITP) chặn mọi cookie bên thứ ba bất kể SameSite — muốn triệt để thì đưa API về
- * cùng site với web (tên miền riêng, hoặc rewrite /api trên Vercel).
+ * body, mà CORS chỉ cho đúng CLIENT_URL đọc response.
  */
 const refreshCookieOptions = () => {
   const isProduction = process.env.NODE_ENV === 'production';

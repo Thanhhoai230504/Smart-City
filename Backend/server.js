@@ -61,7 +61,7 @@ app.set('io', io);
 
 // ============ MIDDLEWARE ============
 
-// Tin đúng 1 lớp proxy (Render) để req.ip là IP thật của client, nhờ đó rate
+// Tin đúng 1 lớp proxy (Nginx trên VPS) để req.ip là IP thật của client, nhờ đó rate
 // limiter tính theo từng người dùng thay vì gộp tất cả vào IP của proxy.
 // Không dùng `true` vì khi đó Express tin toàn bộ chuỗi X-Forwarded-For,
 // cho phép client tự thêm header để giả mạo IP và né limiter.
@@ -172,7 +172,8 @@ connectDB().catch((err) => {
   logger.warn('Server vẫn chạy: /health trả 503, cron tự khởi động khi DB kết nối được');
 });
 
-// Tắt có trật tự khi Render gửi SIGTERM lúc deploy — xem src/config/shutdown.js.
+// Tắt có trật tự khi PM2 gửi SIGINT lúc restart/deploy (nền tảng như Render gửi
+// SIGTERM) — xem src/config/shutdown.js.
 registerShutdownHandlers({ server, io, mongoose });
 
 module.exports = { app, server };

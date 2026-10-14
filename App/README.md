@@ -124,7 +124,7 @@ và **thêm SHA-1 đó vào OAuth client Android** trên Google Cloud (project c
 **Build bản release** (task 7.3) — biên dịch AOT, nhỏ và mượt hơn hẳn bản debug:
 
 ```bash
-flutter build apk --release --split-per-abi --dart-define=API_URL=https://smart-city-tgsf.onrender.com/api --dart-define=APP_ENV=prod
+flutter build apk --release --split-per-abi --dart-define=API_URL=https://api.smartcitydn.io.vn/api --dart-define=APP_ENV=prod
 ```
 
 Ra một APK cho mỗi kiến trúc trong `build/app/outputs/flutter-apk/`: điện thoại thật dùng

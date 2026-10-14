@@ -2,10 +2,11 @@ const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const { findOrCreateGoogleUser } = require('../services/googleAuthService');
 
-// SERVER_URL: địa chỉ public của backend (vd. https://api.ten-mien.vn). Google
-// chuyển hướng về `${SERVER_URL}/api/auth/google/callback` sau khi đăng nhập, nên
-// URL đó phải có trong "Authorized redirect URIs" của OAuth client. Không đặt thì
-// giữ như cũ: Render ở production, localhost khi dev.
+// SERVER_URL: địa chỉ public của backend (trên VPS: https://api.smartcitydn.io.vn).
+// Google chuyển hướng về `${SERVER_URL}/api/auth/google/callback` sau khi đăng nhập,
+// nên URL đó phải có trong "Authorized redirect URIs" của OAuth client. Không đặt
+// thì production dùng địa chỉ Render cũ (dự phòng khi bật lại Render), dev dùng
+// localhost.
 const BACKEND_URL = (process.env.SERVER_URL || '').replace(/\/+$/, '')
   || (process.env.NODE_ENV === 'production'
     ? 'https://smart-city-tgsf.onrender.com'

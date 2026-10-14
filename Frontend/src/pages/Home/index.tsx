@@ -29,9 +29,10 @@ const HomePage: React.FC = () => {
   const [statsAttempt, setStatsAttempt] = useState(0);
   const [recent, setRecent] = useState<Issue[] | null>(null);
 
-  // Số liệu tổng quan. Backend chạy gói miễn phí của Render, ngủ sau 15 phút không
-  // ai dùng: lần gọi đầu có thể mất 30–60 giây — có khung đang tải, lời nhắc khi
-  // chậm và nút thử lại khi lỗi.
+  // Số liệu tổng quan. Mạng yếu hoặc máy chủ vừa khởi động lại thì lần gọi có thể
+  // chậm — có khung đang tải, lời nhắc sau 6 giây và nút thử lại khi lỗi. (Viết
+  // lúc backend còn ở gói miễn phí của Render, ngủ sau 15 phút và mất 30–60 giây
+  // để dậy; từ 13/10/2026 backend chạy liên tục trên VPS.)
   useEffect(() => {
     const ctrl = new AbortController();
     setStatsState('loading');

@@ -21,7 +21,7 @@ export type LoadState = 'loading' | 'ready' | 'error';
 interface LivePanelProps {
   overview: Overview | null;
   statsState: LoadState;
-  /** Đã quá 6 giây mà chưa có số liệu — Render đang thức dậy. */
+  /** Đã quá 6 giây mà chưa có số liệu — mạng hoặc máy chủ đang chậm. */
   statsSlow: boolean;
   statsAt: Date | null;
   onRetry: () => void;
@@ -150,7 +150,7 @@ const LivePanel: React.FC<LivePanelProps> = ({ overview, statsState, statsSlow, 
                   </Button>
                 </>
               ) : (
-                <span>Máy chủ đang khởi động — lần tải đầu có thể mất tới một phút.</span>
+                <span>Máy chủ phản hồi chậm — vẫn đang tải số liệu…</span>
               )}
             </Stack>
           )}

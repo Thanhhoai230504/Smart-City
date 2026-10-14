@@ -12,7 +12,7 @@
  *
  * Không dùng winston/pino vì đồ án không cần thêm dependency: thứ thiếu là
  * *ngữ cảnh có cấu trúc*, không phải một thư viện. Ở production in JSON một dòng
- * để Render/CloudWatch parse được; ở máy phát triển in dạng dễ đọc.
+ * để công cụ đọc log (jq, CloudWatch…) parse được; ở máy phát triển in dạng dễ đọc.
  */
 
 const LEVELS = { error: 0, warn: 1, info: 2, debug: 3 };

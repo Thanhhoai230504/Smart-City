@@ -1,4 +1,4 @@
 {
   "APP_ENV": "prod",
-  "API_URL": "https://ten-backend-cua-ban.onrender.com/api"
+  "API_URL": "https://api.smartcitydn.io.vn/api"
 }
