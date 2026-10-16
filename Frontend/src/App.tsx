@@ -10,6 +10,7 @@ import { useSocket } from './hooks/useSocket';
 import AppRouter from './router';
 import { metaApi } from './api/metaApi';
 import ErrorBoundary from './components/ErrorBoundary';
+import ScrollToTop from './components/ScrollToTop';
 import { setStatusTransitions } from './utils/constants';
 import { setReopenRules } from './utils/reopen';
 
@@ -68,6 +69,7 @@ const App: React.FC = () => {
 
   return (
     <BrowserRouter>
+      <ScrollToTop />
       {/* Bọc trong BrowserRouter để khi lỗi xảy ra vẫn còn router context — nếu
           bọc ngoài thì nút "Về trang chủ" phải dùng window.location thay vì điều
           hướng client-side. */}
