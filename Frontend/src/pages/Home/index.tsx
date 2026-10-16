@@ -11,13 +11,13 @@ import HowItWorks from './HowItWorks';
 import CategoriesSection from './CategoriesSection';
 import RolesSection from './RolesSection';
 import ExploreSection from './ExploreSection';
-import FinalCta from './FinalCta';
+import AppSection from './AppSection';
 import { LoadState, Overview } from './LivePanel';
 
 /**
  * Trang chủ: trả lời ngay "hệ thống này để làm gì" — phần đầu nói rõ mục đích và
  * có số liệu thật, rồi lần lượt cách hoạt động, loại sự cố, các vai trò, dữ liệu
- * công khai và lời kêu gọi phản ánh.
+ * công khai và giới thiệu ứng dụng Android (kèm nút tải APK).
  */
 const HomePage: React.FC = () => {
   const { isAuthenticated } = useSelector((s: RootState) => s.auth);
@@ -80,7 +80,7 @@ const HomePage: React.FC = () => {
       <CategoriesSection counts={categoryCounts} state={statsState} />
       <RolesSection />
       <ExploreSection />
-      <FinalCta isAuthenticated={isAuthenticated} />
+      <AppSection />
     </Box>
   );
 };

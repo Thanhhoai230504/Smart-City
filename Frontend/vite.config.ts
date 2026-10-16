@@ -41,6 +41,9 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Bấm "Tải app" là một lượt điều hướng tới /downloads/*.apk — không được để
+        // service worker trả index.html (vỏ SPA) thay cho tệp APK do Nginx phục vụ.
+        navigateFallbackDenylist: [/^\/downloads\//],
         // Precache chỉ shell cần để khởi động. Các chunk bản đồ/biểu đồ/export
         // được cache lúc người dùng mở, tránh tải ngầm toàn bộ ứng dụng (~2.7 MB).
         globPatterns: [
