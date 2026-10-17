@@ -149,6 +149,12 @@ app.use(errorHandler);
 // ============ START SERVER ============
 
 const PORT = process.env.PORT || 5000;
+// Trên VPS đặt LISTEN_HOST=127.0.0.1 để chỉ Nginx cùng máy gọi được Node. Nếu tường
+// lửa có lúc hở, người ngoài vẫn không gọi thẳng được cổng 5000 để đi vòng qua HTTPS,
+// hay tự điền X-Forwarded-For (trust proxy = 1) mà né giới hạn tần suất theo IP.
+// Để trống thì nghe mọi địa chỉ như trước: máy phát triển cần vậy để điện thoại
+// cùng Wi-Fi gọi vào được.
+const LISTEN_HOST = process.env.LISTEN_HOST || undefined;
 
 // Cron khởi động theo sự kiện kết nối, KHÔNG nằm trong nhánh .then() của
 // connectDB(). Trước đây nếu MongoDB lỗi lúc boot (rất hay gặp khi Atlas free tier
@@ -162,8 +168,8 @@ mongoose.connection.on('connected', startCrons);
 
 // Listen đúng MỘT lần và không phụ thuộc kết quả kết nối DB — /health cần phải
 // sống thì monitor mới biết DB đang đứt.
-server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+server.listen(PORT, LISTEN_HOST, () => {
+  console.log(`🚀 Server running on ${LISTEN_HOST || 'all interfaces'}, port ${PORT}`);
   console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
 });
 
