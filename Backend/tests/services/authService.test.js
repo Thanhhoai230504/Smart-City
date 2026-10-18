@@ -589,9 +589,10 @@ describe('AuthService', () => {
 
       expect(mockUser.password).toBe('newpass123');
       expect(mockUser.save).toHaveBeenCalled();
-      // Cắt mọi phiên và cả kết nối realtime đang mở (kể cả của kẻ đã chiếm phiên).
+      // Cắt mọi phiên; không ngắt socket để thiết bị đang đổi mật khẩu (đăng nhập lại ngay)
+      // giữ realtime — app bản cũ không tự nối lại khi server chủ động ngắt.
       expect(sessionService.revokeAllSessions).toHaveBeenCalledWith('user123');
-      expect(disconnectUserSockets).toHaveBeenCalledWith('user123');
+      expect(disconnectUserSockets).not.toHaveBeenCalled();
     });
   });
 });

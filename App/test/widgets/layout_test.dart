@@ -24,6 +24,7 @@ import 'package:smart_city_app/features/staff/staff_issue_screen.dart';
 import 'package:smart_city_app/features/staff/work_list_screen.dart';
 
 import '../helpers/app_harness.dart';
+import '../helpers/fake_http.dart';
 import '../helpers/fixtures.dart';
 
 /// Nghiệm thu 0.5 (thay golden test): mỗi màn chính dựng ở **cả hai theme** và
@@ -99,6 +100,27 @@ void main() {
     await pumpScreen(tester, StaffIssueScreen(issueId: staffIssueId), user: demoUser(UserRole.staff));
     await settleReal(tester);
     expect(find.textContaining('GỌI 09'), findsOneWidget);
+  });
+
+  // Phiếu đã đóng chỉ quản trị viên mở lại (backend trả REOPEN_ADMIN_ONLY): cán bộ đứng
+  // tên phiếu cũng không còn nút "Mở lại để xử lý tiếp", dù bảng luật cho resolved → processing.
+  testWidgets('cán bộ đứng tên phiếu đã đóng: không có nút mở lại', (tester) async {
+    final envelope = fixture('issue_detail_staff');
+    final data = Map<String, dynamic>.from(envelope['data'] as Map);
+    data['issue'] = {...(data['issue'] as Map<String, dynamic>), 'status': 'resolved'};
+    final base = fixtureBackend();
+    await pumpScreen(
+      tester,
+      StaffIssueScreen(issueId: staffIssueId),
+      user: demoUser(UserRole.staff),
+      backend: FakeAdapter((o) => o.path == '/issues/$staffIssueId'
+          ? FakeResponse(200, {...envelope, 'data': data})
+          : base.handler(o)),
+    );
+    await settleReal(tester);
+    expect(find.textContaining('GỌI 09'), findsOneWidget);
+    expect(find.text('Mở lại để xử lý tiếp'), findsNothing);
+    expect(find.text('Cập nhật'), findsNothing);
   });
 
   testWidgets('cán bộ: tab đầu là "Công việc" từ /issues/work', (tester) async {

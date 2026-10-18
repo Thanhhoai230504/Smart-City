@@ -18,8 +18,8 @@ List<IssueStatus> statusTargets(Issue issue, MetaEnums meta) => [
       for (final t in meta.targetsFrom(issue.status.name)) IssueStatus.parse(t),
     ].where((t) => t != IssueStatus.unknown).toList();
 
+// Chỉ dùng cho phiếu đang mở: phiếu đã đóng chỉ quản trị viên mở lại (REOPEN_ADMIN_ONLY).
 String statusTargetLabel(IssueStatus target, Issue issue, MetaEnums meta) => switch (target) {
-      IssueStatus.processing when issue.status.isClosed => 'Mở lại để xử lý tiếp',
       IssueStatus.processing => 'Bắt đầu xử lý',
       IssueStatus.resolved => 'Hoàn tất (chụp ảnh minh chứng)',
       IssueStatus.rejected => 'Từ chối (cần nêu lý do)',
@@ -36,6 +36,16 @@ IconData statusTargetIcon(IssueStatus target) => switch (target) {
 /// Cặp nút "Cập nhật" + "Hoàn tất" đứng cạnh nhau: chữ phóng lớn hơn 1.3× thì
 /// bỏ icon (nhãn đã đủ nghĩa) để nhãn không bị bẻ thành hai dòng.
 bool pairButtonsWithoutIcons(BuildContext context) => MediaQuery.textScalerOf(context).scale(10) > 13;
+
+/// Mã lỗi nghĩa là phiếu trên màn đã cũ: vừa đổi trạng thái ở nơi khác, vừa bị giao
+/// lại cho người/đơn vị khác, hoặc vừa đóng. Báo lý do của máy chủ rồi tải lại phiếu.
+const staleIssueErrorCodes = {
+  'INVALID_STATUS_TRANSITION',
+  'STATUS_CONFLICT',
+  'NOT_ASSIGNEE',
+  'NOT_IN_DEPARTMENT',
+  'REOPEN_ADMIN_ONLY',
+};
 
 String explainStaffError(AppException e) => switch (e.code) {
       'INVALID_STATUS_TRANSITION' => 'Phiếu đã được cập nhật ở nơi khác. Đã tải lại trạng thái mới nhất.',

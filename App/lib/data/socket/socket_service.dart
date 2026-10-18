@@ -77,7 +77,17 @@ class SocketService {
       if (_needsResync) _resync();
       _needsResync = false;
     });
-    socket.onDisconnect((_) => _needsResync = true);
+    socket.onDisconnect((reason) {
+      _needsResync = true;
+      // Server chủ động ngắt khi quyền của tài khoản đổi (đổi vai trò, gán/bỏ đơn vị,
+      // khoá — backend config/socket.js). Socket.IO KHÔNG tự nối lại trong trường hợp
+      // này: tải lại hồ sơ để app theo vai trò mới rồi nối lại ngay. Tài khoản bị khoá
+      // thì lần bắt tay bị từ chối và _onConnectError kết thúc phiên.
+      if (reason == 'io server disconnect') {
+        unawaited(_ref.read(authControllerProvider.notifier).reloadProfile());
+        socket.connect();
+      }
+    });
     socket.onConnectError((data) => unawaited(_onConnectError(data)));
     socket.on(SocketEvents.notification, _onNotification);
     socket.on(SocketEvents.issueUpdated, _onIssueEvent);

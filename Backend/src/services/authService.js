@@ -464,7 +464,10 @@ const changePassword = async (userId, { currentPassword, newPassword }) => {
   // nên nếu tài khoản đã bị chiếm thì kẻ tấn công vẫn giữ quyền thêm 7 ngày —
   // đúng lúc người dùng tin rằng mình vừa khoá lại.
   await sessionService.revokeAllSessions(userId);
-  disconnectUserSockets(userId);
+  // Không ngắt socket ở đây (khác đặt lại mật khẩu): thiết bị đang đổi mật khẩu đăng nhập
+  // lại ngay và giữ kết nối, còn app bản cũ không tự nối lại khi server chủ động ngắt.
+  // Socket chỉ xác thực lúc bắt tay nên ngắt cũng không chặn được kết nối của kẻ còn
+  // giữ access token; phiên của họ đã bị thu hồi ở dòng trên.
 };
 
 const generateTokensForUser = async (user, { deviceType, deviceName } = {}) => {

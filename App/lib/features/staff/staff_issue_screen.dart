@@ -80,7 +80,7 @@ class _StaffBodyState extends ConsumerState<_StaffBody> {
         return;
       }
       showAppSnack(context, explainStaffError(e), error: true);
-      if (e.code == 'INVALID_STATUS_TRANSITION') {
+      if (staleIssueErrorCodes.contains(e.code)) {
         await ref.read(staffActionsProvider(issue.id)).reload();
       }
     } finally {
@@ -152,18 +152,10 @@ class _StaffBodyState extends ConsumerState<_StaffBody> {
           ),
         ],
       ];
-    } else if (mine && targets.contains(IssueStatus.processing)) {
-      // Phiếu của mình đã đóng: cho mở lại nếu xử lý chưa xong.
-      buttons = [
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: _busy ? null : () => _changeStatus(IssueStatus.processing),
-            icon: Icon(statusTargetIcon(IssueStatus.processing)),
-            label: const Text('Mở lại để xử lý tiếp'),
-          ),
-        ),
-      ];
     } else {
+      // Phiếu đã đóng: chỉ quản trị viên mở lại được (backend trả REOPEN_ADMIN_ONLY).
+      // Mở lại cất đánh giá của lượt cũ, nên cán bộ tự làm được thì xoá được đánh giá
+      // thấp của chính đơn vị. Người dân không đồng ý kết quả có nút "Mở lại" riêng.
       return null;
     }
     final palette = context.palette;
