@@ -71,6 +71,16 @@ describe('validateEnv.inspectEnv', () => {
       expect(warnings.some((w) => w.includes('GEMINI_API_KEY'))).toBe(true);
     });
 
+    // Trước đây thiếu GOOGLE_CLIENT_ID thì máy chủ không khởi động (config/passport.js);
+    // giờ chỉ đăng nhập Google ngừng hoạt động.
+    it('only warns when Google sign-in is not configured', () => {
+      const { errors, warnings } = inspectEnv(goodEnv());
+
+      expect(errors).toEqual([]);
+      expect(warnings.find((w) => w.includes('GOOGLE_CLIENT_ID'))).toContain('đăng nhập Google');
+      expect(warnings.some((w) => w.includes('GOOGLE_CLIENT_SECRET'))).toBe(true);
+    });
+
     it('says what stops working, not just what is missing', () => {
       const { warnings } = inspectEnv(goodEnv());
       const cloudinary = warnings.find((w) => w.includes('CLOUDINARY_API_KEY'));

@@ -23,6 +23,9 @@ const maskEmail = (email) => {
   return `${visible}${'*'.repeat(Math.max(name.length - 2, 1))}@${domain}`;
 };
 
+/** Đủ cấu hình SMTP để gửi thư chưa. */
+const isEmailConfigured = () => Boolean(process.env.SMTP_EMAIL && process.env.SMTP_PASSWORD);
+
 /**
  * Gửi email.
  *
@@ -40,7 +43,7 @@ const maskEmail = (email) => {
 const sendEmail = async (to, subject, html) => {
   // Thiếu cấu hình SMTP thì nodemailer vẫn "gửi" rồi hỏng ở tầng mạng với thông
   // báo khó hiểu. Chặn sớm và nói rõ.
-  if (!process.env.SMTP_EMAIL || !process.env.SMTP_PASSWORD) {
+  if (!isEmailConfigured()) {
     logger.warn('Bỏ qua gửi email: chưa cấu hình SMTP', {
       to: maskEmail(to),
       subject,
@@ -71,4 +74,4 @@ const sendEmail = async (to, subject, html) => {
   }
 };
 
-module.exports = { sendEmail, maskEmail };
+module.exports = { sendEmail, maskEmail, isEmailConfigured };

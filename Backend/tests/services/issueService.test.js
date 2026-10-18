@@ -486,6 +486,32 @@ describe('IssueService', () => {
       expect(cloudinary.uploader.destroy).not.toHaveBeenCalled();
     });
 
+    // Bước điền người báo cáo từng nằm chung khối try với lệnh ghi: lỗi ở đó xoá ảnh của
+    // chính phiếu vừa lưu. Phiếu đã lưu thì request phải thành công và ảnh phải còn.
+    it('keeps the images of a saved issue when a later step fails', async () => {
+      const mockIssue = {
+        _id: 'issue-saved',
+        title: 'Flooding',
+        populate: jest.fn().mockRejectedValue(new Error('connection reset')),
+      };
+      Issue.create.mockResolvedValue(mockIssue);
+      User.find.mockReturnValue({ select: jest.fn().mockResolvedValue([]) });
+
+      const result = await issueService.createIssue({
+        title: 'Flooding',
+        description: 'Deep water',
+        category: 'flooding',
+        location: '123 Street',
+        latitude: 16.05,
+        longitude: 108.2,
+        files: [{ path: 'https://cdn.test/one.jpg', filename: 'issues/one' }],
+        user: { id: 'user1', name: 'Citizen' },
+      });
+
+      expect(result._id).toBe('issue-saved');
+      expect(cloudinary.uploader.destroy).not.toHaveBeenCalled();
+    });
+
     it('sends admins a realtime summary of the new issue, not the document with phone/email', async () => {
       const mockIssue = {
         _id: 'issue1',
@@ -1018,15 +1044,73 @@ describe('IssueService', () => {
         save: jest.fn().mockResolvedValue(true),
       };
       Issue.findOne.mockResolvedValue(mockIssue);
+      Issue.findOneAndUpdate.mockResolvedValue({ ...mockIssue });
 
       await issueService.deleteMyIssue('issue1', { toString: () => 'user1' });
 
-      expect(mockIssue.isDeleted).toBe(true);
-      expect(mockIssue.imageUrl).toBeNull();
-      expect(mockIssue.imagePublicId).toBeNull();
-      expect(mockIssue.save).toHaveBeenCalled();
+      const [filter, update] = Issue.findOneAndUpdate.mock.calls[0];
+      expect(update.$set).toMatchObject({
+        isDeleted: true,
+        imageUrl: null,
+        imagePublicId: null,
+        images: [],
+        resolutionImages: [],
+        previousRounds: [],
+      });
+      expect(filter).toMatchObject({ _id: 'issue1', isDeleted: false });
+      expect(mockIssue.save).not.toHaveBeenCalled();
       expect(Issue.findByIdAndDelete).not.toHaveBeenCalled();
       expect(cloudinary.uploader.destroy).toHaveBeenCalledWith('smart-city/xyz789');
+    });
+
+    // Các điều kiện vừa kiểm phải còn đúng lúc ghi: trước đây đọc → kiểm → save, nên phiếu
+    // vừa được phân công (Đang xử lý) hoặc vừa bị gộp đúng lúc đó vẫn bị xoá kèm ảnh.
+    it('writes only while the issue is still reported, unmerged and without merged reports', async () => {
+      const mockIssue = { _id: 'issue1', userId: 'owner-oid', status: 'reported' };
+      Issue.findOne.mockResolvedValue(mockIssue);
+      Issue.findOneAndUpdate.mockResolvedValue({ ...mockIssue });
+
+      await issueService.deleteMyIssue('issue1', 'owner-oid');
+
+      expect(Issue.findOneAndUpdate.mock.calls[0][0]).toEqual({
+        _id: 'issue1',
+        userId: 'owner-oid',
+        isDeleted: false,
+        status: 'reported',
+        mergedInto: null,
+        duplicateCount: { $in: [0, null] },
+      });
+    });
+
+    it('reports STATUS_CONFLICT and deletes no image when the issue changed meanwhile', async () => {
+      Issue.findOne.mockResolvedValue({
+        _id: 'issue1',
+        userId: 'owner-oid',
+        status: 'reported',
+        imagePublicId: 'smart-city/xyz789',
+      });
+      Issue.findOneAndUpdate.mockResolvedValue(null);
+
+      await expect(issueService.deleteMyIssue('issue1', 'owner-oid'))
+        .rejects.toMatchObject({ statusCode: 409, code: 'STATUS_CONFLICT' });
+      expect(cloudinary.uploader.destroy).not.toHaveBeenCalled();
+    });
+
+    // Phiếu đã gộp vào phiếu khác vẫn "Mới báo cáo" và vẫn do người này đứng tên, nhưng ảnh
+    // của nó là bằng chứng của phiếu gốc và số báo cáo trùng của phiếu gốc đếm nó.
+    it('refuses a report that was merged into another issue (MERGED_ISSUE)', async () => {
+      Issue.findOne.mockResolvedValue({
+        _id: 'child1',
+        userId: 'owner-oid',
+        status: 'reported',
+        mergedInto: 'parent1',
+        imagePublicId: 'smart-city/evidence',
+      });
+
+      await expect(issueService.deleteMyIssue('child1', 'owner-oid'))
+        .rejects.toMatchObject({ statusCode: 400, code: 'MERGED_ISSUE' });
+      expect(Issue.findOneAndUpdate).not.toHaveBeenCalled();
+      expect(cloudinary.uploader.destroy).not.toHaveBeenCalled();
     });
 
     // Phiếu gốc đã có báo cáo khác gộp vào: xoá nó thì các phiếu đã gộp (của người khác)
@@ -1043,7 +1127,8 @@ describe('IssueService', () => {
 
       await expect(issueService.deleteMyIssue('issue1', { toString: () => 'user1' }))
         .rejects.toMatchObject({ statusCode: 409, code: 'MERGED_INTO_THIS' });
-      expect(mockIssue.save).not.toHaveBeenCalled();
+      expect(Issue.findOneAndUpdate).not.toHaveBeenCalled();
+      expect(cloudinary.uploader.destroy).not.toHaveBeenCalled();
     });
 
     it('also catches merged children when duplicateCount is out of date', async () => {
@@ -1060,7 +1145,8 @@ describe('IssueService', () => {
       await expect(issueService.deleteMyIssue('issue1', { toString: () => 'user1' }))
         .rejects.toMatchObject({ code: 'MERGED_INTO_THIS' });
       expect(Issue.exists).toHaveBeenCalledWith({ mergedInto: 'issue1', isDeleted: false });
-      expect(mockIssue.save).not.toHaveBeenCalled();
+      expect(Issue.findOneAndUpdate).not.toHaveBeenCalled();
+      expect(cloudinary.uploader.destroy).not.toHaveBeenCalled();
     });
   });
 
@@ -1093,23 +1179,54 @@ describe('IssueService', () => {
 
     it('should update title and description', async () => {
       const mockIssue = {
+        _id: 'issue1',
         userId: { toString: () => 'user1' },
         status: 'reported',
         title: 'Old',
         description: 'Old desc',
         save: jest.fn().mockResolvedValue(true),
-        populate: jest.fn().mockResolvedValue(true),
       };
+      const updated = { _id: 'issue1', title: 'New Title', populate: jest.fn().mockResolvedValue(true) };
       Issue.findOne.mockResolvedValue(mockIssue);
+      Issue.findOneAndUpdate.mockResolvedValue(updated);
 
-      await issueService.updateMyIssue('issue1', { toString: () => 'user1' }, {
+      const result = await issueService.updateMyIssue('issue1', { toString: () => 'user1' }, {
         title: ' New Title ',
         description: ' New Description ',
       });
 
-      expect(mockIssue.title).toBe('New Title');
-      expect(mockIssue.description).toBe('New Description');
-      expect(mockIssue.save).toHaveBeenCalled();
+      const [, update, options] = Issue.findOneAndUpdate.mock.calls[0];
+      expect(update).toEqual({ $set: { title: 'New Title', description: 'New Description' } });
+      expect(options).toMatchObject({ new: true, runValidators: true });
+      expect(mockIssue.save).not.toHaveBeenCalled();
+      expect(updated.populate).toHaveBeenCalledWith('userId', 'name email');
+      expect(result).toBe(updated);
+    });
+
+    // Như deleteMyIssue: trước đây đọc → kiểm → save, nên phiếu vừa được tiếp nhận hoặc vừa
+    // bị gộp đúng lúc đó vẫn bị viết lại nội dung.
+    it('writes only while the issue is still reported, unmerged and without merged reports', async () => {
+      Issue.findOne.mockResolvedValue({ _id: 'issue1', userId: 'owner-oid', status: 'reported' });
+      Issue.findOneAndUpdate.mockResolvedValue({ _id: 'issue1', populate: jest.fn().mockResolvedValue(true) });
+
+      await issueService.updateMyIssue('issue1', 'owner-oid', { title: 'Mới' });
+
+      expect(Issue.findOneAndUpdate.mock.calls[0][0]).toEqual({
+        _id: 'issue1',
+        userId: 'owner-oid',
+        isDeleted: false,
+        status: 'reported',
+        mergedInto: null,
+        duplicateCount: { $in: [0, null] },
+      });
+    });
+
+    it('reports STATUS_CONFLICT when the issue changed between the check and the write', async () => {
+      Issue.findOne.mockResolvedValue({ _id: 'issue1', userId: 'owner-oid', status: 'reported' });
+      Issue.findOneAndUpdate.mockResolvedValue(null);
+
+      await expect(issueService.updateMyIssue('issue1', 'owner-oid', { title: 'Mới' }))
+        .rejects.toMatchObject({ statusCode: 409, code: 'STATUS_CONFLICT' });
     });
 
     it('refuses to rewrite an issue other reports were merged into (MERGED_INTO_THIS)', async () => {
@@ -1125,7 +1242,24 @@ describe('IssueService', () => {
 
       await expect(issueService.updateMyIssue('issue1', { toString: () => 'user1' }, { title: 'Khác hẳn' }))
         .rejects.toMatchObject({ statusCode: 409, code: 'MERGED_INTO_THIS' });
-      expect(mockIssue.title).toBe('Old');
+      expect(Issue.findOneAndUpdate).not.toHaveBeenCalled();
+      expect(mockIssue.save).not.toHaveBeenCalled();
+    });
+
+    it('refuses to rewrite a report that was merged into another issue (MERGED_ISSUE)', async () => {
+      const mockIssue = {
+        _id: 'child1',
+        userId: { toString: () => 'user1' },
+        status: 'reported',
+        mergedInto: 'parent1',
+        title: 'Old',
+        save: jest.fn().mockResolvedValue(true),
+      };
+      Issue.findOne.mockResolvedValue(mockIssue);
+
+      await expect(issueService.updateMyIssue('child1', { toString: () => 'user1' }, { title: 'Khác hẳn' }))
+        .rejects.toMatchObject({ statusCode: 400, code: 'MERGED_ISSUE' });
+      expect(Issue.findOneAndUpdate).not.toHaveBeenCalled();
       expect(mockIssue.save).not.toHaveBeenCalled();
     });
   });

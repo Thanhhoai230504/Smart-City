@@ -156,8 +156,8 @@ const findOrCreateGoogleUser = async ({ googleId, email, name, avatar }) => {
 const loginWithGoogleIdToken = async ({ idToken, deviceType, deviceName }) => {
   const profile = await verifyGoogleIdToken(idToken);
   const user = await findOrCreateGoogleUser(profile);
-  // Luồng web dựa vào bước /auth/refresh để chặn tài khoản bị khoá; luồng này
-  // trả access token ngay nên phải tự kiểm tra.
+  // Tài khoản bị khoá không được cấp phiên — luồng web kiểm cùng điều này ở
+  // authController.googleCallback (về /login?error=account_locked).
   if (!user.isActive) {
     throw ApiError.forbidden('Tài khoản đã bị khoá.');
   }

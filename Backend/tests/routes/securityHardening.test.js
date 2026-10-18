@@ -56,6 +56,9 @@ describe('L8 — khong duoc day access token qua URL', () => {
     // Bỏ dòng chú thích: chú thích được phép nhắc lại đoạn code cũ để giải thích.
     const source = raw.replace(/^\s*\/\/.*$/gm, '');
     expect(source).not.toMatch(/failureRedirect:\s*'\/login'/);
-    expect(source).toMatch(/CLIENT_URL[\s\S]*\/login\?error=oauth_failed/);
+    // Địa chỉ tuyệt đối dựng từ CLIENT_URL; hành vi thật (cả lúc state không khớp) kiểm ở
+    // tests/routes/googleOAuthState.test.js.
+    expect(source).toMatch(/CLIENT_URL[\s\S]*\/login\?error=/);
+    expect(source).toMatch(/webLoginUrl\('oauth_failed'\)/);
   });
 });

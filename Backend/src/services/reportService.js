@@ -1,7 +1,8 @@
 const Issue = require('../models/Issue');
 const User = require('../models/User');
-const { sendEmail } = require('./emailService');
+const { sendEmail, isEmailConfigured } = require('./emailService');
 const { escapeHtml: esc } = require('../utils/escapeHtml');
+const ApiError = require('../utils/apiError');
 
 const CATEGORY_VI = { pothole: 'Ổ gà', garbage: 'Rác thải', streetlight: 'Đèn đường', flooding: 'Ngập nước', tree: 'Cây đổ', other: 'Khác' };
 const STATUS_VI = { reported: 'Mới', processing: 'Đang xử lý', resolved: 'Đã xử lý', rejected: 'Từ chối' };
@@ -88,18 +89,50 @@ const generateReport = async (type = 'weekly') => {
   return { html, stats: { total: periodIssues.length, resolved: resolved.length, avgResolveTime, dateRange } };
 };
 
+/**
+ * Gửi báo cáo cho mọi quản trị viên đang hoạt động; trả về số thư gửi được và số thư lỗi.
+ *
+ * Trước đây hàm bỏ qua giá trị trả về của sendEmail (false khi Gmail từ chối hoặc chưa
+ * cấu hình SMTP), nên nút "Gửi báo cáo" luôn báo thành công dù không thư nào đi. Giờ:
+ * chưa cấu hình SMTP → 503 EMAIL_NOT_CONFIGURED; không thư nào đi → 502
+ * EMAIL_SEND_FAILED; một phần lỗi → trả số liệu để nơi gọi báo đúng.
+ *
+ * @returns {Promise<{ total: number, sent: number, failed: number }>}
+ */
 const sendReportToAdmins = async (type = 'weekly') => {
+  if (!isEmailConfigured()) {
+    throw ApiError.serviceUnavailableWithCode(
+      'Máy chủ chưa cấu hình gửi email (SMTP) nên chưa gửi được báo cáo.',
+      'EMAIL_NOT_CONFIGURED'
+    );
+  }
+
   const admins = await User.find({ role: 'admin', isActive: true }).select('email name').lean();
-  if (!admins.length) return;
+  if (!admins.length) {
+    throw ApiError.conflictWithCode(
+      'Không có quản trị viên nào đang hoạt động để nhận báo cáo.',
+      'NO_RECIPIENTS'
+    );
+  }
 
   const { html } = await generateReport(type);
   const label = type === 'weekly' ? 'Tuần' : 'Tháng';
   const subject = `📊 Báo cáo ${label} — Smart City Đà Nẵng — ${new Date().toLocaleDateString('vi-VN')}`;
 
+  let sent = 0;
   for (const admin of admins) {
-    await sendEmail(admin.email, subject, html);
+    if (await sendEmail(admin.email, subject, html)) sent += 1;
   }
-  console.log(`📧 Sent ${type} report to ${admins.length} admin(s)`);
+  const result = { total: admins.length, sent, failed: admins.length - sent };
+
+  if (sent === 0) {
+    throw ApiError.badGatewayWithCode(
+      'Không gửi được báo cáo: máy chủ thư từ chối hoặc không kết nối được. Vui lòng thử lại sau.',
+      'EMAIL_SEND_FAILED'
+    );
+  }
+  console.log(`📧 Báo cáo ${type}: gửi được ${sent}/${result.total} thư`);
+  return result;
 };
 
 module.exports = { generateReport, sendReportToAdmins };

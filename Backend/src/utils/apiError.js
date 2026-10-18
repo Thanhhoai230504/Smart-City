@@ -39,6 +39,9 @@ class ApiError extends Error {
    *   DEPARTMENT_INACTIVE (403) - đơn vị của cán bộ đã bị vô hiệu hoá (middleware/auth.js)
    *   NOT_IN_DEPARTMENT (403)   - phiếu không thuộc đơn vị của cán bộ (services/assignmentService.js)
    *   NOT_ASSIGNEE (403)        - cán bộ chưa nhận việc / phiếu đang do cán bộ khác phụ trách
+   *   EMAIL_NOT_CONFIGURED (503)- máy chủ chưa cấu hình SMTP nên không gửi được thư (services/reportService.js)
+   *   EMAIL_SEND_FAILED (502)   - máy chủ thư từ chối hoặc không kết nối được, không thư nào đi
+   *   NO_RECIPIENTS (409)       - không có quản trị viên nào đang hoạt động để nhận báo cáo
    */
   static badRequestWithCode(message, code) {
     const error = new ApiError(400, message);
@@ -78,6 +81,20 @@ class ApiError extends Error {
 
   static serviceUnavailable(message) {
     return new ApiError(503, message || 'Service unavailable');
+  }
+
+  /** Tính năng chưa sẵn sàng trên máy chủ (503), kèm mã máy đọc được. */
+  static serviceUnavailableWithCode(message, code) {
+    const error = new ApiError(503, message);
+    error.code = code;
+    return error;
+  }
+
+  /** Dịch vụ bên ngoài (máy chủ thư...) từ chối hoặc không trả lời (502), kèm mã. */
+  static badGatewayWithCode(message, code) {
+    const error = new ApiError(502, message);
+    error.code = code;
+    return error;
   }
 }
 

@@ -1,9 +1,14 @@
 jest.mock('../../src/models/Issue');
 jest.mock('../../src/models/User');
-jest.mock('../../src/services/emailService', () => ({ sendEmail: jest.fn().mockResolvedValue(true) }));
+jest.mock('../../src/services/emailService', () => ({
+  sendEmail: jest.fn().mockResolvedValue(true),
+  isEmailConfigured: jest.fn().mockReturnValue(true),
+}));
 
 const Issue = require('../../src/models/Issue');
-const { generateReport } = require('../../src/services/reportService');
+const User = require('../../src/models/User');
+const { sendEmail, isEmailConfigured } = require('../../src/services/emailService');
+const { generateReport, sendReportToAdmins } = require('../../src/services/reportService');
 
 /** Chuỗi `.sort().limit().select().lean()` của Mongoose, trả về `rows` ở cuối. */
 const chain = (rows) => {
@@ -49,5 +54,50 @@ describe('reportService.generateReport', () => {
     mockData();
     const { html } = await generateReport('monthly');
     expect(html).toContain('Báo cáo Tháng');
+  });
+});
+
+// Trước đây giá trị trả về của sendEmail bị bỏ qua: Gmail từ chối hay chưa cấu hình SMTP
+// thì nút "Gửi báo cáo" vẫn báo thành công.
+describe('reportService.sendReportToAdmins', () => {
+  const admins = [{ email: 'a1@example.com' }, { email: 'a2@example.com' }];
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockData();
+    isEmailConfigured.mockReturnValue(true);
+    sendEmail.mockResolvedValue(true);
+    User.find.mockReturnValue({ select: jest.fn(() => ({ lean: jest.fn().mockResolvedValue(admins) })) });
+  });
+
+  it('returns how many emails actually went out', async () => {
+    await expect(sendReportToAdmins('weekly')).resolves.toEqual({ total: 2, sent: 2, failed: 0 });
+    expect(sendEmail).toHaveBeenCalledTimes(2);
+  });
+
+  it('reports a partial failure instead of plain success', async () => {
+    sendEmail.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    await expect(sendReportToAdmins('weekly')).resolves.toEqual({ total: 2, sent: 1, failed: 1 });
+  });
+
+  it('fails with EMAIL_SEND_FAILED (502) when no email went out', async () => {
+    sendEmail.mockResolvedValue(false);
+    await expect(sendReportToAdmins('monthly'))
+      .rejects.toMatchObject({ statusCode: 502, code: 'EMAIL_SEND_FAILED' });
+  });
+
+  it('fails with EMAIL_NOT_CONFIGURED (503) before building the report when SMTP is missing', async () => {
+    isEmailConfigured.mockReturnValue(false);
+    await expect(sendReportToAdmins('weekly'))
+      .rejects.toMatchObject({ statusCode: 503, code: 'EMAIL_NOT_CONFIGURED' });
+    expect(User.find).not.toHaveBeenCalled();
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('fails with NO_RECIPIENTS when there is no active admin', async () => {
+    User.find.mockReturnValue({ select: jest.fn(() => ({ lean: jest.fn().mockResolvedValue([]) })) });
+    await expect(sendReportToAdmins('weekly'))
+      .rejects.toMatchObject({ statusCode: 409, code: 'NO_RECIPIENTS' });
+    expect(sendEmail).not.toHaveBeenCalled();
   });
 });

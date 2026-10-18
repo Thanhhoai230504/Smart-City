@@ -215,7 +215,7 @@ Bản mẫu đầy đủ nằm ở [`Backend/.env.example`](Backend/.env.example
 | `MONGODB_URI` | ✅ | Chuỗi kết nối MongoDB |
 | `JWT_SECRET`, `JWT_REFRESH_SECRET` | ✅ | Khoá ký token, mỗi khoá ≥ 32 ký tự và hai khoá phải khác nhau |
 | `CLIENT_URL` | khuyến nghị | Địa chỉ web, dùng cho CORS và liên kết trong email |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | ✅ | Đăng nhập Google; server không khởi động nếu thiếu |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | tuỳ chọn | Đăng nhập Google; thiếu thì máy chủ vẫn chạy, chỉ tắt đăng nhập Google |
 | `CLOUDINARY_*` | tuỳ chọn | Lưu ảnh sự cố |
 | `GEMINI_API_KEY` | tuỳ chọn | AI phân loại, chatbot, dò trùng; thiếu thì dùng phương án dự phòng |
 | `SMTP_EMAIL`, `SMTP_PASSWORD` | tuỳ chọn | Gửi email qua Gmail |
@@ -227,9 +227,9 @@ Web đọc `VITE_API_URL` và `VITE_SOCKET_URL` (mặc định trỏ backend c�
 
 | Thành phần | Lệnh | Kết quả (18/10/2026) |
 |---|---|---|
-| Backend | `cd Backend && npm test` | 93 bộ, 914 test đều qua |
-| Web | `cd Frontend && npm test` | 225 test đều qua; `npx tsc --noEmit` và `npm run lint` không có lỗi |
-| Ứng dụng | `cd App && flutter analyze && flutter test` | `flutter analyze` không báo lỗi; 330 test đều qua |
+| Backend | `cd Backend && npm test` | 99 bộ, 957 test đều qua |
+| Web | `cd Frontend && npm test` | 233 test đều qua; `npx tsc --noEmit` và `npm run lint` không có lỗi |
+| Ứng dụng | `cd App && flutter analyze && flutter test` | `flutter analyze` không báo lỗi; 333 test đều qua |
 
 Mỗi lần push hoặc mở pull request, [GitHub Actions](.github/workflows/ci.yml) chạy 4 nhóm việc:
 - **Web**: lint, kiểm tra kiểu, test và build, trên Node 18 và 20.

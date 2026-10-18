@@ -381,8 +381,9 @@ const createIssue = async ({
   }));
   const primaryImage = uploadedImages[0] || null;
 
+  let issue;
   try {
-    const issue = await Issue.create({
+    issue = await Issue.create({
       title,
       description,
       category,
@@ -402,60 +403,6 @@ const createIssue = async ({
         note: 'Sự cố được báo cáo'
       }]
     });
-
-    await issue.populate('userId', 'name email');
-    enqueuePriorityRecalculation(issue._id);
-    enqueueIssueEmbedding(issue._id);
-
-    // Notify all admins
-    try {
-      const adminUsers = await User.find({ role: 'admin', isActive: true }).select('_id');
-      const io = getIO();
-
-      for (const admin of adminUsers) {
-        const notification = await Notification.create({
-          userId: admin._id,
-          type: 'issue_created',
-          title: 'Sự cố mới',
-          message: `${user.name || 'Người dùng'} đã báo cáo sự cố "${issue.title}"`,
-          issueId: issue._id
-        });
-        io.to(`user_${admin._id}`).emit('notification:new', notification);
-      }
-
-      // Bản tóm tắt thay vì nguyên document (kèm SĐT, email người báo cáo): web và app
-      // chỉ dùng id để tải lại qua API, nơi áp đúng quyền xem.
-      io.to('admins').emit('issue:created', {
-        message: `Sự cố mới: ${issue.title}`,
-        issue: toRealtimeIssueSummary(issue)
-      });
-
-      // Notify district watchers — district đã được model chuẩn hoá lúc save
-      const issueDistrict = DA_NANG_DISTRICTS.includes(issue.district) ? issue.district : null;
-
-      if (issueDistrict) {
-        const watchers = await User.find({
-          watchedDistricts: issueDistrict,
-          _id: { $ne: user.id },
-          isActive: true,
-        }).select('_id');
-
-        for (const watcher of watchers) {
-          const watchNotif = await Notification.create({
-            userId: watcher._id,
-            type: 'area_alert',
-            title: 'Sự cố mới trong khu vực theo dõi',
-            message: `Sự cố "${issue.title}" tại ${issue.location}`,
-            issueId: issue._id,
-          });
-          io.to(`user_${watcher._id}`).emit('notification:new', watchNotif);
-        }
-      }
-    } catch (socketError) {
-      console.warn('Socket.io/Notification error:', socketError.message);
-    }
-
-    return issue;
   } catch (error) {
     // Multer đã upload tất cả file trước khi service ghi MongoDB. Nếu ghi lỗi,
     // phải thu hồi từng ảnh; lỗi xoá một ảnh không được cản việc xoá ảnh sau.
@@ -470,6 +417,68 @@ const createIssue = async ({
     }
     throw error;
   }
+
+  // Từ đây phiếu đã lưu cùng ảnh: các bước sau không được làm request thất bại. Trước
+  // đây chúng nằm chung khối try với lệnh ghi, nên một lỗi ở bước điền tên người báo cáo
+  // cũng xoá ảnh của chính phiếu vừa tạo; còn middleware/uploadImages.js thu hồi ảnh
+  // của mọi request kết thúc bằng lỗi.
+  try {
+    await issue.populate('userId', 'name email');
+  } catch (populateError) {
+    console.warn('Không điền được người báo cáo cho phiếu vừa tạo:', populateError.message);
+  }
+  enqueuePriorityRecalculation(issue._id);
+  enqueueIssueEmbedding(issue._id);
+
+  // Notify all admins
+  try {
+    const adminUsers = await User.find({ role: 'admin', isActive: true }).select('_id');
+    const io = getIO();
+
+    for (const admin of adminUsers) {
+      const notification = await Notification.create({
+        userId: admin._id,
+        type: 'issue_created',
+        title: 'Sự cố mới',
+        message: `${user.name || 'Người dùng'} đã báo cáo sự cố "${issue.title}"`,
+        issueId: issue._id
+      });
+      io.to(`user_${admin._id}`).emit('notification:new', notification);
+    }
+
+    // Bản tóm tắt thay vì nguyên document (kèm SĐT, email người báo cáo): web và app
+    // chỉ dùng id để tải lại qua API, nơi áp đúng quyền xem.
+    io.to('admins').emit('issue:created', {
+      message: `Sự cố mới: ${issue.title}`,
+      issue: toRealtimeIssueSummary(issue)
+    });
+
+    // Notify district watchers — district đã được model chuẩn hoá lúc save
+    const issueDistrict = DA_NANG_DISTRICTS.includes(issue.district) ? issue.district : null;
+
+    if (issueDistrict) {
+      const watchers = await User.find({
+        watchedDistricts: issueDistrict,
+        _id: { $ne: user.id },
+        isActive: true,
+      }).select('_id');
+
+      for (const watcher of watchers) {
+        const watchNotif = await Notification.create({
+          userId: watcher._id,
+          type: 'area_alert',
+          title: 'Sự cố mới trong khu vực theo dõi',
+          message: `Sự cố "${issue.title}" tại ${issue.location}`,
+          issueId: issue._id,
+        });
+        io.to(`user_${watcher._id}`).emit('notification:new', watchNotif);
+      }
+    }
+  } catch (socketError) {
+    console.warn('Socket.io/Notification error:', socketError.message);
+  }
+
+  return issue;
 };
 
 const updateIssueStatus = async (issueId, { status, note, adminUser }) => {
@@ -905,6 +914,44 @@ const assertNoMergedChildren = async (issue, action) => {
   }
 };
 
+/**
+ * Phiếu đã bị gộp vào phiếu khác vẫn ở trạng thái "Mới báo cáo" và vẫn do người báo cáo
+ * đứng tên, nhưng đã là một phần của phiếu gốc: số "báo cáo trùng" của phiếu gốc đếm
+ * nó, ảnh của nó là bằng chứng quản trị viên dựa vào khi gộp. Trước đây người báo cáo
+ * vẫn xoá được (ảnh bị xoá thật trên Cloudinary, số trùng của phiếu gốc lệch) hoặc
+ * viết lại nội dung sau khi đã gộp.
+ */
+const assertNotMerged = (issue, action) => {
+  if (issue.mergedInto) {
+    throw ApiError.badRequestWithCode(
+      `Báo cáo này đã được gộp vào một sự cố khác nên không thể ${action}. Bạn vẫn nhận cập nhật từ sự cố gốc.`,
+      'MERGED_ISSUE'
+    );
+  }
+};
+
+/**
+ * Điều kiện ghi khi người báo cáo sửa/xoá phiếu của mình: những gì vừa kiểm phải còn đúng
+ * ĐÚNG LÚC GHI. Trước đây đọc → kiểm → save(): quản trị viên phân công (chuyển "Đang xử
+ * lý") hoặc gộp phiếu đúng lúc đó thì lệnh save vẫn xoá phiếu (kèm xoá thật ảnh trên
+ * Cloudinary) hoặc viết lại nội dung đã được gộp. Lượt gộp chạy sau lệnh xoá thấy phiếu đã
+ * xoá nên tự hoàn tác (services/duplicateService.js).
+ */
+const ownEditableFilter = (issue) => ({
+  _id: issue._id,
+  userId: issue.userId,
+  isDeleted: false,
+  status: 'reported',
+  mergedInto: null,
+  duplicateCount: { $in: [0, null] },
+});
+
+const ownIssueChanged = () => ApiError.conflictWithCode(
+  'Sự cố vừa được cập nhật (đã tiếp nhận hoặc đã gộp). Vui lòng tải lại trang.',
+  'STATUS_CONFLICT'
+);
+
+/** Trả về bản TRƯỚC khi xoá (cần nó để lấy publicId các ảnh phải xoá trên Cloudinary). */
 const deleteMyIssue = async (issueId, userId) => {
   const issue = await Issue.findOne({ _id: issueId, isDeleted: false });
   if (!issue) throw ApiError.notFound('Không tìm thấy sự cố.');
@@ -912,27 +959,35 @@ const deleteMyIssue = async (issueId, userId) => {
   if (issue.userId.toString() !== userId.toString()) {
     throw ApiError.forbidden('Bạn chỉ được xoá sự cố do chính mình báo cáo.');
   }
+  assertNotMerged(issue, 'xoá');
   if (issue.status !== 'reported') {
     throw ApiError.badRequest('Chỉ xoá được sự cố còn ở trạng thái "Mới báo cáo".');
   }
   await assertNoMergedChildren(issue, 'xoá');
 
-  const publicIds = collectPublicIds(issue);
-  issue.isDeleted = true;
-  issue.deletedAt = new Date();
-  issue.deletedBy = userId;
-  issue.imageUrl = null;
-  issue.imagePublicId = null;
-  issue.images = [];
-  issue.resolutionImages = [];
-  issue.previousRounds = [];
-  await issue.save();
+  const deleted = await Issue.findOneAndUpdate(
+    ownEditableFilter(issue),
+    {
+      $set: {
+        isDeleted: true,
+        deletedAt: new Date(),
+        deletedBy: userId,
+        imageUrl: null,
+        imagePublicId: null,
+        images: [],
+        resolutionImages: [],
+        previousRounds: [],
+      },
+    },
+    { new: false }
+  );
+  if (!deleted) throw ownIssueChanged();
 
-  for (const publicId of publicIds) {
+  for (const publicId of collectPublicIds(deleted)) {
     await destroyIssueImage(publicId);
   }
-  enqueuePriorityRecalculation(issue._id);
-  return issue;
+  enqueuePriorityRecalculation(deleted._id);
+  return deleted;
 };
 
 const updateMyIssue = async (issueId, userId, { title, description }) => {
@@ -942,20 +997,32 @@ const updateMyIssue = async (issueId, userId, { title, description }) => {
   if (issue.userId.toString() !== userId.toString()) {
     throw ApiError.forbidden('Bạn chỉ được sửa sự cố do chính mình báo cáo.');
   }
+  assertNotMerged(issue, 'sửa');
   if (issue.status !== 'reported') {
     throw ApiError.badRequest('Chỉ sửa được sự cố còn ở trạng thái "Mới báo cáo".');
   }
   await assertNoMergedChildren(issue, 'sửa');
 
-  if (title) issue.title = title.trim();
-  if (description) issue.description = description.trim();
-  await issue.save();
-  await issue.populate('userId', 'name email');
+  const changes = {};
+  if (title) changes.title = title.trim();
+  if (description) changes.description = description.trim();
+  if (!Object.keys(changes).length) {
+    await issue.populate('userId', 'name email');
+    return issue;
+  }
 
-  await markIssueEmbeddingPending(issue._id);
-  enqueueIssueEmbedding(issue._id);
+  const updated = await Issue.findOneAndUpdate(
+    ownEditableFilter(issue),
+    { $set: changes },
+    { new: true, runValidators: true }
+  );
+  if (!updated) throw ownIssueChanged();
+  await updated.populate('userId', 'name email');
 
-  return issue;
+  await markIssueEmbeddingPending(updated._id);
+  enqueueIssueEmbedding(updated._id);
+
+  return updated;
 };
 
 /**

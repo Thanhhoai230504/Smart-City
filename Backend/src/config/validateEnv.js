@@ -28,6 +28,9 @@ const OPTIONAL = [
   ['CLOUDINARY_API_SECRET', 'upload ảnh sự cố'],
   ['SMTP_EMAIL', 'gửi email thông báo và xác thực'],
   ['SMTP_PASSWORD', 'gửi email thông báo và xác thực'],
+  // Trước đây thiếu GOOGLE_CLIENT_ID thì máy chủ không khởi động được (config/passport.js).
+  ['GOOGLE_CLIENT_ID', 'đăng nhập Google trên web và app'],
+  ['GOOGLE_CLIENT_SECRET', 'đăng nhập Google trên web'],
   ['GEMINI_API_KEY', 'phân loại ảnh bằng AI, chatbot, phát hiện trùng'],
   ['GOONG_API_KEY', 'tra cứu địa chỉ và toạ độ'],
   ['TOMTOM_API_KEY', 'lớp giao thông và chỉ đường'],
