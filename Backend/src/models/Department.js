@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const { ISSUE_CATEGORIES } = require('../utils/slaConfig');
+const { EMAIL_PATTERN } = require('../utils/emailFormat');
 
 /**
  * Đơn vị xử lý sự cố (sở/ngành/công ty công ích).
@@ -32,7 +33,8 @@ const departmentSchema = new mongoose.Schema({
     type: String,
     lowercase: true,
     trim: true,
-    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,})+$/, 'Email không hợp lệ'],
+    // Cùng biểu thức với User, chạy tuyến tính (utils/emailFormat.js).
+    match: [EMAIL_PATTERN, 'Email không hợp lệ'],
     default: null
   },
   phone: {
