@@ -12,6 +12,7 @@ import {
 } from '@mui/icons-material';
 import { rememberPostLoginPath, resolvePostLoginPath } from '../../utils/authRedirect';
 import { googleAuthUrl } from '../../utils/constants';
+import { oauthErrorMessage } from '../../utils/oauthError';
 import AuthShell, { AuthDivider, AuthSubmitButton, GoogleButton } from '../../components/AuthShell';
 import { authFieldSx, authLinkSx } from '../../components/authStyles';
 import { GradientText } from '../Home/SectionHeading';
@@ -36,10 +37,7 @@ const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
 
-  const oauthError = searchParams.get('error');
-  const oauthErrorMessage = oauthError === 'account_locked'
-    ? 'Tài khoản của bạn đã bị khoá. Vui lòng liên hệ quản trị viên.'
-    : 'Đăng nhập bằng Google thất bại. Vui lòng thử lại.';
+  const oauthError = oauthErrorMessage(searchParams.get('error'));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,7 +69,7 @@ const LoginPage: React.FC = () => {
     >
       {(error || oauthError) && (
         <Alert severity="error" sx={{ mb: 3, borderRadius: '12px' }} onClose={() => dispatch(clearError())}>
-          {error || oauthErrorMessage}
+          {error || oauthError}
         </Alert>
       )}
 

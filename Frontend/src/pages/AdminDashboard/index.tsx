@@ -151,7 +151,7 @@ const AdminDashboard: React.FC = () => {
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [reportNotice, setReportNotice] = useState<{
     open: boolean;
-    severity: 'success' | 'error';
+    severity: 'success' | 'warning' | 'error';
     message: string;
   }>({ open: false, severity: 'success', message: '' });
   const [searchParams, setSearchParams] = useSearchParams();
@@ -183,9 +183,10 @@ const AdminDashboard: React.FC = () => {
     })();
   }, [isAuthenticated, currentUser]);
 
-  // Gửi báo cáo không hoàn tác được nên luôn đi qua bước xem trước.
-  const handleReportSent = (message: string) => {
-    setReportNotice({ open: true, severity: 'success', message });
+  // Gửi báo cáo không hoàn tác được nên luôn đi qua bước xem trước. Gửi được một phần
+  // (còn thư lỗi) thì báo dạng cảnh báo, không phải "thành công".
+  const handleReportSent = (message: string, severity: 'success' | 'warning') => {
+    setReportNotice({ open: true, severity, message });
   };
 
   const districtData = (stats?.issuesByDistrict || []).filter((item) => item.count > 0);

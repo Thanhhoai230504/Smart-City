@@ -29,7 +29,8 @@ interface ReportStats {
 interface ReportPreviewDialogProps {
   open: boolean;
   onClose: () => void;
-  onSent: (message: string) => void;
+  /** `warning`: máy chủ gửi được một phần, còn thư gửi lỗi. */
+  onSent: (message: string, severity: 'success' | 'warning') => void;
 }
 
 /**
@@ -80,8 +81,11 @@ const ReportPreviewDialog: React.FC<ReportPreviewDialogProps> = ({ open, onClose
     setSending(true);
     setError('');
     try {
+      // Không thư nào đi thì máy chủ trả lỗi (502/503) và rơi vào catch bên dưới. Trước đây
+      // máy chủ luôn báo thành công dù Gmail từ chối hay chưa cấu hình SMTP.
       const { data } = await dashboardApi.sendReport(type);
-      onSent(data.message || 'Đã gửi báo cáo đến email quản trị.');
+      const failed = Number(data.data?.failed) || 0;
+      onSent(data.message || 'Đã gửi báo cáo đến email quản trị.', failed > 0 ? 'warning' : 'success');
       onClose();
     } catch (err) {
       setError(getApiErrorMessage(err, 'Không thể gửi báo cáo. Vui lòng thử lại.'));

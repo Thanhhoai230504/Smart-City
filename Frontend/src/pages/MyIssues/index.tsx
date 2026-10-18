@@ -13,6 +13,7 @@ import { LocationOn, AccessTime, Delete, Edit } from '@mui/icons-material';
 import { CATEGORY_MAP, STATUS_MAP } from '../../utils/constants';
 import { timeAgo } from '../../utils/helpers';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { canReporterModifyIssue } from '../../utils/myIssue';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { toast } from 'react-toastify';
 import { SOCKET_RECONNECTED, useSocket } from '../../hooks/useSocket';
@@ -110,7 +111,7 @@ const MyIssuesPage: React.FC = () => {
           {myIssues.map((issue) => {
             const cat = CATEGORY_MAP[issue.category] || CATEGORY_MAP.other;
             const st = STATUS_MAP[issue.status] || STATUS_MAP.reported;
-            const canModify = issue.status === 'reported';
+            const canModify = canReporterModifyIssue(issue);
             return (
               <Card key={issue._id} onClick={() => navigate(`/issues/${issue._id}`)}
                 sx={{ cursor: 'pointer', transition: 'all 0.2s', '&:hover': { borderColor: 'primary.main', transform: 'translateX(4px)' } }}>
