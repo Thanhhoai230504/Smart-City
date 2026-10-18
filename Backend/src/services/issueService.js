@@ -723,10 +723,11 @@ const addResolutionImages = async (issueId, files, user) => {
 
     // Phiếu đã đóng thì bộ minh chứng của lượt đó đã được người dân xem và chấm
     // điểm — thêm ảnh lúc này là sửa căn cứ sau khi đã đánh giá. Cần xử lý tiếp
-    // thì mở lại phiếu (lượt mới, xem utils/issueRounds.js).
+    // thì quản trị viên mở lại phiếu (lượt mới, xem utils/issueRounds.js); cán bộ
+    // không tự mở lại được (REOPEN_ADMIN_ONLY).
     if (CLOSED_STATUSES.includes(issue.status)) {
       throw ApiError.badRequestWithCode(
-        'Sự cố đã đóng, không thể thêm ảnh minh chứng. Hãy mở lại sự cố nếu cần xử lý tiếp.',
+        'Sự cố đã đóng, không thể thêm ảnh minh chứng. Cần xử lý tiếp thì quản trị viên mở lại sự cố trước.',
         'ISSUE_CLOSED'
       );
     }
@@ -761,7 +762,27 @@ const addResolutionImages = async (issueId, files, user) => {
       { new: true, runValidators: true }
     ).select('resolutionImages');
 
-    if (!updated) throw tooMany();
+    if (!updated) {
+      // Không ghi được: hoặc lần tải song song đã lấp chỗ, hoặc phiếu vừa đổi giữa lúc
+      // kiểm và lúc ghi (đóng, bị gộp, bị xoá, giao lại cho người/đơn vị khác). Trường
+      // hợp sau báo đúng là dữ liệu đã cũ để client tải lại, thay vì câu "tối đa 5 ảnh".
+      const latest = await Issue.findOne({ _id: issueId })
+        .select('status departmentId assigneeId mergedInto isDeleted')
+        .lean();
+      const stillWritable = latest && !latest.isDeleted && !latest.mergedInto
+        && !CLOSED_STATUSES.includes(latest.status)
+        && (user?.role !== 'staff' || (
+          String(latest.departmentId) === String(issue.departmentId)
+          && String(latest.assigneeId) === String(user.id)
+        ));
+      if (!stillWritable) {
+        throw ApiError.conflictWithCode(
+          'Sự cố vừa được cập nhật (đóng, gộp hoặc giao lại). Vui lòng tải lại trang.',
+          'STATUS_CONFLICT'
+        );
+      }
+      throw tooMany();
+    }
 
     return updated.resolutionImages;
   } catch (error) {

@@ -21,7 +21,7 @@ export const SOCKET_RECONNECTED = 'reconnect';
 
 /**
  * Sự kiện tự phát: server chủ động ngắt kết nối vì quyền của tài khoản vừa đổi (đổi vai
- * trò, gán/bỏ đơn vị, khoá, đổi mật khẩu — xem backend config/socket.js). Nơi nghe tải
+ * trò, gán/bỏ đơn vị, khoá, đặt lại mật khẩu — xem backend config/socket.js). Nơi nghe tải
  * lại hồ sơ để menu và các trang được phép vào khớp với quyền mới.
  */
 export const SOCKET_SESSION_CHANGED = 'session:changed';

@@ -122,7 +122,8 @@ const staffMiddleware = (req, res, next) => {
 /**
  * Xác thực tuỳ chọn: gắn `req.user` nếu có token hợp lệ, còn không thì cho đi
  * tiếp như khách. Dùng cho route công khai nhưng cần biết người gọi là ai —
- * ví dụ GET /api/issues phải bó phạm vi khi người gọi là cán bộ.
+ * ví dụ GET /api/issues/:id quyết định có trả SĐT, email người báo cáo hay không.
+ * (GET /api/issues không dùng nữa: danh sách công khai như nhau cho mọi người.)
  * Token sai/hết hạn không trả 401 để không làm hỏng trải nghiệm khách xem công khai.
  */
 const optionalAuthMiddleware = async (req, res, next) => {

@@ -897,6 +897,19 @@ describe('IssueService', () => {
       expect(Issue.findOneAndUpdate).not.toHaveBeenCalled();
       expect(cloudinary.uploader.destroy).toHaveBeenCalledWith('after/0');
     });
+
+    // Phiếu vừa bị giao cho người khác giữa lúc kiểm và lúc ghi: báo dữ liệu đã cũ để
+    // client tải lại, không phải câu "tối đa 5 ảnh".
+    it('a reassignment between check and write is reported as STATUS_CONFLICT, not "too many photos"', async () => {
+      Issue.findOne
+        .mockReturnValueOnce(mockQuery({ _id: 'i1', status: 'processing', departmentId: 'deptA', assigneeId: 'staff1', resolutionImages: [] }))
+        .mockReturnValueOnce(mockQuery({ _id: 'i1', status: 'processing', departmentId: 'deptA', assigneeId: 'staff2' }));
+      Issue.findOneAndUpdate.mockReturnValue(mockQuery(null));
+
+      await expect(issueService.addResolutionImages('i1', files(1), staff))
+        .rejects.toMatchObject({ statusCode: 409, code: 'STATUS_CONFLICT' });
+      expect(cloudinary.uploader.destroy).toHaveBeenCalledWith('after/0');
+    });
   });
 
   describe('deleteIssue()', () => {
