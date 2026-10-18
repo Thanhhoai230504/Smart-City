@@ -15,6 +15,7 @@ import '../../data/models/common.dart';
 import '../../data/models/issue.dart';
 import '../../data/repositories/issue_repository.dart';
 import '../../data/repositories/meta_repository.dart';
+import '../issues/issue_rules.dart';
 import '../issues/widgets/filter_bar.dart';
 import '../issues/widgets/issue_card.dart';
 import '../report/offline_queue.dart';
@@ -41,8 +42,9 @@ class MyIssuesController extends PagedController<Issue> {
 final myIssuesProvider =
     AutoDisposeNotifierProvider<MyIssuesController, PagedState<Issue>>(MyIssuesController.new);
 
-/// "Sự cố của tôi" (task 3.7). Sửa/xoá **chỉ khi `status === 'reported'`** —
-/// đúng ràng buộc backend; phiếu `processing` không hiện nút sửa.
+/// "Sự cố của tôi" (task 3.7). Sửa/xoá **chỉ khi phiếu còn "Mới báo cáo", chưa bị
+/// gộp và chưa có báo cáo nào gộp vào** (`Issue.isEditableByReporter`) — đúng ràng
+/// buộc backend; còn lại hiện lý do (`reporterLockReason`).
 class MyIssuesScreen extends ConsumerWidget {
   const MyIssuesScreen({super.key});
 
@@ -70,10 +72,10 @@ class MyIssuesScreen extends ConsumerWidget {
                 onTap: () => Navigator.pop(ctx, 'delete'),
               ),
             ] else
-              const ListTile(
-                leading: Icon(Icons.lock_outline),
-                title: Text('Không sửa được nữa'),
-                subtitle: Text('Phiếu đã được tiếp nhận nên chỉ sửa/xoá được khi còn "Mới báo cáo".'),
+              ListTile(
+                leading: const Icon(Icons.lock_outline),
+                title: const Text('Không sửa được nữa'),
+                subtitle: Text(reporterLockReason(issue) ?? ''),
               ),
           ],
         ),

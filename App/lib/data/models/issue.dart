@@ -348,9 +348,13 @@ class Issue {
 
   bool get isMerged => mergedInto != null;
 
-  /// Người dân chỉ sửa/xoá phiếu của mình khi còn `reported` (ràng buộc của
-  /// `updateMyIssue`/`deleteMyIssue` ở backend).
-  bool get isEditableByReporter => status == IssueStatus.reported;
+  /// Người dân chỉ sửa/xoá phiếu của mình khi còn `reported`, chưa bị gộp vào phiếu
+  /// khác và chưa có báo cáo nào gộp vào nó — cùng ràng buộc của
+  /// `updateMyIssue`/`deleteMyIssue` ở backend (MERGED_ISSUE, MERGED_INTO_THIS).
+  /// Trước đây chỉ xét trạng thái: phiếu đã có báo cáo trùng gộp vào vẫn hiện nút,
+  /// bấm mới bị máy chủ từ chối.
+  bool get isEditableByReporter =>
+      status == IssueStatus.reported && !isMerged && duplicateCount == 0;
 
   /// Mốc đóng phiếu — cùng thứ tự với `getClosedAt()` ở backend
   /// (`reopenConfig.js`): lần đóng gần nhất trong `statusHistory`, rồi

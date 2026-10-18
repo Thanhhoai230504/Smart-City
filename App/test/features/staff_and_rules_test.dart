@@ -20,6 +20,7 @@ Issue _issue({
   List<Map<String, Object?>> history = const [],
   String? resolvedAt,
   Object? mergedInto,
+  int duplicateCount = 0,
   Map<String, Object?>? rating,
 }) =>
     Issue.fromJson({
@@ -30,6 +31,7 @@ Issue _issue({
       'statusHistory': history,
       'resolvedAt': resolvedAt,
       'mergedInto': mergedInto,
+      'duplicateCount': duplicateCount,
       'rating': rating,
     });
 
@@ -110,6 +112,36 @@ void main() {
       expect(canRateIssue(_issue(status: 'processing'), 'u1'), isFalse);
       expect(canRateIssue(_issue(rating: {'score': 4}), 'u1'), isFalse);
       expect(canRateIssue(_issue(mergedInto: 'x'), 'u1'), isFalse);
+    });
+  });
+
+  group('Sửa/xoá phiếu của mình — cùng điều kiện với updateMyIssue/deleteMyIssue', () {
+    test('còn "Mới báo cáo", chưa dính tới gộp phiếu → được', () {
+      expect(_issue(status: 'reported').isEditableByReporter, isTrue);
+    });
+
+    test('không cho: đã tiếp nhận, đã bị gộp vào phiếu khác, đã có báo cáo khác gộp vào', () {
+      expect(_issue(status: 'processing').isEditableByReporter, isFalse);
+      expect(_issue(status: 'reported', mergedInto: 'x').isEditableByReporter, isFalse);
+      expect(_issue(status: 'reported', duplicateCount: 2).isEditableByReporter, isFalse);
+    });
+
+    // Trước đây mọi trường hợp đều hiện "Phiếu đã được tiếp nhận…", sai với phiếu còn
+    // "Mới báo cáo" nhưng đã có báo cáo khác gộp vào.
+    test('lý do khoá đúng từng trường hợp, và chỉ null khi còn sửa/xoá được', () {
+      final cases = [
+        _issue(status: 'reported'),
+        _issue(status: 'processing'),
+        _issue(status: 'reported', mergedInto: 'x'),
+        _issue(status: 'reported', duplicateCount: 2),
+      ];
+      for (final issue in cases) {
+        expect(reporterLockReason(issue) == null, issue.isEditableByReporter);
+      }
+      final reasons = cases.skip(1).map(reporterLockReason).toList();
+      expect(reasons.toSet().length, 3);
+      expect(reporterLockReason(_issue(status: 'reported', mergedInto: 'x')), contains('gộp vào một sự cố khác'));
+      expect(reporterLockReason(_issue(status: 'reported', duplicateCount: 2)), contains('liên hệ quản trị viên'));
     });
   });
 

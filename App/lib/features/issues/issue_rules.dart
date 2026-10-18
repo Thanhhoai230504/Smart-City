@@ -83,6 +83,22 @@ bool canRateIssue(Issue issue, String? userId) {
   return !issue.rating.isRated;
 }
 
+/// Vì sao người báo cáo không còn sửa/xoá được phiếu của mình — cùng thứ tự kiểm với
+/// `updateMyIssue`/`deleteMyIssue` ở backend (`MERGED_ISSUE`, trạng thái,
+/// `MERGED_INTO_THIS`). `null` nghĩa là còn sửa/xoá được (`Issue.isEditableByReporter`).
+String? reporterLockReason(Issue issue) {
+  if (issue.isMerged) {
+    return 'Báo cáo đã được gộp vào một sự cố khác; bạn tiếp tục theo dõi ở sự cố gốc.';
+  }
+  if (issue.status != IssueStatus.reported) {
+    return 'Phiếu đã được tiếp nhận nên chỉ sửa/xoá được khi còn "Mới báo cáo".';
+  }
+  if (issue.duplicateCount > 0) {
+    return 'Đã có báo cáo khác được gộp vào phiếu này; cần thay đổi thì liên hệ quản trị viên.';
+  }
+  return null;
+}
+
 /// Cán bộ có xử lý được phiếu này không — mirror `assertCanHandleIssue`.
 bool staffCanHandle(Issue issue, {required String? departmentId}) =>
     departmentId != null && issue.department?.id == departmentId && !issue.isMerged;
