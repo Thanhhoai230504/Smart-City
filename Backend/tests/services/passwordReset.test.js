@@ -72,16 +72,52 @@ describe('authService — quên mật khẩu (B7)', () => {
       expect(sendEmail).not.toHaveBeenCalled();
     });
 
-    // Tài khoản Google không có mật khẩu để đặt lại — service lọc provider:'local'
-    // ngay ở query nên không bao giờ gửi mail cho họ.
-    it('only looks up local accounts', async () => {
-      User.findOne.mockReturnValue({ select: jest.fn().mockResolvedValue(null) });
+    // Tài khoản tạo bằng Google không có mật khẩu để đặt lại. Trước đây chúng bị im
+    // lặng bỏ qua (người dùng chờ mãi không có thư); nay nhận thư nhắc đăng nhập bằng
+    // Google, và không có token nào được cấp.
+    it('sends a Google-only account a sign-in reminder instead of a reset link', async () => {
+      const user = localUser({ provider: 'google', password: undefined });
+      User.findOne.mockReturnValue({ select: jest.fn().mockResolvedValue(user) });
+
+      await expect(authService.forgotPassword('a@example.com')).resolves.toEqual({ sent: true });
+
+      expect(sendEmail).toHaveBeenCalledTimes(1);
+      const [to, subject, html] = sendEmail.mock.calls[0];
+      expect(to).toBe('a@example.com');
+      expect(subject).toMatch(/Google/);
+      expect(html).toContain('/login');
+      expect(html).not.toContain('reset-password');
+      expect(user.passwordResetTokenHash).toBeUndefined();
+      expect(user.passwordResetSentAt).toBeInstanceOf(Date);
+    });
+
+    // Liên kết từ tài khoản local đã xác thực thì giữ mật khẩu (googleAuthService),
+    // vẫn đăng nhập bằng mật khẩu được — nên phải đặt lại được như thường.
+    it('lets a Google account that kept its password reset it as usual', async () => {
+      const user = localUser({ provider: 'google', password: '$2a$10$hash' });
+      User.findOne.mockReturnValue({ select: jest.fn().mockResolvedValue(user) });
 
       await authService.forgotPassword('a@example.com');
 
-      expect(User.findOne).toHaveBeenCalledWith(
-        expect.objectContaining({ provider: 'local' })
-      );
+      expect(sendEmail.mock.calls[0][2]).toMatch(/reset-password\?token=[a-f0-9]{64}/);
+      expect(user.passwordResetTokenHash).toMatch(/^[a-f0-9]{64}$/);
+    });
+
+    it('applies the same cooldown to the Google reminder', async () => {
+      const user = localUser({ provider: 'google', password: undefined, passwordResetSentAt: new Date() });
+      User.findOne.mockReturnValue({ select: jest.fn().mockResolvedValue(user) });
+
+      await authService.forgotPassword('a@example.com');
+
+      expect(sendEmail).not.toHaveBeenCalled();
+    });
+
+    it('looks the address up without filtering by provider', async () => {
+      User.findOne.mockReturnValue({ select: jest.fn().mockResolvedValue(null) });
+
+      await authService.forgotPassword('  A@Example.com ');
+
+      expect(User.findOne).toHaveBeenCalledWith({ email: 'a@example.com' });
     });
 
     it('honours a cooldown so one address cannot be mail-bombed', async () => {

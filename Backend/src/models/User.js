@@ -14,7 +14,13 @@ const userSchema = new mongoose.Schema({
     unique: true,
     lowercase: true,
     trim: true,
-    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
+    // Chỉ kiểm tối thiểu: không khoảng trắng, đúng một @, tên miền có ít nhất một dấu
+    // chấm và không có nhãn rỗng; kiểm chặt hơn là việc của isEmail() ở validator.
+    // Biểu thức cũ `^\w+([.-]?\w+)*@…(\.\w{2,3})+$` vừa từ chối địa chỉ hợp lệ
+    // (ten+thu@gmail.com, đuôi .info/.email), vừa lồng lượng từ nên một chuỗi dài vài
+    // chục ký tự soạn sẵn đủ làm treo tiến trình (ReDoS). Ở đây mỗi nhãn tên miền không
+    // chứa dấu chấm nên mỗi chuỗi chỉ có một cách khớp, thời gian chạy tuyến tính.
+    match: [/^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/, 'Email không hợp lệ']
   },
   password: {
     type: String,

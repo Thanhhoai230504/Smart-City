@@ -292,9 +292,43 @@ const buildPasswordResetEmail = ({ userName, resetUrl, expiresMinutes }) => `
     </div>
   </div>`;
 
+/**
+ * Trả lời "Quên mật khẩu" cho tài khoản chỉ đăng nhập bằng Google: không có mật khẩu
+ * để đặt lại, nên nhắc người dùng bấm "Đăng nhập bằng Google" thay vì im lặng.
+ */
+const buildGoogleSignInReminderEmail = ({ userName, loginUrl }) => `
+  <div style="font-family:'Segoe UI',Roboto,Arial,sans-serif;max-width:560px;margin:0 auto;background:#1a1a2e;border-radius:16px;overflow:hidden">
+    <div style="background:linear-gradient(135deg,#0EA5E9,#10B981);padding:30px 32px;text-align:center">
+      <h1 style="margin:0;font-size:22px;color:#fff;font-weight:700">🏙️ Smart City Đà Nẵng</h1>
+      <p style="margin:7px 0 0;color:rgba(255,255,255,0.85);font-size:14px">Tài khoản đăng nhập bằng Google</p>
+    </div>
+    <div style="padding:30px 32px">
+      <p style="color:#e2e8f0;font-size:15px;margin:0 0 18px">Xin chào <strong>${esc(userName)}</strong>,</p>
+      <p style="color:#9CA3AF;font-size:14px;line-height:1.7;margin:0 0 14px">
+        Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho địa chỉ email này. Tài khoản của bạn
+        được tạo bằng <strong style="color:#e2e8f0">Đăng nhập bằng Google</strong> nên không có mật khẩu riêng để đặt lại.
+      </p>
+      <p style="color:#9CA3AF;font-size:14px;line-height:1.7;margin:0 0 22px">
+        Để vào hệ thống, hãy bấm nút <strong style="color:#e2e8f0">Đăng nhập bằng Google</strong> ở trang đăng nhập
+        (trên web hoặc ứng dụng) và chọn đúng tài khoản Google có địa chỉ email này.
+      </p>
+      <div style="text-align:center;margin:28px 0">
+        <a href="${loginUrl}" style="display:inline-block;background:linear-gradient(135deg,#0EA5E9,#0284C7);color:#fff;text-decoration:none;padding:13px 34px;border-radius:10px;font-size:14px;font-weight:700">
+          Mở trang đăng nhập
+        </a>
+      </div>
+      <div style="background:#252540;border-radius:10px;padding:14px 16px;margin-top:20px">
+        <p style="margin:0;color:#9CA3AF;font-size:12px;line-height:1.6">
+          Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này — tài khoản không có gì thay đổi.
+        </p>
+      </div>
+    </div>
+  </div>`;
+
 module.exports = {
   buildVerificationEmail,
   buildPasswordResetEmail,
+  buildGoogleSignInReminderEmail,
   buildStatusChangeEmail,
   buildRatingRequestEmail,
   buildAssignmentEmail,

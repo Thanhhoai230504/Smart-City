@@ -11,6 +11,7 @@ import {
   PersonAddRounded, PersonOutlineRounded, Visibility, VisibilityOff,
 } from '@mui/icons-material';
 import { getPasswordLengthError, PASSWORD_HINT } from '../../utils/password';
+import type { VerifyEmailNavState } from '../../utils/verifyEmail';
 import { googleAuthUrl } from '../../utils/constants';
 import AuthShell, { AuthDivider, AuthSubmitButton, GoogleButton } from '../../components/AuthShell';
 import { authFieldSx, authLinkSx } from '../../components/authStyles';
@@ -54,7 +55,12 @@ const RegisterPage: React.FC = () => {
 
     const result = await dispatch(registerThunk({ name, email, password }));
     if (registerThunk.fulfilled.match(result)) {
-      navigate(`/verify-email?email=${encodeURIComponent(email)}`);
+      // Trang xác thực đếm ngược ngay khi thư đầu đã gửi được (utils/verifyEmail.ts).
+      const navState: VerifyEmailNavState = {
+        justRegistered: true,
+        emailSent: (result.payload as { verificationEmailSent?: boolean } | undefined)?.verificationEmailSent,
+      };
+      navigate(`/verify-email?email=${encodeURIComponent(email)}`, { state: navState });
     }
   };
 

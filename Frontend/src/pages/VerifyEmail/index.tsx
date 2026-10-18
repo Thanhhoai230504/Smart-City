@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link as RouterLink, useSearchParams } from 'react-router-dom';
+import { Link as RouterLink, useLocation, useSearchParams } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -14,9 +14,11 @@ import {
 import { Login, MarkEmailRead, Refresh } from '@mui/icons-material';
 import { authApi } from '../../api/authApi';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { initialResendCooldown, RESEND_COOLDOWN_SECONDS } from '../../utils/verifyEmail';
 
 const VerifyEmailPage: React.FC = () => {
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const token = searchParams.get('token');
   const initialEmail = searchParams.get('email') || '';
   const [email, setEmail] = useState(initialEmail);
@@ -25,7 +27,7 @@ const VerifyEmailPage: React.FC = () => {
   const [error, setError] = useState('');
   const [resending, setResending] = useState(false);
   const [resendMessage, setResendMessage] = useState('');
-  const [cooldown, setCooldown] = useState(0);
+  const [cooldown, setCooldown] = useState(() => initialResendCooldown(location.state));
 
   useEffect(() => {
     if (!token) return undefined;
@@ -68,7 +70,7 @@ const VerifyEmailPage: React.FC = () => {
     try {
       const { data } = await authApi.resendVerification(email.trim());
       setResendMessage(data.message || 'Email xác thực mới đã được gửi.');
-      setCooldown(60);
+      setCooldown(RESEND_COOLDOWN_SECONDS);
     } catch (err: unknown) {
       setError(getApiErrorMessage(err, 'Không thể gửi lại email xác thực. Vui lòng thử lại.'));
     } finally {
@@ -117,8 +119,8 @@ const VerifyEmailPage: React.FC = () => {
             ) : (
               <>
                 <Typography color="text.secondary" textAlign="center" mb={3}>
-                  Hãy mở liên kết trong email chúng tôi vừa gửi. Nếu chưa nhận được,
-                  bạn có thể gửi lại bên dưới.
+                  Hãy mở liên kết trong email chúng tôi vừa gửi. Nếu chưa thấy, hãy xem cả
+                  mục Thư rác (Spam) rồi mới gửi lại bên dưới.
                 </Typography>
 
                 {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}

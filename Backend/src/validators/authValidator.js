@@ -61,19 +61,22 @@ const verifyEmailValidator = [
     .isHexadecimal().withMessage('Mã xác thực email không hợp lệ'),
 ];
 
+// Không dùng normalizeEmail() ở hai validator dưới: mặc định nó bỏ dấu chấm và phần
+// "+…" của Gmail (nguyen.van.a@gmail.com → nguyenvana@gmail.com), trong khi lúc đăng
+// ký địa chỉ được lưu đúng như gõ. Tìm theo bản đã bỏ dấu chấm thì không thấy tài
+// khoản, và vì trả lời chung chung nên người dùng không nhận được thư mà không biết
+// vì sao. Service tự trim + lowercase, khớp với lúc đăng ký và đăng nhập.
 const resendVerificationValidator = [
   body('email')
     .trim()
     .notEmpty().withMessage('Vui lòng nhập email')
-    .isEmail().withMessage('Email không hợp lệ')
-    .normalizeEmail(),
+    .isEmail().withMessage('Email không hợp lệ'),
 ];
 
 const forgotPasswordValidator = [
   body('email')
     .trim()
-    .isEmail().withMessage('Email không hợp lệ')
-    .normalizeEmail(),
+    .isEmail().withMessage('Email không hợp lệ'),
 ];
 
 const resetPasswordValidator = [

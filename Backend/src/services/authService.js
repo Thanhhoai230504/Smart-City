@@ -4,7 +4,11 @@ const User = require('../models/User');
 const ApiError = require('../utils/apiError');
 const { DA_NANG_DISTRICTS } = require('../utils/districts');
 const { sendEmail } = require('./emailService');
-const { buildVerificationEmail, buildPasswordResetEmail } = require('../utils/emailTemplates');
+const {
+  buildVerificationEmail,
+  buildPasswordResetEmail,
+  buildGoogleSignInReminderEmail,
+} = require('../utils/emailTemplates');
 const sessionService = require('./sessionService');
 const {
   checkPasswordStrength,
@@ -292,12 +296,17 @@ const resendVerificationEmail = async (email) => {
  * endpoint này thành công cụ dò xem địa chỉ nào đã đăng ký. Cùng nguyên tắc với
  * `resendVerificationEmail` ở trên.
  *
- * Tài khoản Google không có mật khẩu để đặt lại, nên cũng im lặng bỏ qua.
+ * Tài khoản tạo bằng Google không có mật khẩu để đặt lại. Trước đây chúng bị im
+ * lặng bỏ qua, nên người dùng bấm "Quên mật khẩu" rồi chờ mãi không có thư. Nay họ
+ * nhận thư nhắc đăng nhập bằng Google; thư chỉ tới chính chủ email nên vẫn không lộ
+ * gì cho người ngoài. Tài khoản Google còn giữ mật khẩu (liên kết từ tài khoản local
+ * đã xác thực, xem googleAuthService) thì vẫn đăng nhập bằng mật khẩu được, nên đặt
+ * lại như thường.
  */
 const forgotPassword = async (email) => {
   const normalizedEmail = email.trim().toLowerCase();
-  const user = await User.findOne({ email: normalizedEmail, provider: 'local' })
-    .select('+passwordResetSentAt');
+  const user = await User.findOne({ email: normalizedEmail })
+    .select('+passwordResetSentAt +password');
 
   if (!user || !user.isActive) return { sent: true };
 
@@ -310,22 +319,33 @@ const forgotPassword = async (email) => {
     return { sent: true };
   }
 
-  const token = crypto.randomBytes(32).toString('hex');
-  user.passwordResetTokenHash = hashVerificationToken(token);
-  user.passwordResetExpires = new Date(Date.now() + PASSWORD_RESET_TTL_MS);
+  const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+  // Chỉ đăng nhập bằng Google: không có mật khẩu nên không cấp token, chỉ nhắc cách vào.
+  const googleOnly = user.provider === 'google' && !user.password;
+
+  const token = googleOnly ? null : crypto.randomBytes(32).toString('hex');
+  if (token) {
+    user.passwordResetTokenHash = hashVerificationToken(token);
+    user.passwordResetExpires = new Date(Date.now() + PASSWORD_RESET_TTL_MS);
+  }
   user.passwordResetSentAt = new Date();
   await user.save();
 
-  const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
-  const sent = await sendEmail(
-    user.email,
-    'Đặt lại mật khẩu — Smart City Đà Nẵng',
-    buildPasswordResetEmail({
-      userName: user.name,
-      resetUrl: `${clientUrl}/reset-password?token=${encodeURIComponent(token)}`,
-      expiresMinutes: PASSWORD_RESET_TTL_MS / 60000,
-    })
-  );
+  const sent = googleOnly
+    ? await sendEmail(
+      user.email,
+      'Tài khoản đăng nhập bằng Google — Smart City Đà Nẵng',
+      buildGoogleSignInReminderEmail({ userName: user.name, loginUrl: `${clientUrl}/login` })
+    )
+    : await sendEmail(
+      user.email,
+      'Đặt lại mật khẩu — Smart City Đà Nẵng',
+      buildPasswordResetEmail({
+        userName: user.name,
+        resetUrl: `${clientUrl}/reset-password?token=${encodeURIComponent(token)}`,
+        expiresMinutes: PASSWORD_RESET_TTL_MS / 60000,
+      })
+    );
 
   // Nhà cung cấp email lỗi thì cho người dùng thử lại ngay, đừng bắt chờ hết cooldown.
   if (!sent) {
