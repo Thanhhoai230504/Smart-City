@@ -65,7 +65,11 @@ const STATUS_OPTIONS: Array<{ value: EditableStatus; label: string; color: strin
 ];
 
 /** Mã lỗi nghĩa là dữ liệu trên màn hình đã cũ: tải lại thay vì để người dùng bấm lại vô ích. */
-const STALE_ERROR_CODES = new Set(['STATUS_CONFLICT', 'INVALID_STATUS_TRANSITION', 'MERGED_ISSUE']);
+const STALE_ERROR_CODES = new Set([
+  'STATUS_CONFLICT', 'INVALID_STATUS_TRANSITION', 'MERGED_ISSUE',
+  // Phiếu vừa được giao lại cho người/đơn vị khác, hoặc vừa đóng.
+  'NOT_ASSIGNEE', 'NOT_IN_DEPARTMENT', 'REOPEN_ADMIN_ONLY',
+]);
 
 const isEditableTarget = (status: IssueStatus | '' | undefined, from?: IssueStatus): status is EditableStatus => (
   Boolean(status) && status !== 'reported' && getAllowedStatusTargets(from).includes(status as string)

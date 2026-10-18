@@ -29,8 +29,12 @@ export const issueApi = {
       { params: { ...params, view: 'map' }, signal }
     ),
 
-  /** Danh sách công việc có xác thực; backend tự giới hạn staff vào đơn vị của mình. */
-  getStaffIssues: (params?: Record<string, string | number>) =>
+  /**
+   * Danh sách làm việc của quản trị viên và cán bộ (bắt buộc đăng nhập; backend tự giới
+   * hạn cán bộ vào đơn vị của mình). Trang quản trị không dùng getIssues công khai: route
+   * đó coi mọi người như khách, không trả email người báo cáo.
+   */
+  getWorkIssues: (params?: Record<string, string | number>) =>
     axiosClient.get<ApiResponse<{ issues: Issue[]; pagination: Pagination }>>('/issues/work', { params }),
 
   getIssueById: (id: string, signal?: AbortSignal) =>

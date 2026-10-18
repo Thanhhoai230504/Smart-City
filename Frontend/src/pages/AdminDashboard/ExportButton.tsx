@@ -28,7 +28,7 @@ const ExportButton: React.FC = () => {
 
   /** @returns {{ issues: any[], truncated: boolean, total: number }} */
   const fetchAllIssues = async () => {
-    const { data: firstResponse } = await issueApi.getIssues({
+    const { data: firstResponse } = await issueApi.getWorkIssues({
       page: 1,
       limit: PAGE_SIZE,
       sort: '-createdAt',
@@ -44,7 +44,7 @@ const ExportButton: React.FC = () => {
         (_, index) => startPage + index
       );
       const responses = await Promise.all(
-        pages.map((page) => issueApi.getIssues({ page, limit: PAGE_SIZE, sort: '-createdAt' }))
+        pages.map((page) => issueApi.getWorkIssues({ page, limit: PAGE_SIZE, sort: '-createdAt' }))
       );
       responses.forEach((response) => allIssues.push(...response.data.data.issues));
     }

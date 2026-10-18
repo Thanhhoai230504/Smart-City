@@ -227,8 +227,8 @@ Web đọc `VITE_API_URL` và `VITE_SOCKET_URL` (mặc định trỏ backend c�
 
 | Thành phần | Lệnh | Kết quả (18/10/2026) |
 |---|---|---|
-| Backend | `cd Backend && npm test` | 92 bộ, 879 test đều qua |
-| Web | `cd Frontend && npm test` | 223 test đều qua; `npx tsc --noEmit` và `npm run lint` không có lỗi |
+| Backend | `cd Backend && npm test` | 93 bộ, 913 test đều qua |
+| Web | `cd Frontend && npm test` | 225 test đều qua; `npx tsc --noEmit` và `npm run lint` không có lỗi |
 | Ứng dụng | `cd App && flutter analyze && flutter test` | `flutter analyze` không báo lỗi; 329 test đều qua |
 
 Mỗi lần push hoặc mở pull request, [GitHub Actions](.github/workflows/ci.yml) chạy 4 nhóm việc:

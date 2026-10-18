@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { authApi } from '../../api/authApi';
 import { AuthState, LoginCredentials, RegisterData, User } from '../../types';
-import { getApiErrorCode, getApiErrorMessage } from '../../utils/apiError';
+import { getApiErrorCode, getApiErrorMessage, getApiErrorStatus } from '../../utils/apiError';
 
 const initialState: AuthState = {
   user: null,
@@ -9,6 +9,7 @@ const initialState: AuthState = {
   isAuthenticated: !!localStorage.getItem('accessToken'),
   loading: false,
   error: null,
+  loggedOut: false,
 };
 
 export interface AuthFailure {
@@ -41,12 +42,30 @@ export const registerThunk = createAsyncThunk('auth/register', async (userData: 
   }
 });
 
-export const getProfileThunk = createAsyncThunk('auth/getProfile', async (_, { rejectWithValue }) => {
+export interface ProfileFailure {
+  message: string;
+  /** HTTP status; `undefined` khi mất mạng. */
+  status?: number;
+}
+
+/** Server từ chối danh tính — phiên thật sự không còn dùng được. */
+export const isSessionRejected = (failure?: ProfileFailure) => (
+  failure?.status === 401 || failure?.status === 403
+);
+
+export const getProfileThunk = createAsyncThunk<
+  { user: User },
+  void,
+  { rejectValue: ProfileFailure }
+>('auth/getProfile', async (_, { rejectWithValue }) => {
   try {
     const { data } = await authApi.getProfile();
     return data.data;
   } catch (err: unknown) {
-    return rejectWithValue(getApiErrorMessage(err, 'Không lấy được thông tin tài khoản.'));
+    return rejectWithValue({
+      message: getApiErrorMessage(err, 'Không lấy được thông tin tài khoản.'),
+      status: getApiErrorStatus(err),
+    });
   }
 });
 
@@ -63,7 +82,16 @@ const authSlice = createSlice({
     setToken: (state, action: PayloadAction<string>) => {
       state.accessToken = action.payload;
       state.isAuthenticated = true;
+      state.loggedOut = false;
       localStorage.setItem('accessToken', action.payload);
+    },
+    /** Refresh token hỏng (hết hạn, bị thu hồi, tài khoản bị khoá) — axiosClient báo về. */
+    sessionExpired: (state) => {
+      state.user = null;
+      state.accessToken = null;
+      state.isAuthenticated = false;
+      state.loggedOut = false;
+      localStorage.removeItem('accessToken');
     },
   },
   extraReducers: (builder) => {
@@ -75,6 +103,7 @@ const authSlice = createSlice({
         state.user = action.payload.user;
         state.accessToken = action.payload.accessToken;
         state.isAuthenticated = true;
+        state.loggedOut = false;
         localStorage.setItem('accessToken', action.payload.accessToken);
       })
       .addCase(loginThunk.rejected, (state, action) => {
@@ -93,7 +122,10 @@ const authSlice = createSlice({
         state.user = action.payload.user;
         state.isAuthenticated = true;
       })
-      .addCase(getProfileThunk.rejected, (state) => {
+      .addCase(getProfileThunk.rejected, (state, action) => {
+        // Chỉ kết thúc phiên khi server từ chối danh tính. Trước đây mất mạng, 429 hay 5xx
+        // lúc mở trang cũng đăng xuất người dùng; giờ giữ phiên để App thử lại.
+        if (!isSessionRejected(action.payload)) return;
         state.user = null;
         state.isAuthenticated = false;
         state.accessToken = null;
@@ -104,9 +136,10 @@ const authSlice = createSlice({
         state.user = null;
         state.accessToken = null;
         state.isAuthenticated = false;
+        state.loggedOut = true;
       });
   },
 });
 
-export const { clearError, setToken } = authSlice.actions;
+export const { clearError, setToken, sessionExpired } = authSlice.actions;
 export default authSlice.reducer;

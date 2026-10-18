@@ -40,6 +40,16 @@ const pathnameOf = (path: string) => path.split(/[?#]/)[0].toLowerCase();
 
 const isWithin = (pathname: string, prefix: string) => pathname === prefix || pathname.startsWith(`${prefix}/`);
 
+/**
+ * Vai trò bắt buộc của khu vực chứa đường dẫn (/admin… → admin, /staff… → staff),
+ * `null` nếu không thuộc khu vực riêng. Khung trang dùng hàm này để chỉ hiện thanh
+ * điều hướng làm việc khi người dùng đúng vai trò — trước đây chỉ dựa vào đường dẫn
+ * nên khách và người dân vào /admin thấy cả menu quản trị trong lúc chờ bị chuyển đi.
+ */
+export const requiredRoleForPath = (path: string): UserRole | null => (
+  ROLE_ONLY_AREAS.find(({ prefix }) => isWithin(pathnameOf(path), prefix))?.role ?? null
+);
+
 const hasControlCharacters = (value: string) => Array.from(value).some((character) => {
   const code = character.charCodeAt(0);
   return code < 32 || code === 127;

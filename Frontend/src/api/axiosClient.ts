@@ -18,6 +18,16 @@ axiosClient.interceptors.request.use((config) => {
   return config;
 });
 
+/**
+ * Gọi khi refresh token hỏng. App đăng ký một hàm xoá phiên trong Redux: trang cần đăng
+ * nhập thì ProtectedRoute tự đưa về /login kèm trang đang xem, trang công khai thì người
+ * dùng ở lại xem như khách.
+ */
+let sessionExpiredHandler: (() => void) | null = null;
+export const setSessionExpiredHandler = (handler: (() => void) | null) => {
+  sessionExpiredHandler = handler;
+};
+
 // Response interceptor: auto refresh token on 401
 let isRefreshing = false;
 let failedQueue: Array<{ resolve: (v: unknown) => void; reject: (e: unknown) => void }> = [];
@@ -65,8 +75,16 @@ axiosClient.interceptors.response.use(
         return axiosClient(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
-        localStorage.removeItem('accessToken');
-        window.location.href = '/login';
+        // Mất mạng, 429 hay lỗi máy chủ lúc refresh thì giữ phiên: request sau sẽ refresh
+        // lại. Chỉ kết thúc phiên khi server từ chối refresh token (401/403).
+        const refreshStatus = axios.isAxiosError(refreshError) ? refreshError.response?.status : undefined;
+        if (refreshStatus === 401 || refreshStatus === 403) {
+          localStorage.removeItem('accessToken');
+          // Trước đây tải lại cả trang sang /login: mất trang đang xem (đăng nhập xong không
+          // quay lại được), và người vừa hết phiên mở trang chủ cũng bị đẩy sang /login.
+          if (sessionExpiredHandler) sessionExpiredHandler();
+          else window.location.href = '/login';
+        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

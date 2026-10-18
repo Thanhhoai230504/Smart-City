@@ -332,7 +332,7 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
       if (reopenedOnly) params.reopened = 'true';
       if (showMine) params.assigneeId = currentUserId;
 
-      const { data } = await issueApi.getStaffIssues(params);
+      const { data } = await issueApi.getWorkIssues(params);
       setIssues(data.data.issues);
       setPagination({
         ...data.data.pagination,
@@ -370,7 +370,7 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
     try {
       const totals = await Promise.all(
         (['reported', 'processing'] as const).map(async (status) => {
-          const { data } = await issueApi.getStaffIssues({
+          const { data } = await issueApi.getWorkIssues({
             assigneeId: currentUserId,
             status,
             limit: 1,

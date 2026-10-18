@@ -82,7 +82,7 @@ const IssueManagement: React.FC<Props> = ({ onDataChange = () => undefined }) =>
       if (assignmentFilter === 'unassigned') params.unassigned = 'true';
       if (reopenedFilter === 'reopened') params.reopened = 'true';
       if (search) params.search = search;
-      const { data } = await issueApi.getIssues(params);
+      const { data } = await issueApi.getWorkIssues(params);
       setIssues(data.data.issues);
       setPag(data.data.pagination);
     } catch (error) {

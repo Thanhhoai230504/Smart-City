@@ -19,6 +19,13 @@ const SOCKET_EVENTS = [
  */
 export const SOCKET_RECONNECTED = 'reconnect';
 
+/**
+ * Sự kiện tự phát: server chủ động ngắt kết nối vì quyền của tài khoản vừa đổi (đổi vai
+ * trò, gán/bỏ đơn vị, khoá, đổi mật khẩu — xem backend config/socket.js). Nơi nghe tải
+ * lại hồ sơ để menu và các trang được phép vào khớp với quyền mới.
+ */
+export const SOCKET_SESSION_CHANGED = 'session:changed';
+
 /** Số lần thử refresh token khi bị server từ chối, tránh vòng lặp vô hạn */
 const MAX_AUTH_RETRIES = 2;
 
@@ -82,8 +89,17 @@ const openSocket = (userKey: string): SharedSocket => {
       // auth của socket đọc lại localStorage ở mỗi lần kết nối.
       socket.connect();
     } catch {
-      // Refresh thất bại: axiosClient đã điều hướng về /login
+      // Refresh thất bại: axiosClient đã kết thúc phiên (xem setSessionExpiredHandler).
     }
+  });
+
+  // Server chủ động ngắt (lý do 'io server disconnect') thì Socket.IO KHÔNG tự nối lại.
+  // Nối lại ngay: lần bắt tay mới đọc lại vai trò từ DB nên vào đúng phòng của quyền
+  // mới; tài khoản bị khoá thì bắt tay bị từ chối và connect_error ở trên kết thúc phiên.
+  socket.on('disconnect', (reason) => {
+    if (reason !== 'io server disconnect') return;
+    dispatch(SOCKET_SESSION_CHANGED, null);
+    socket.connect();
   });
 
   socket.on('connect', () => {

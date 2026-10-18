@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   getRoleHomePath,
   isSafeRedirectPath,
+  requiredRoleForPath,
   resolvePostLoginPath,
   toRedirectPath,
 } from './authRedirect';
@@ -89,5 +90,24 @@ describe('resolvePostLoginPath', () => {
     expect(resolvePostLoginPath('/admin?tab=audit', 'admin')).toBe('/admin?tab=audit');
     // '/administration' không thuộc khu vực /admin.
     expect(resolvePostLoginPath('/administration', 'user')).toBe('/administration');
+  });
+});
+
+describe('requiredRoleForPath', () => {
+  // Khung trang chỉ dựng thanh điều hướng làm việc khi vai trò khớp khu vực.
+  it('maps each restricted area to its role', () => {
+    expect(requiredRoleForPath('/admin')).toBe('admin');
+    expect(requiredRoleForPath('/admin/users')).toBe('admin');
+    expect(requiredRoleForPath('/admin?tab=audit')).toBe('admin');
+    expect(requiredRoleForPath('/staff')).toBe('staff');
+  });
+
+  it('treats everything else as open to every role', () => {
+    expect(requiredRoleForPath('/')).toBeNull();
+    expect(requiredRoleForPath('/issues/abc')).toBeNull();
+    expect(requiredRoleForPath('/report')).toBeNull();
+    // Chỉ khớp trọn đoạn đường dẫn, không khớp tiền tố chữ.
+    expect(requiredRoleForPath('/administration')).toBeNull();
+    expect(requiredRoleForPath('/staffing')).toBeNull();
   });
 });

@@ -25,6 +25,11 @@ export interface AuthState {
   isAuthenticated: boolean;
   loading: boolean;
   error: string | null;
+  /**
+   * Người dùng vừa tự đăng xuất (khác với hết phiên): trang cần đăng nhập đưa về trang
+   * chủ thay vì sang /login.
+   */
+  loggedOut: boolean;
 }
 
 export interface LoginCredentials {
@@ -268,7 +273,8 @@ export interface PriorityConfig {
 
 export interface IssueImage {
   url: string;
-  publicId: string | null;
+  /** Khoá ảnh trên Cloudinary — API chi tiết chỉ trả cho quản trị viên. */
+  publicId?: string | null;
 }
 
 export interface ResolutionImage extends IssueImage {

@@ -2,11 +2,12 @@ import React, { useEffect } from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from './store/store';
-import { getProfileThunk } from './store/slices/authSlice';
+import { getProfileThunk, isSessionRejected, sessionExpired } from './store/slices/authSlice';
+import { setSessionExpiredHandler } from './api/axiosClient';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-import { useSocket } from './hooks/useSocket';
+import { SOCKET_SESSION_CHANGED, useSocket } from './hooks/useSocket';
 import AppRouter from './router';
 import { metaApi } from './api/metaApi';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -27,12 +28,33 @@ const App: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { isAuthenticated } = useSelector((s: RootState) => s.auth);
 
-  // Fetch user profile on mount if token exists
+  // Fetch user profile on mount if token exists. Lỗi mạng/máy chủ thì thử lại giãn dần
+  // (tối đa 30 giây một lần) thay vì đăng xuất: chưa có hồ sơ thì trang cần vai trò chỉ
+  // hiện màn chờ, không lộ gì.
   useEffect(() => {
-    if (isAuthenticated) {
-      dispatch(getProfileThunk());
-    }
+    if (!isAuthenticated) return undefined;
+    let cancelled = false;
+    let timer: number | undefined;
+    const load = (attempt: number) => {
+      dispatch(getProfileThunk()).then((result) => {
+        if (cancelled || !getProfileThunk.rejected.match(result) || isSessionRejected(result.payload)) return;
+        timer = window.setTimeout(() => load(attempt + 1), Math.min(30_000, 2_000 * 2 ** attempt));
+      });
+    };
+    load(0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
   }, [dispatch, isAuthenticated]);
+
+  useEffect(() => {
+    setSessionExpiredHandler(() => {
+      dispatch(sessionExpired());
+      toast.info('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', { toastId: 'session-expired' });
+    });
+    return () => setSessionExpiredHandler(null);
+  }, [dispatch]);
 
   // Taxonomy (luật chuyển trạng thái, nhãn, ngưỡng) lấy từ server thay vì hardcode.
   // Lỗi mạng không được chặn app khởi động: constants đã có sẵn bản dự phòng.
@@ -54,6 +76,12 @@ const App: React.FC = () => {
   // `issue:*` luôn đi kèm một `notification:new` cho cùng người nhận nên không
   // mất toast nào, và không bị hai toast cho một việc.
   useSocket((event, data) => {
+    // Quyền vừa đổi phía server (vai trò, đơn vị, khoá): tải lại hồ sơ để ProtectedRoute,
+    // menu và trang làm việc theo quyền mới ngay, không đợi người dùng tải lại trang.
+    if (event === SOCKET_SESSION_CHANGED) {
+      dispatch(getProfileThunk());
+      return;
+    }
     if (event !== 'notification:new' || !data) return;
     const content = (
       <div>

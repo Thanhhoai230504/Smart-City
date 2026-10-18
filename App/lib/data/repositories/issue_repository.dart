@@ -217,7 +217,8 @@ class IssueRepository {
     );
   }
 
-  /// Danh sách công khai. Có token thì backend tự bó phạm vi cán bộ.
+  /// Danh sách công khai: backend trả cùng một bản cho mọi người (kể cả cán bộ).
+  /// Việc của cán bộ dùng [work].
   Future<Paged<Issue>> list(IssueQuery query, {int page = 1, int limit = 15, CancelToken? cancel}) =>
       _call(() async {
         final res = await _dio.get<Object?>(

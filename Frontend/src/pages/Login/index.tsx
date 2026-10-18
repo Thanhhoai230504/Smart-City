@@ -37,6 +37,9 @@ const LoginPage: React.FC = () => {
   const [showPass, setShowPass] = useState(false);
 
   const oauthError = searchParams.get('error');
+  const oauthErrorMessage = oauthError === 'account_locked'
+    ? 'Tài khoản của bạn đã bị khoá. Vui lòng liên hệ quản trị viên.'
+    : 'Đăng nhập bằng Google thất bại. Vui lòng thử lại.';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,7 +71,7 @@ const LoginPage: React.FC = () => {
     >
       {(error || oauthError) && (
         <Alert severity="error" sx={{ mb: 3, borderRadius: '12px' }} onClose={() => dispatch(clearError())}>
-          {error || 'Đăng nhập bằng Google thất bại. Vui lòng thử lại.'}
+          {error || oauthErrorMessage}
         </Alert>
       )}
 

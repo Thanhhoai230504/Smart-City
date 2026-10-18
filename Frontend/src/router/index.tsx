@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 
 import MainLayout from '../layout/MainLayout';
 import ProtectedRoute from '../hocs/ProtectedRoute';
+import GuestRoute from '../hocs/GuestRoute';
 import LoadingSpinner from '../components/LoadingSpinner';
 // Trang chủ là nơi phần lớn người dùng vào đầu tiên: nạp cùng bundle chính thay
 // vì thêm một vòng tải chunk — trước đây người dùng thấy màn chờ "Đang mở
@@ -46,10 +47,12 @@ const AppRouter: React.FC = () => {
         <Route path="/map" element={page(<MapPage />)} />
         <Route path="/issues" element={page(<IssuesPage />)} />
         <Route path="/issues/:id" element={page(<IssueDetailPage />)} />
-        <Route path="/login" element={page(<LoginPage />)} />
-        <Route path="/register" element={page(<RegisterPage />)} />
+        {/* Chỉ dành cho khách: đã đăng nhập thì chuyển về nơi định tới hoặc trang theo vai trò. */}
+        <Route path="/login" element={page(<GuestRoute><LoginPage /></GuestRoute>)} />
+        <Route path="/register" element={page(<GuestRoute><RegisterPage /></GuestRoute>)} />
+        {/* Liên kết trong thư (xác thực, đặt lại mật khẩu) mở được cả khi đang đăng nhập. */}
         <Route path="/verify-email" element={page(<VerifyEmailPage />)} />
-        <Route path="/forgot-password" element={page(<ForgotPasswordPage />)} />
+        <Route path="/forgot-password" element={page(<GuestRoute><ForgotPasswordPage /></GuestRoute>)} />
         <Route path="/reset-password" element={page(<ResetPasswordPage />)} />
         <Route path="/auth/callback" element={page(<AuthCallbackPage />)} />
         <Route path="/statistics" element={page(<StatisticsPage />)} />

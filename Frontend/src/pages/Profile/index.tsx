@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../../store/store';
-import { getProfileThunk } from '../../store/slices/authSlice';
+import { getProfileThunk, sessionExpired, setToken } from '../../store/slices/authSlice';
 import { issueApi } from '../../api/issueApi';
 import { authApi } from '../../api/authApi';
 import { badgeApi } from '../../api/badgeApi';
@@ -106,16 +106,33 @@ const ProfilePage: React.FC = () => {
   const newPwError = newPw.length > 0 ? getPasswordLengthError(newPw) : null;
 
   const handleChangePw = async () => {
-    if (!currentPw || !newPw || newPwError || changingPw) return;
+    if (!user || !currentPw || !newPw || newPwError || changingPw) return;
     setChangingPw(true);
     try {
       await authApi.changePassword({ currentPassword: currentPw, newPassword: newPw });
-      setPwDialog(false);
-      setCurrentPw('');
-      setNewPw('');
-      toast.success('Đổi mật khẩu thành công!');
     } catch (err: unknown) {
       toast.error(getApiErrorMessage(err, 'Đổi mật khẩu thất bại.'));
+      setChangingPw(false);
+      return;
+    }
+    const password = newPw;
+    setPwDialog(false);
+    setCurrentPw('');
+    setNewPw('');
+    // Đổi mật khẩu thu hồi MỌI phiên, kể cả phiên của tab này (authService.changePassword).
+    // Trước đây web vẫn báo thành công rồi để người dùng bị đá ra ở lần refresh kế tiếp
+    // (tối đa 15 phút sau). Đăng nhập lại ngay bằng mật khẩu mới, giống app; gọi API
+    // trực tiếp thay vì loginThunk để trang không chuyển sang màn chờ.
+    try {
+      const { data } = await authApi.login({ email: user.email, password });
+      dispatch(setToken(data.data.accessToken));
+      dispatch(getProfileThunk());
+      toast.success('Đổi mật khẩu thành công. Các thiết bị khác đã bị đăng xuất.');
+    } catch {
+      // Phiên ở server đã bị thu hồi: kết thúc phiên ở máy. ProtectedRoute đưa sang /login
+      // và nhớ quay lại trang này sau khi đăng nhập bằng mật khẩu mới.
+      dispatch(sessionExpired());
+      toast.info('Đổi mật khẩu thành công. Vui lòng đăng nhập lại bằng mật khẩu mới.');
     }
     setChangingPw(false);
   };

@@ -120,7 +120,10 @@ const Header: React.FC = () => {
     setLogoutOpen(false);
     setAnchorEl(null);
     await dispatch(logoutThunk());
-    navigate('/');
+    // Trang cần đăng nhập tự về trang chủ (ProtectedRoute đọc cờ loggedOut); trước đây nó
+    // chuyển sang /login rồi mới bị đưa về trang chủ. Thay thế thay vì thêm mục lịch sử
+    // để nút Back không quay lại trang vừa rời.
+    navigate('/', { replace: true });
   };
 
   return (

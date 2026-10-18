@@ -43,7 +43,8 @@ const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({ collapsed, onToggle
   const compact = collapsed || forceCompact;
   const { pathname, search } = useLocation();
   const user = useSelector((state: RootState) => state.auth.user);
-  const isAdmin = pathname.startsWith('/admin');
+  // Theo vai trò, không theo đường dẫn: thanh này chỉ được dựng khi vai trò khớp khu vực (MainLayout).
+  const isAdmin = user?.role === 'admin';
   const items = isAdmin ? ADMIN_WORKSPACE_ITEMS : STAFF_WORKSPACE_ITEMS;
 
   return (

@@ -146,7 +146,7 @@ const AssignmentManagement: React.FC = () => {
   const loadAssignedIssues = useCallback(async (page = 1) => {
     setAssignedLoading(true);
     try {
-      const { data } = await issueApi.getIssues({
+      const { data } = await issueApi.getWorkIssues({
         assigned: 'true',
         status: 'processing',
         sort: '-priorityScore',
