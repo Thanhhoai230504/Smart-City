@@ -85,8 +85,30 @@ const toIssueDetail = (issue, requester) => {
   if (requester?.role !== 'admin' && requester?.role !== 'staff') {
     INTERNAL_DETAIL_FIELDS.forEach((field) => { delete json[field]; });
   }
+  // publicId là khoá để xoá ảnh trên Cloudinary; client chỉ cần URL. Chỉ quản trị viên
+  // còn thấy, để công khai khoá này không giúp ai nhắm vào ảnh của người khác.
+  if (requester?.role !== 'admin') stripImagePublicIds(json);
   return json;
 };
+
+function stripImagePublicIds(json) {
+  const stripList = (list) => (Array.isArray(list)
+    ? list.map((image) => {
+      if (!image || typeof image !== 'object') return image;
+      const rest = { ...image };
+      delete rest.publicId;
+      return rest;
+    })
+    : list);
+  delete json.imagePublicId;
+  json.images = stripList(json.images);
+  json.resolutionImages = stripList(json.resolutionImages);
+  if (Array.isArray(json.previousRounds)) {
+    json.previousRounds = json.previousRounds.map((round) => (round && typeof round === 'object'
+      ? { ...round, resolutionImages: stripList(round.resolutionImages) }
+      : round));
+  }
+}
 
 /**
  * Bản tóm tắt sự cố gửi qua Socket.IO cho người báo cáo và người theo dõi.
@@ -348,13 +370,12 @@ const createIssue = async ({
   latitude,
   longitude,
   phone,
+  // Chỉ nhận ảnh do multer vừa tải lên Cloudinary. Tham số `file` cũ đã bỏ: nó cho
+  // phép dữ liệu người gửi tự điền thành "ảnh đã tải" (xem issueController.createIssue).
   files = [],
-  // Giữ tương thích cho caller nội bộ/test cũ trong giai đoạn chuyển đổi.
-  file = null,
   user
 }) => {
-  const normalizedFiles = files.length ? files : (file ? [file] : []);
-  const uploadedImages = normalizedFiles.map((uploadedFile) => ({
+  const uploadedImages = files.map((uploadedFile) => ({
     url: uploadedFile.path,
     publicId: uploadedFile.filename || null,
   }));
@@ -402,9 +423,11 @@ const createIssue = async ({
         io.to(`user_${admin._id}`).emit('notification:new', notification);
       }
 
+      // Bản tóm tắt thay vì nguyên document (kèm SĐT, email người báo cáo): web và app
+      // chỉ dùng id để tải lại qua API, nơi áp đúng quyền xem.
       io.to('admins').emit('issue:created', {
         message: `Sự cố mới: ${issue.title}`,
-        issue
+        issue: toRealtimeIssueSummary(issue)
       });
 
       // Notify district watchers — district đã được model chuẩn hoá lúc save
@@ -460,7 +483,7 @@ const updateIssueStatus = async (issueId, { status, note, adminUser }) => {
   // cán bộ đơn vị A không được đổi trạng thái sự cố của đơn vị B.
   // resolvedAt/rating/statusHistory: cần khi mở lại phiếu đã đóng (lưu lượt cũ).
   const current = await Issue.findOne({ _id: issueId, isDeleted: false })
-    .select('departmentId status resolutionImages mergedInto resolvedAt rating statusHistory');
+    .select('departmentId assigneeId status resolutionImages mergedInto resolvedAt rating statusHistory');
   if (!current) {
     throw ApiError.notFound('Không tìm thấy sự cố.');
   }
@@ -481,6 +504,17 @@ const updateIssueStatus = async (issueId, { status, note, adminUser }) => {
     throw ApiError.badRequestWithCode(
       `Không thể chuyển từ "${current.status}" sang "${status}".`,
       'INVALID_STATUS_TRANSITION'
+    );
+  }
+
+  // Mở lại phiếu đã đóng chuyển đánh giá của lượt hiện tại vào `previousRounds`, mà
+  // điểm hiệu suất đơn vị chỉ đọc lượt hiện tại. Nếu cán bộ tự làm được, họ xoá được
+  // đánh giá 1 sao của chính đơn vị mình (mở lại rồi đóng lại). Chỉ quản trị viên mở
+  // lại; người dân không hài lòng đã có đường riêng là "Mở lại" (reopenService).
+  if (CLOSED_STATUSES.includes(current.status) && adminUser?.role !== 'admin') {
+    throw ApiError.forbiddenWithCode(
+      'Phiếu đã đóng chỉ quản trị viên mới mở lại được.',
+      'REOPEN_ADMIN_ONLY'
     );
   }
 
@@ -537,6 +571,12 @@ const updateIssueStatus = async (issueId, { status, note, adminUser }) => {
   // một người bấm đúp, đều qua bước kiểm tra luật rồi cùng ghi: lịch sử ra
   // "Đã xử lý → Từ chối" (luật cấm), resolvedAt bị ghi đè, người dân nhận 2 email.
   const guard = { _id: issueId, isDeleted: false, mergedInto: null, status: current.status };
+  // Cán bộ: phiếu vẫn phải thuộc đơn vị của họ và còn đứng tên họ đúng lúc ghi — quản
+  // trị viên có thể vừa giao lại cho đơn vị/người khác giữa lúc kiểm quyền và lúc ghi.
+  if (adminUser?.role === 'staff') {
+    guard.departmentId = current.departmentId;
+    guard.assigneeId = adminUser.id;
+  }
   // Ảnh minh chứng cũng phải còn đúng lúc ghi — một lượt mở lại chen vào giữa sẽ xoá chúng.
   if (status === 'resolved') guard['resolutionImages.0'] = { $exists: true };
 
@@ -670,7 +710,7 @@ const addResolutionImages = async (issueId, files, user) => {
 
   try {
     const issue = await Issue.findOne({ _id: issueId, isDeleted: false })
-      .select('departmentId status resolutionImages mergedInto');
+      .select('departmentId assigneeId status resolutionImages mergedInto');
     if (!issue) throw ApiError.notFound('Không tìm thấy sự cố.');
     if (issue.mergedInto) {
       throw ApiError.badRequestWithCode(
@@ -708,6 +748,8 @@ const addResolutionImages = async (issueId, files, user) => {
         mergedInto: null,
         status: { $nin: CLOSED_STATUSES },
         [`resolutionImages.${lastAllowedIndex}`]: { $exists: false },
+        // Cán bộ: phiếu vẫn thuộc đơn vị và còn đứng tên họ đúng lúc ghi (có thể vừa bị giao lại).
+        ...(user?.role === 'staff' ? { departmentId: issue.departmentId, assigneeId: user.id } : {}),
       },
       {
         $push: {
@@ -824,6 +866,24 @@ const getMyIssueSummary = async (userId) => {
     rejected: 0,
   };
 };
+
+/**
+ * Phiếu đã có báo cáo khác gộp vào là "đại diện" của cả nhóm. Người báo cáo xoá nó
+ * thì các phiếu đã gộp (của người khác) biến khỏi mọi danh sách, vì vẫn trỏ
+ * `mergedInto` về phiếu đã xoá và không có đường gỡ gộp; sửa thì viết lại nội dung
+ * mà người khác đã xác nhận là cùng một sự cố. Khi đó chỉ quản trị viên xử lý.
+ */
+const assertNoMergedChildren = async (issue, action) => {
+  const hasMergedChildren = (issue.duplicateCount || 0) > 0
+    || Boolean(await Issue.exists({ mergedInto: issue._id, isDeleted: false }));
+  if (hasMergedChildren) {
+    throw ApiError.conflictWithCode(
+      `Đã có báo cáo khác được gộp vào sự cố này nên bạn không thể ${action}. Vui lòng liên hệ quản trị viên.`,
+      'MERGED_INTO_THIS'
+    );
+  }
+};
+
 const deleteMyIssue = async (issueId, userId) => {
   const issue = await Issue.findOne({ _id: issueId, isDeleted: false });
   if (!issue) throw ApiError.notFound('Không tìm thấy sự cố.');
@@ -834,6 +894,7 @@ const deleteMyIssue = async (issueId, userId) => {
   if (issue.status !== 'reported') {
     throw ApiError.badRequest('Chỉ xoá được sự cố còn ở trạng thái "Mới báo cáo".');
   }
+  await assertNoMergedChildren(issue, 'xoá');
 
   const publicIds = collectPublicIds(issue);
   issue.isDeleted = true;
@@ -863,6 +924,7 @@ const updateMyIssue = async (issueId, userId, { title, description }) => {
   if (issue.status !== 'reported') {
     throw ApiError.badRequest('Chỉ sửa được sự cố còn ở trạng thái "Mới báo cáo".');
   }
+  await assertNoMergedChildren(issue, 'sửa');
 
   if (title) issue.title = title.trim();
   if (description) issue.description = description.trim();
@@ -947,4 +1009,5 @@ module.exports = {
   addResolutionImages,
   canSeeIssueContact,
   toRealtimeIssueSummary,
+  toIssueDetail,
 };

@@ -33,6 +33,12 @@ class ApiError extends Error {
    *   DEVIATION_REASON_REQUIRED - quyết định đánh giá đơn vị khác gợi ý mà chưa nêu lý do
    *   EVALUATION_REVOKED        - quyết định đánh giá đã huỷ rồi
    *   EVALUATION_EXISTS (409)   - đơn vị đã có quyết định còn hiệu lực cho đúng kỳ đó
+   *   REOPEN_ADMIN_ONLY (403)   - phiếu đã đóng chỉ quản trị viên mở lại (services/issueService.js)
+   *   MERGED_INTO_THIS (409)    - phiếu đã có phiếu khác gộp vào, người báo cáo không xoá/sửa được
+   *   SELF_RATING (403)         - cán bộ tự đánh giá phiếu do đơn vị mình xử lý (services/ratingService.js)
+   *   DEPARTMENT_INACTIVE (403) - đơn vị của cán bộ đã bị vô hiệu hoá (middleware/auth.js)
+   *   NOT_IN_DEPARTMENT (403)   - phiếu không thuộc đơn vị của cán bộ (services/assignmentService.js)
+   *   NOT_ASSIGNEE (403)        - cán bộ chưa nhận việc / phiếu đang do cán bộ khác phụ trách
    */
   static badRequestWithCode(message, code) {
     const error = new ApiError(400, message);
@@ -53,6 +59,13 @@ class ApiError extends Error {
 
   static forbidden(message) {
     return new ApiError(403, message || 'Forbidden');
+  }
+
+  /** Không đủ quyền (403), kèm mã máy đọc được như badRequestWithCode. */
+  static forbiddenWithCode(message, code) {
+    const error = new ApiError(403, message);
+    error.code = code;
+    return error;
   }
 
   static notFound(message) {

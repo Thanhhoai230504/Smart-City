@@ -27,6 +27,42 @@ const User = require('../../src/models/User');
 const Notification = require('../../src/models/Notification');
 const { getIO } = require('../../src/config/socket');
 
+// Điểm đánh giá đi vào hiệu suất đơn vị: cán bộ tự báo cáo rồi tự chấm đơn vị mình
+// là xung đột lợi ích.
+describe('ratingService — cán bộ không tự chấm phiếu của đơn vị mình (SELF_RATING)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    getIO.mockReturnValue({ to: jest.fn().mockReturnThis(), emit: jest.fn() });
+    Notification.create.mockResolvedValue({ _id: 'n1' });
+    User.find.mockReturnValue({ select: jest.fn().mockResolvedValue([]) });
+  });
+
+  const staffRater = { id: 'reporter1', role: 'staff', departmentId: 'deptA' };
+
+  it('refuses a staff reporter rating their own department', async () => {
+    Issue.findOne.mockReturnValue(mockQuery(baseIssue({ departmentId: { _id: 'deptA', name: 'Đơn vị A' } })));
+
+    await expect(ratingService.rateIssue('i1', 'reporter1', { score: 5 }, staffRater))
+      .rejects.toMatchObject({ statusCode: 403, code: 'SELF_RATING' });
+    expect(Issue.findOneAndUpdate).not.toHaveBeenCalled();
+  });
+
+  it('refuses the assignee even if the issue moved to another department', async () => {
+    Issue.findOne.mockReturnValue(mockQuery(baseIssue({ departmentId: { _id: 'deptB', name: 'Đơn vị B' }, assigneeId: 'reporter1' })));
+
+    await expect(ratingService.rateIssue('i1', 'reporter1', { score: 5 }, staffRater))
+      .rejects.toMatchObject({ code: 'SELF_RATING' });
+  });
+
+  it('still lets a staff reporter rate another department’s work', async () => {
+    Issue.findOne.mockReturnValue(mockQuery(baseIssue({ departmentId: { _id: 'deptB', name: 'Đơn vị B' } })));
+    Issue.findOneAndUpdate.mockReturnValue(mockQuery(baseIssue({ rating: { score: 4 } })));
+
+    await expect(ratingService.rateIssue('i1', 'reporter1', { score: 4 }, staffRater))
+      .resolves.toMatchObject({ rating: { score: 4 } });
+  });
+});
+
 describe('ratingService — mã lỗi máy đọc được', () => {
   beforeEach(() => {
     jest.clearAllMocks();

@@ -76,6 +76,15 @@ describe('AuthController — thuộc tính cookie refresh', () => {
     expect(res.redirect).toHaveBeenCalled();
   });
 
+  it('tài khoản bị khoá đăng nhập Google: không tạo phiên, về trang đăng nhập web kèm lý do', async () => {
+    const res = makeResponse();
+    await authController.googleCallback({ user: { id: 'u', isActive: false } }, res);
+
+    expect(authService.generateTokensForUser).not.toHaveBeenCalled();
+    expect(res.cookie).not.toHaveBeenCalled();
+    expect(res.redirect).toHaveBeenCalledWith(expect.stringMatching(/\/login\?error=account_locked$/));
+  });
+
   it('đăng xuất và xoá tài khoản xoá cookie bằng đúng thuộc tính lúc set', async () => {
     process.env.NODE_ENV = 'production';
     authService.logoutUser.mockResolvedValue();

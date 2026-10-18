@@ -46,4 +46,16 @@ describe('L8 — khong duoc day access token qua URL', () => {
   it('still exposes a googleCallback handler', () => {
     expect(typeof authController.googleCallback).toBe('function');
   });
+
+  // `failureRedirect: '/login'` là đường dẫn tương đối: bấm Huỷ ở trang Google đưa
+  // trình duyệt tới /login của chính host API (404).
+  it('Google callback failures go back to the WEB login page, not a path on the API host', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const raw = fs.readFileSync(path.join(__dirname, '../../src/routes/auth.js'), 'utf8');
+    // Bỏ dòng chú thích: chú thích được phép nhắc lại đoạn code cũ để giải thích.
+    const source = raw.replace(/^\s*\/\/.*$/gm, '');
+    expect(source).not.toMatch(/failureRedirect:\s*'\/login'/);
+    expect(source).toMatch(/CLIENT_URL[\s\S]*\/login\?error=oauth_failed/);
+  });
 });

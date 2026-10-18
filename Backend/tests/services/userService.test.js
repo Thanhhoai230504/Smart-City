@@ -1,10 +1,16 @@
 jest.mock('../../src/models/User');
 jest.mock('../../src/models/Issue');
+jest.mock('../../src/services/sessionService');
+jest.mock('../../src/services/departmentService', () => ({ releaseOpenAssignments: jest.fn() }));
+jest.mock('../../src/config/socket', () => ({ disconnectUserSockets: jest.fn() }));
 
 const mongoose = require('mongoose');
 const User = require('../../src/models/User');
 const Issue = require('../../src/models/Issue');
 const userService = require('../../src/services/userService');
+const sessionService = require('../../src/services/sessionService');
+const { releaseOpenAssignments } = require('../../src/services/departmentService');
+const { disconnectUserSockets } = require('../../src/config/socket');
 
 describe('UserService', () => {
   beforeEach(() => {
@@ -143,7 +149,8 @@ describe('UserService', () => {
       const result = await userService.updateUserRole('target1', 'admin', 'admin1');
 
       expect(result.role).toBe('admin');
-      expect(User.findByIdAndUpdate).toHaveBeenCalledWith('target1', { role: 'admin' }, { new: true });
+      // 'user'/'admin' không thuộc đơn vị nào: hạ cán bộ thì bỏ luôn departmentId cũ.
+      expect(User.findByIdAndUpdate).toHaveBeenCalledWith('target1', { role: 'admin', departmentId: null }, { new: true });
     });
   });
 
@@ -190,6 +197,41 @@ describe('UserService', () => {
       const result = await userService.toggleUserActive('user1', 'admin1');
 
       expect(result.isActive).toBe(true);
+    });
+  });
+
+  // HTTP đọc lại quyền mỗi request, nhưng refresh token, socket (phòng `admins` chốt lúc
+  // bắt tay) và phiếu đang đứng tên thì không tự đổi theo.
+  describe('mất quyền → thu hồi phiên, trả phiếu, ngắt realtime', () => {
+    it('đổi vai trò: trả phiếu đang đứng tên về hàng chờ và ngắt socket', async () => {
+      User.findByIdAndUpdate.mockResolvedValue({ _id: 'target1', role: 'user' });
+
+      await userService.updateUserRole('target1', 'user', 'admin1');
+
+      expect(releaseOpenAssignments).toHaveBeenCalledWith('target1');
+      expect(disconnectUserSockets).toHaveBeenCalledWith('target1');
+    });
+
+    it('khoá tài khoản: thu hồi mọi phiên, trả phiếu, ngắt socket', async () => {
+      const mockUser = { _id: 'user1', isActive: true, save: jest.fn().mockResolvedValue(true) };
+      User.findById.mockResolvedValue(mockUser);
+
+      await userService.toggleUserActive('user1', 'admin1');
+
+      expect(sessionService.revokeAllSessions).toHaveBeenCalledWith('user1');
+      expect(releaseOpenAssignments).toHaveBeenCalledWith('user1');
+      expect(disconnectUserSockets).toHaveBeenCalledWith('user1');
+    });
+
+    it('mở khoá: không đụng tới phiên hay phiếu', async () => {
+      const mockUser = { _id: 'user1', isActive: false, save: jest.fn().mockResolvedValue(true) };
+      User.findById.mockResolvedValue(mockUser);
+
+      await userService.toggleUserActive('user1', 'admin1');
+
+      expect(sessionService.revokeAllSessions).not.toHaveBeenCalled();
+      expect(releaseOpenAssignments).not.toHaveBeenCalled();
+      expect(disconnectUserSockets).not.toHaveBeenCalled();
     });
   });
 });

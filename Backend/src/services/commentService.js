@@ -72,7 +72,17 @@ const addComment = async (issueId, { content, user }) => {
     // `isAdmin = user.role === 'admin'` làm vai 'staff' rơi vào CẢ HAI nhánh sai:
     // người dân không nhận được thông báo, còn admin thì nhận thông báo ghi nguồn
     // là "từ người dân".
-    const isHandler = user.role === 'admin' || user.role === 'staff';
+    // Cán bộ chỉ là người xử lý trên phiếu của đơn vị mình (hoặc phiếu được giao cho
+    // chính họ). Trước đây mọi cán bộ đều được coi là người xử lý: cán bộ đơn vị khác
+    // bình luận là người báo cáo nhận thông báo như từ đơn vị phụ trách, còn cán bộ
+    // đang giữ phiếu thì không hay biết gì.
+    const issueDepartmentId = issue.departmentId ? String(issue.departmentId._id || issue.departmentId) : null;
+    const issueAssigneeId = issue.assigneeId ? String(issue.assigneeId._id || issue.assigneeId) : null;
+    const isHandler = user.role === 'admin' || (user.role === 'staff' && (
+      (issueDepartmentId !== null && String(user.departmentId) === issueDepartmentId)
+      || issueAssigneeId === String(user.id)
+    ));
+    const senderLabel = user.role === 'staff' ? 'cán bộ đơn vị khác' : 'người dân';
     const reporterId = typeof issue.userId === 'object' ? issue.userId._id : issue.userId;
     const reporterIdString = reporterId ? reporterId.toString() : null;
 
@@ -89,9 +99,9 @@ const addComment = async (issueId, { content, user }) => {
       io.to(`user_${reporterId}`).emit('notification:new', notification);
     }
 
-    // Người dân bình luận → báo cho người đang xử lý (cán bộ phụ trách, hoặc cả
-    // đơn vị khi chưa ai nhận) và quản trị viên. Trước đây chỉ admin nhận, nên
-    // cán bộ không biết người dân vừa phản hồi trên phiếu mình đang giữ.
+    // Người dân (hoặc cán bộ đơn vị khác) bình luận → báo cho người đang xử lý (cán
+    // bộ phụ trách, hoặc cả đơn vị khi chưa ai nhận) và quản trị viên. Trước đây chỉ
+    // admin nhận, nên cán bộ không biết người dân vừa phản hồi trên phiếu mình đang giữ.
     if (!isHandler) {
       const recipients = new Map();
       if (issue.assigneeId) {
@@ -114,7 +124,9 @@ const addComment = async (issueId, { content, user }) => {
         const notification = await Notification.create({
           userId: id,
           type: 'comment',
-          title: handler ? 'Người dân phản hồi phiếu bạn xử lý' : 'Bình luận mới từ người dân',
+          title: handler
+            ? `${senderLabel.charAt(0).toUpperCase()}${senderLabel.slice(1)} phản hồi phiếu bạn xử lý`
+            : `Bình luận mới từ ${senderLabel}`,
           message: `${user.name || 'Người dùng'} bình luận về "${issue.title}"`,
           issueId: issue._id
         });

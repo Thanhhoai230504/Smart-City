@@ -230,6 +230,29 @@ describe('IssueService', () => {
         expect(result).not.toHaveProperty('embedding');
         expect(result).toHaveProperty('lastReminderAt');
       });
+
+      // publicId là khoá xoá ảnh trên Cloudinary — client chỉ cần URL.
+      it('Cloudinary publicIds only go to admins', async () => {
+        const withImages = () => ({
+          ...stored(),
+          imagePublicId: 'issues/a',
+          images: [{ url: 'https://cdn.test/a.jpg', publicId: 'issues/a' }],
+          resolutionImages: [{ url: 'https://cdn.test/r.jpg', publicId: 'after/r', uploadedBy: 's1' }],
+          previousRounds: [{ status: 'resolved', resolutionImages: [{ url: 'https://cdn.test/p.jpg', publicId: 'after/old' }] }],
+        });
+
+        Issue.findOne.mockReturnValue(mockQuery(withImages()));
+        const guest = await issueService.getIssueById('1');
+        expect(guest).not.toHaveProperty('imagePublicId');
+        expect(guest.images).toEqual([{ url: 'https://cdn.test/a.jpg' }]);
+        expect(guest.resolutionImages).toEqual([{ url: 'https://cdn.test/r.jpg', uploadedBy: 's1' }]);
+        expect(guest.previousRounds[0].resolutionImages).toEqual([{ url: 'https://cdn.test/p.jpg' }]);
+
+        Issue.findOne.mockReturnValue(mockQuery(withImages()));
+        const admin = await issueService.getIssueById('1', { id: 'admin1', role: 'admin' });
+        expect(admin.imagePublicId).toBe('issues/a');
+        expect(admin.images[0].publicId).toBe('issues/a');
+      });
     });
 
     it('should hide the reporter phone and user emails from an anonymous visitor', async () => {
@@ -441,6 +464,51 @@ describe('IssueService', () => {
       expect(cloudinary.uploader.destroy).toHaveBeenNthCalledWith(1, 'issues/one');
       expect(cloudinary.uploader.destroy).toHaveBeenNthCalledWith(2, 'issues/two');
       expect(cloudinary.uploader.destroy).toHaveBeenNthCalledWith(3, 'issues/three');
+    });
+
+    // Trước đây controller trải nguyên req.body: object `file` giả (filename = publicId ảnh
+    // của người khác) được coi là ảnh vừa tải và bị xoá trên Cloudinary khi lưu lỗi.
+    it('ignores a forged `file`: only multer uploads count, nothing foreign is deleted', async () => {
+      Issue.create.mockRejectedValue(new Error('validation failed'));
+
+      await expect(issueService.createIssue({
+        title: 'X',
+        description: 'Y',
+        category: 'other',
+        location: 'Z',
+        latitude: 16.05,
+        longitude: 108.2,
+        file: { path: 'https://cdn.test/victim.jpg', filename: 'smart-city/victim' },
+        user: { id: 'user1', name: 'Citizen' },
+      })).rejects.toThrow('validation failed');
+
+      expect(Issue.create).toHaveBeenCalledWith(expect.objectContaining({ images: [], imagePublicId: null }));
+      expect(cloudinary.uploader.destroy).not.toHaveBeenCalled();
+    });
+
+    it('sends admins a realtime summary of the new issue, not the document with phone/email', async () => {
+      const mockIssue = {
+        _id: 'issue1',
+        title: 'Pothole',
+        status: 'reported',
+        category: 'pothole',
+        phone: '0905123456',
+        userId: { _id: 'user1', email: 'citizen@example.com' },
+        populate: jest.fn().mockResolvedValue(true),
+      };
+      Issue.create.mockResolvedValue(mockIssue);
+      User.find.mockReturnValue({ select: jest.fn().mockResolvedValue([{ _id: 'admin1' }]) });
+      Notification.create.mockResolvedValue({ _id: 'notif1' });
+
+      await issueService.createIssue({
+        title: 'Pothole', description: 'Big hole', category: 'pothole', location: '123 Street',
+        latitude: 16.05, longitude: 108.2, phone: '0905123456', user: { id: 'user1', name: 'Citizen' },
+      });
+
+      const created = mockIO.emit.mock.calls.find(([event]) => event === 'issue:created');
+      expect(created[1].issue).toEqual(expect.objectContaining({ _id: 'issue1', title: 'Pothole' }));
+      expect(created[1].issue).not.toHaveProperty('phone');
+      expect(JSON.stringify(created[1])).not.toContain('citizen@example.com');
     });
   });
 
@@ -732,6 +800,55 @@ describe('IssueService', () => {
         })
       ).rejects.toThrow('không thuộc đơn vị của bạn');
     });
+
+    describe('cán bộ chỉ cập nhật phiếu mình đứng tên', () => {
+      const staff = { id: 'staff1', role: 'staff', departmentId: 'deptA' };
+
+      it('refuses a staff member who has not claimed the issue (NOT_ASSIGNEE)', async () => {
+        Issue.findOne.mockReturnValue(mockQuery({
+          _id: 'issue1', status: 'reported', departmentId: 'deptA', assigneeId: null, resolutionImages: [],
+        }));
+
+        await expect(issueService.updateIssueStatus('issue1', { status: 'processing', adminUser: staff }))
+          .rejects.toMatchObject({ statusCode: 403, code: 'NOT_ASSIGNEE' });
+        expect(Issue.findOneAndUpdate).not.toHaveBeenCalled();
+      });
+
+      it('refuses a colleague of the assignee', async () => {
+        Issue.findOne.mockReturnValue(mockQuery({
+          _id: 'issue1', status: 'processing', departmentId: 'deptA', assigneeId: 'staff2', resolutionImages: [],
+        }));
+
+        await expect(issueService.updateIssueStatus('issue1', { status: 'rejected', note: 'Không thuộc phạm vi', adminUser: staff }))
+          .rejects.toMatchObject({ statusCode: 403, code: 'NOT_ASSIGNEE', message: expect.stringMatching(/cán bộ khác/) });
+      });
+
+      it('lets the assignee update, and the write still requires their department + assignment', async () => {
+        Issue.findOne.mockReturnValue(mockQuery({
+          _id: 'issue1', status: 'reported', departmentId: 'deptA', assigneeId: 'staff1', resolutionImages: [],
+        }));
+        Issue.findOneAndUpdate.mockReturnValue(mockQuery({ _id: 'issue1', title: 'T', userId: { _id: 'u1' } }));
+        Notification.create.mockResolvedValue({ _id: 'n1' });
+
+        await issueService.updateIssueStatus('issue1', { status: 'processing', adminUser: staff });
+
+        const [guard] = Issue.findOneAndUpdate.mock.calls[0];
+        expect(guard).toMatchObject({ _id: 'issue1', status: 'reported', departmentId: 'deptA', assigneeId: 'staff1' });
+      });
+
+      // Mở lại cất đánh giá của lượt cũ vào previousRounds — cán bộ tự làm được thì xoá
+      // được đánh giá thấp của chính đơn vị mình.
+      it('only an admin may reopen a closed issue (REOPEN_ADMIN_ONLY), even for the assignee', async () => {
+        Issue.findOne.mockReturnValue(mockQuery({
+          _id: 'issue1', status: 'resolved', departmentId: 'deptA', assigneeId: 'staff1',
+          resolutionImages: [{ url: 'x' }], rating: { score: 1 },
+        }));
+
+        await expect(issueService.updateIssueStatus('issue1', { status: 'processing', note: 'Mở lại', adminUser: staff }))
+          .rejects.toMatchObject({ statusCode: 403, code: 'REOPEN_ADMIN_ONLY' });
+        expect(Issue.findOneAndUpdate).not.toHaveBeenCalled();
+      });
+    });
   });
 
   describe('addResolutionImages()', () => {
@@ -739,7 +856,7 @@ describe('IssueService', () => {
     const staff = { id: 'staff1', role: 'staff', departmentId: 'deptA' };
 
     it('adds the photos with ONE conditional write (count checked atomically)', async () => {
-      Issue.findOne.mockReturnValue(mockQuery({ _id: 'i1', status: 'processing', departmentId: 'deptA', resolutionImages: [{ url: 'x' }] }));
+      Issue.findOne.mockReturnValue(mockQuery({ _id: 'i1', status: 'processing', departmentId: 'deptA', assigneeId: 'staff1', resolutionImages: [{ url: 'x' }] }));
       Issue.findOneAndUpdate.mockReturnValue(mockQuery({ resolutionImages: [{ url: 'x' }, { url: 'a' }, { url: 'b' }] }));
 
       const result = await issueService.addResolutionImages('i1', files(2), staff);
@@ -748,12 +865,14 @@ describe('IssueService', () => {
       // Phần tử thứ (5 − 2) = 3 chưa tồn tại ⇔ mảng đang có tối đa 3 ảnh.
       expect(filter).toMatchObject({ _id: 'i1', isDeleted: false, mergedInto: null, 'resolutionImages.3': { $exists: false } });
       expect(filter.status).toEqual({ $nin: ['resolved', 'rejected'] });
+      // Phiếu vẫn thuộc đơn vị và còn đứng tên cán bộ đúng lúc ghi (có thể vừa bị giao lại).
+      expect(filter).toMatchObject({ departmentId: 'deptA', assigneeId: 'staff1' });
       expect(update.$push.resolutionImages.$each).toHaveLength(2);
       expect(result).toHaveLength(3);
     });
 
     it('a parallel upload that would exceed 5 photos is refused and its files rolled back', async () => {
-      Issue.findOne.mockReturnValue(mockQuery({ _id: 'i1', status: 'processing', departmentId: 'deptA', resolutionImages: [] }));
+      Issue.findOne.mockReturnValue(mockQuery({ _id: 'i1', status: 'processing', departmentId: 'deptA', assigneeId: 'staff1', resolutionImages: [] }));
       Issue.findOneAndUpdate.mockReturnValue(mockQuery(null));
 
       await expect(issueService.addResolutionImages('i1', files(3), staff)).rejects.toThrow(/tối đa 5 ảnh/);
@@ -761,10 +880,20 @@ describe('IssueService', () => {
     });
 
     it('refuses new evidence on a closed issue (ISSUE_CLOSED) — reopen first', async () => {
-      Issue.findOne.mockReturnValue(mockQuery({ _id: 'i1', status: 'resolved', departmentId: 'deptA', resolutionImages: [{ url: 'x' }] }));
+      Issue.findOne.mockReturnValue(mockQuery({ _id: 'i1', status: 'resolved', departmentId: 'deptA', assigneeId: 'staff1', resolutionImages: [{ url: 'x' }] }));
 
       await expect(issueService.addResolutionImages('i1', files(1), staff))
         .rejects.toMatchObject({ statusCode: 400, code: 'ISSUE_CLOSED' });
+      expect(Issue.findOneAndUpdate).not.toHaveBeenCalled();
+      expect(cloudinary.uploader.destroy).toHaveBeenCalledWith('after/0');
+    });
+
+    // Luật "nhận việc trước" trước đây chỉ có ở giao diện.
+    it('refuses staff who is not the assignee (NOT_ASSIGNEE) and rolls the upload back', async () => {
+      Issue.findOne.mockReturnValue(mockQuery({ _id: 'i1', status: 'processing', departmentId: 'deptA', assigneeId: 'staff2', resolutionImages: [] }));
+
+      await expect(issueService.addResolutionImages('i1', files(1), staff))
+        .rejects.toMatchObject({ statusCode: 403, code: 'NOT_ASSIGNEE' });
       expect(Issue.findOneAndUpdate).not.toHaveBeenCalled();
       expect(cloudinary.uploader.destroy).toHaveBeenCalledWith('after/0');
     });
@@ -886,6 +1015,40 @@ describe('IssueService', () => {
       expect(Issue.findByIdAndDelete).not.toHaveBeenCalled();
       expect(cloudinary.uploader.destroy).toHaveBeenCalledWith('smart-city/xyz789');
     });
+
+    // Phiếu gốc đã có báo cáo khác gộp vào: xoá nó thì các phiếu đã gộp (của người khác)
+    // biến khỏi mọi danh sách vì vẫn trỏ mergedInto về phiếu đã xoá.
+    it('refuses when other reports were merged into it (MERGED_INTO_THIS)', async () => {
+      const mockIssue = {
+        _id: 'issue1',
+        userId: { toString: () => 'user1' },
+        status: 'reported',
+        duplicateCount: 2,
+        save: jest.fn().mockResolvedValue(true),
+      };
+      Issue.findOne.mockResolvedValue(mockIssue);
+
+      await expect(issueService.deleteMyIssue('issue1', { toString: () => 'user1' }))
+        .rejects.toMatchObject({ statusCode: 409, code: 'MERGED_INTO_THIS' });
+      expect(mockIssue.save).not.toHaveBeenCalled();
+    });
+
+    it('also catches merged children when duplicateCount is out of date', async () => {
+      const mockIssue = {
+        _id: 'issue1',
+        userId: { toString: () => 'user1' },
+        status: 'reported',
+        duplicateCount: 0,
+        save: jest.fn().mockResolvedValue(true),
+      };
+      Issue.findOne.mockResolvedValue(mockIssue);
+      Issue.exists.mockResolvedValueOnce({ _id: 'child1' });
+
+      await expect(issueService.deleteMyIssue('issue1', { toString: () => 'user1' }))
+        .rejects.toMatchObject({ code: 'MERGED_INTO_THIS' });
+      expect(Issue.exists).toHaveBeenCalledWith({ mergedInto: 'issue1', isDeleted: false });
+      expect(mockIssue.save).not.toHaveBeenCalled();
+    });
   });
 
   describe('updateMyIssue()', () => {
@@ -934,6 +1097,23 @@ describe('IssueService', () => {
       expect(mockIssue.title).toBe('New Title');
       expect(mockIssue.description).toBe('New Description');
       expect(mockIssue.save).toHaveBeenCalled();
+    });
+
+    it('refuses to rewrite an issue other reports were merged into (MERGED_INTO_THIS)', async () => {
+      const mockIssue = {
+        _id: 'issue1',
+        userId: { toString: () => 'user1' },
+        status: 'reported',
+        title: 'Old',
+        duplicateCount: 1,
+        save: jest.fn().mockResolvedValue(true),
+      };
+      Issue.findOne.mockResolvedValue(mockIssue);
+
+      await expect(issueService.updateMyIssue('issue1', { toString: () => 'user1' }, { title: 'Khác hẳn' }))
+        .rejects.toMatchObject({ statusCode: 409, code: 'MERGED_INTO_THIS' });
+      expect(mockIssue.title).toBe('Old');
+      expect(mockIssue.save).not.toHaveBeenCalled();
     });
   });
 });

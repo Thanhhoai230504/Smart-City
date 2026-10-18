@@ -30,7 +30,7 @@ const notify = async (userId, payload) => {
  * Giờ: mọi đánh giá đều báo cho đơn vị/cán bộ phụ trách, và điểm thấp còn báo
  * lên quản trị viên vì đó là tín hiệu chất lượng cần người xem lại.
  */
-const rateIssue = async (issueId, userId, { score, comment }) => {
+const rateIssue = async (issueId, userId, { score, comment }, rater = {}) => {
   const issue = await Issue.findOne({ _id: issueId, isDeleted: false, mergedInto: null })
     .populate('departmentId', 'name');
   if (!issue) throw ApiError.notFound('Sự cố không tồn tại');
@@ -38,6 +38,21 @@ const rateIssue = async (issueId, userId, { score, comment }) => {
   const reporterId = issue.userId._id.toString();
   if (reporterId !== userId.toString()) {
     throw ApiError.forbidden('Chỉ người báo cáo mới có thể đánh giá sự cố này');
+  }
+
+  // Điểm đánh giá đi vào hiệu suất của đơn vị (departmentPerformanceService). Cán bộ
+  // tự báo cáo sự cố rồi phiếu về đúng đơn vị mình thì tự chấm 5 sao là xung đột lợi
+  // ích, nên chặn cả khi chính họ là người được giao.
+  const issueDepartmentId = issue.departmentId?._id || issue.departmentId;
+  const ratesOwnUnit = rater.role === 'staff' && (
+    (issueDepartmentId && String(rater.departmentId) === String(issueDepartmentId))
+    || (issue.assigneeId && String(issue.assigneeId) === String(userId))
+  );
+  if (ratesOwnUnit) {
+    throw ApiError.forbiddenWithCode(
+      'Cán bộ không thể tự đánh giá sự cố do đơn vị mình xử lý.',
+      'SELF_RATING'
+    );
   }
 
   // Phiếu bị TỪ CHỐI cũng được đánh giá. Trước đây chỉ cho 'resolved', nghĩa là

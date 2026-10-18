@@ -5,6 +5,7 @@ const Notification = require('../models/Notification');
 const AuditLog = require('../models/AuditLog');
 const ApiError = require('../utils/apiError');
 const sessionService = require('./sessionService');
+const { disconnectUserSockets } = require('../config/socket');
 
 /** Tên hiển thị thay cho tên thật sau khi xoá tài khoản. */
 const ANONYMIZED_NAME = 'Người dùng đã xoá';
@@ -109,8 +110,9 @@ const deleteAccount = async (userId, { password }) => {
   // 4. Thông báo là dữ liệu riêng tư và không còn giá trị với ai → xoá hẳn.
   const notificationResult = await Notification.deleteMany({ userId: user._id });
 
-  // 5. Cắt mọi phiên đăng nhập.
+  // 5. Cắt mọi phiên đăng nhập và kết nối realtime đang mở.
   await sessionService.revokeAllSessions(user._id);
+  disconnectUserSockets(user._id);
 
   return {
     anonymizedIssues: issueResult.modifiedCount || 0,

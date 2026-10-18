@@ -1,5 +1,32 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Department = require('../models/Department');
+
+/**
+ * Danh tính gắn vào `req.user`, đọc từ DB mỗi request để đổi vai trò, đơn vị có hiệu
+ * lực ngay. Cán bộ của đơn vị đã bị vô hiệu hoá không còn phạm vi xử lý hợp lệ: trước
+ * đây họ vẫn xem được SĐT, email người báo cáo và đổi trạng thái phiếu cũ của đơn vị.
+ * Giờ họ được coi như người dùng thường trong request; staffMiddleware báo đúng lý do.
+ */
+const toRequestUser = async (user) => {
+  const requestUser = {
+    id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    // null với user/admin; là đơn vị của cán bộ với role 'staff'.
+    departmentId: user.departmentId || null
+  };
+  if (user.role === 'staff' && user.departmentId) {
+    const department = await Department.findById(user.departmentId).select('isActive').lean();
+    if (!department || !department.isActive) {
+      requestUser.role = 'user';
+      requestUser.departmentId = null;
+      requestUser.departmentInactive = true;
+    }
+  }
+  return requestUser;
+};
 
 /**
  * Verify JWT Access Token - Required for protected routes
@@ -29,15 +56,7 @@ const authMiddleware = async (req, res, next) => {
       });
     }
 
-    req.user = {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      // null với user/admin; là đơn vị của cán bộ với role 'staff'.
-      // Lấy từ DB chứ không từ token để đổi đơn vị có hiệu lực ngay.
-      departmentId: user.departmentId || null
-    };
+    req.user = await toRequestUser(user);
 
     next();
   } catch (error) {
@@ -77,6 +96,13 @@ const adminMiddleware = (req, res, next) => {
  * dựa trên `req.user.departmentId`. Phải dùng SAU authMiddleware.
  */
 const staffMiddleware = (req, res, next) => {
+  if (req.user.departmentInactive) {
+    return res.status(403).json({
+      success: false,
+      message: 'Đơn vị của bạn đã bị vô hiệu hoá. Liên hệ quản trị viên.',
+      code: 'DEPARTMENT_INACTIVE'
+    });
+  }
   if (req.user.role !== 'admin' && req.user.role !== 'staff') {
     return res.status(403).json({
       success: false,
@@ -107,13 +133,7 @@ const optionalAuthMiddleware = async (req, res, next) => {
     const decoded = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET);
     const user = await User.findById(decoded.id);
     if (user && user.isActive) {
-      req.user = {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        departmentId: user.departmentId || null
-      };
+      req.user = await toRequestUser(user);
     }
   } catch {
     // Token không hợp lệ thì coi như khách.

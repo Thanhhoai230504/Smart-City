@@ -4,12 +4,14 @@ jest.mock('jsonwebtoken');
 jest.mock('../../src/services/emailService', () => ({
   sendEmail: jest.fn(),
 }));
+jest.mock('../../src/config/socket', () => ({ disconnectUserSockets: jest.fn() }));
 
 const jwt = require('jsonwebtoken');
 const User = require('../../src/models/User');
 const sessionService = require('../../src/services/sessionService');
 const { sendEmail } = require('../../src/services/emailService');
 const authService = require('../../src/services/authService');
+const { disconnectUserSockets } = require('../../src/config/socket');
 
 describe('AuthService', () => {
   beforeEach(() => {
@@ -587,6 +589,9 @@ describe('AuthService', () => {
 
       expect(mockUser.password).toBe('newpass123');
       expect(mockUser.save).toHaveBeenCalled();
+      // Cắt mọi phiên và cả kết nối realtime đang mở (kể cả của kẻ đã chiếm phiên).
+      expect(sessionService.revokeAllSessions).toHaveBeenCalledWith('user123');
+      expect(disconnectUserSockets).toHaveBeenCalledWith('user123');
     });
   });
 });

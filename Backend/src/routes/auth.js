@@ -95,9 +95,20 @@ router.get('/google', passport.authenticate('google', {
 }));
 
 // @route   GET /api/auth/google/callback
-router.get('/google/callback',
-  passport.authenticate('google', { session: false, failureRedirect: '/login' }),
-  googleCallback
-);
+// Mọi lượt thất bại (bấm Huỷ ở trang Google, mã đổi token sai/đã dùng, lỗi DB) đều quay
+// về trang đăng nhập của WEB. Trước đây `failureRedirect: '/login'` là đường dẫn tương
+// đối nên trình duyệt bị đưa tới /login của chính host API (trang 404), còn lỗi thì trả
+// JSON thô ngay trên host API.
+router.get('/google/callback', (req, res, next) => {
+  passport.authenticate('google', { session: false }, (err, user) => {
+    if (err || !user) {
+      if (err) console.warn('Google OAuth callback error:', err.message);
+      const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+      return res.redirect(`${clientUrl}/login?error=oauth_failed`);
+    }
+    req.user = user;
+    return googleCallback(req, res, next);
+  })(req, res, next);
+});
 
 module.exports = router;

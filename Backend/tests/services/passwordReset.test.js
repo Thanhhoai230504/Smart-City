@@ -1,12 +1,14 @@
 jest.mock('../../src/models/User');
 jest.mock('../../src/services/sessionService');
 jest.mock('../../src/services/emailService', () => ({ sendEmail: jest.fn() }));
+jest.mock('../../src/config/socket', () => ({ disconnectUserSockets: jest.fn() }));
 
 const crypto = require('crypto');
 const User = require('../../src/models/User');
 const sessionService = require('../../src/services/sessionService');
 const { sendEmail } = require('../../src/services/emailService');
 const authService = require('../../src/services/authService');
+const { disconnectUserSockets } = require('../../src/config/socket');
 
 const hash = (t) => crypto.createHash('sha256').update(t).digest('hex');
 
@@ -156,6 +158,7 @@ describe('authService — quên mật khẩu (B7)', () => {
       expect(user.passwordResetTokenHash).toBeNull();
       expect(user.passwordResetExpires).toBeNull();
       expect(user.save).toHaveBeenCalled();
+      expect(disconnectUserSockets).toHaveBeenCalledWith('u1');
     });
 
     it('looks the token up by hash, never by the raw value', async () => {

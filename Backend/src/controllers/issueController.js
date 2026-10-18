@@ -29,9 +29,14 @@ const getIssueById = async (req, res, next) => {
 
 const createIssue = async (req, res, next) => {
   try {
+    // Chỉ lấy đúng các trường của form. Trước đây `...req.body` cho phép gửi kèm một
+    // object `file` giả (filename = publicId ảnh của người khác): service coi đó là
+    // ảnh vừa tải, và khi lưu lỗi hoặc khi xoá phiếu thì gọi Cloudinary xoá đúng ảnh
+    // đó — người dân xoá được ảnh bất kỳ, kể cả ảnh minh chứng của cán bộ.
+    const { title, description, category, location, latitude, longitude, phone } = req.body;
     const issue = await issueService.createIssue({
-      ...req.body,
-      files: req.files,
+      title, description, category, location, latitude, longitude, phone,
+      files: req.files || [],
       user: req.user
     });
     res.status(201).json({ success: true, message: 'Đã gửi báo cáo sự cố.', data: { issue } });
@@ -117,7 +122,7 @@ const deleteMyIssue = async (req, res, next) => {
 const updateMyIssue = async (req, res, next) => {
   try {
     const issue = await issueService.updateMyIssue(req.params.id, req.user.id, req.body);
-    res.json({ success: true, message: 'Đã cập nhật sự cố.', data: { issue } });
+    res.json({ success: true, message: 'Đã cập nhật sự cố.', data: { issue: issueService.toIssueDetail(issue, req.user) } });
   } catch (error) {
     next(error);
   }
@@ -175,8 +180,8 @@ const toggleVote = async (req, res, next) => {
 
 const rateIssue = async (req, res, next) => {
   try {
-    const issue = await ratingService.rateIssue(req.params.id, req.user.id, req.body);
-    res.json({ success: true, message: 'Đánh giá thành công!', data: { issue } });
+    const issue = await ratingService.rateIssue(req.params.id, req.user.id, req.body, req.user);
+    res.json({ success: true, message: 'Đánh giá thành công!', data: { issue: issueService.toIssueDetail(issue, req.user) } });
   } catch (error) {
     next(error);
   }
@@ -359,7 +364,8 @@ const reopenIssue = async (req, res, next) => {
     res.json({
       success: true,
       message: 'Đã mở lại sự cố. Đơn vị phụ trách sẽ xem xét lại.',
-      data: { issue },
+      // Cùng bản lọc với trang chi tiết: không trả id của mọi người ủng hộ, theo dõi.
+      data: { issue: issueService.toIssueDetail(issue, req.user) },
     });
   } catch (error) {
     next(error);

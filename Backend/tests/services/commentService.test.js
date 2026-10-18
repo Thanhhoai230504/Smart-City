@@ -210,6 +210,8 @@ describe('CommentService', () => {
           _id: 'issue1',
           title: 'Pothole',
           userId: { _id: reporterId },
+          // Đơn vị phụ trách — trùng đơn vị của "Cán bộ A" trong các test dưới.
+          departmentId: 'd1',
         }),
       });
       Comment.create.mockResolvedValue({ _id: 'c1', populate: jest.fn().mockResolvedValue(true) });
@@ -243,6 +245,27 @@ describe('CommentService', () => {
         ([doc]) => String(doc.userId) === 'admin1'
       );
       expect(sentToAdmins).toHaveLength(0);
+    });
+
+    // Cán bộ đơn vị khác không phải người xử lý phiếu này: trước đây người báo cáo nhận
+    // thông báo như từ đơn vị phụ trách, còn cán bộ đang giữ phiếu thì không hay biết gì.
+    it('treats staff of ANOTHER department as a participant, not as the handler', async () => {
+      mockIssueWithReporter();
+      User.find.mockImplementation((filter) => ({
+        select: jest.fn().mockResolvedValue(filter.role === 'staff' ? [{ _id: 'staffD1' }] : [{ _id: 'admin1' }]),
+      }));
+
+      await commentService.addComment('issue1', {
+        content: 'Đơn vị tôi cũng thấy chỗ này',
+        user: { id: 'staffX', name: 'Cán bộ B', role: 'staff', departmentId: 'd2' },
+      });
+
+      const recipients = Notification.create.mock.calls.map(([doc]) => doc);
+      expect(recipients.find((doc) => doc.userId === 'reporter1')).toBeUndefined();
+      expect(recipients).toEqual(expect.arrayContaining([
+        expect.objectContaining({ userId: 'staffD1', title: 'Cán bộ đơn vị khác phản hồi phiếu bạn xử lý' }),
+        expect.objectContaining({ userId: 'admin1', title: 'Bình luận mới từ cán bộ đơn vị khác' }),
+      ]));
     });
 
     it('should not notify the reporter when the reporter comments on their own issue', async () => {

@@ -8,8 +8,15 @@ jest.mock('../../src/models/User', () => {
   return mockUser;
 });
 
+jest.mock('../../src/models/Department', () => ({ findById: jest.fn() }));
+
 const User = require('../../src/models/User');
-const { authMiddleware, adminMiddleware, ownerMiddleware } = require('../../src/middleware/auth');
+const Department = require('../../src/models/Department');
+const { authMiddleware, adminMiddleware, staffMiddleware, ownerMiddleware } = require('../../src/middleware/auth');
+
+const departmentLookup = (department) => ({
+  select: () => ({ lean: () => Promise.resolve(department) }),
+});
 
 const mockReq = (overrides = {}) => ({
   headers: {},
@@ -156,6 +163,50 @@ describe('Auth Middleware', () => {
         departmentId: null,
       });
       expect(mockNext).toHaveBeenCalledWith();
+    });
+  });
+
+  // Cán bộ của đơn vị đã bị vô hiệu hoá: trước đây vẫn xem được SĐT, email người báo cáo
+  // và đổi trạng thái phiếu cũ của đơn vị.
+  describe('cán bộ của đơn vị đã vô hiệu hoá', () => {
+    const userId = '507f1f77bcf86cd799439011';
+    const tokenFor = () => jwt.sign({ id: userId, role: 'staff' }, process.env.JWT_SECRET, { expiresIn: '15m' });
+    const staffUser = () => ({
+      _id: userId, name: 'Cán bộ A', email: 'a@danang.gov.vn', role: 'staff', departmentId: 'dept1', isActive: true,
+    });
+
+    it('is treated as a regular user for the request', async () => {
+      User.findById.mockResolvedValue(staffUser());
+      Department.findById.mockReturnValue(departmentLookup({ isActive: false }));
+      const req = mockReq({ headers: { authorization: `Bearer ${tokenFor()}` } });
+
+      await authMiddleware(req, mockRes(), mockNext);
+
+      expect(Department.findById).toHaveBeenCalledWith('dept1');
+      expect(req.user).toMatchObject({ role: 'user', departmentId: null, departmentInactive: true });
+      expect(mockNext).toHaveBeenCalledWith();
+    });
+
+    it('keeps role and department while the department is active', async () => {
+      User.findById.mockResolvedValue(staffUser());
+      Department.findById.mockReturnValue(departmentLookup({ isActive: true }));
+      const req = mockReq({ headers: { authorization: `Bearer ${tokenFor()}` } });
+
+      await authMiddleware(req, mockRes(), mockNext);
+
+      expect(req.user).toMatchObject({ role: 'staff', departmentId: 'dept1' });
+      expect(req.user.departmentInactive).toBeUndefined();
+    });
+
+    it('staffMiddleware names the reason (DEPARTMENT_INACTIVE)', () => {
+      const req = mockReq({ user: { id: userId, role: 'user', departmentId: null, departmentInactive: true } });
+      const res = mockRes();
+
+      staffMiddleware(req, res, mockNext);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'DEPARTMENT_INACTIVE' }));
+      expect(mockNext).not.toHaveBeenCalled();
     });
   });
 

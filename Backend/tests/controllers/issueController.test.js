@@ -7,7 +7,53 @@ jest.mock('../../src/services/priorityService');
 jest.mock('../../src/models/Issue');
 
 const issueService = require('../../src/services/issueService');
+const ratingService = require('../../src/services/ratingService');
 const issueController = require('../../src/controllers/issueController');
+
+describe('IssueController — createIssue() chỉ nhận trường của form', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  // Trước đây `...req.body`: object `file` giả được service coi là ảnh vừa tải lên.
+  it('drops a forged `file` and every field outside the form', async () => {
+    issueService.createIssue.mockResolvedValue({ _id: 'i1' });
+    const req = {
+      body: {
+        title: 'T', description: 'D', category: 'other', location: 'L', latitude: '16.05', longitude: '108.2', phone: '0905123456',
+        file: { path: 'https://cdn.test/victim.jpg', filename: 'smart-city/victim' },
+        status: 'resolved', userId: 'someone-else', departmentId: 'd1',
+      },
+      files: undefined,
+      user: { id: 'u1', role: 'user' },
+    };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+
+    await issueController.createIssue(req, res, jest.fn());
+
+    const args = issueService.createIssue.mock.calls[0][0];
+    expect(Object.keys(args).sort()).toEqual(
+      ['category', 'description', 'files', 'latitude', 'location', 'longitude', 'phone', 'title', 'user'].sort()
+    );
+    expect(args.files).toEqual([]);
+    expect(args.user).toBe(req.user);
+  });
+});
+
+describe('IssueController — rateIssue()', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('passes the caller (self-rating check) and returns the filtered detail', async () => {
+    ratingService.rateIssue.mockResolvedValue({ _id: 'i1', votes: ['a', 'b'] });
+    issueService.toIssueDetail.mockReturnValue({ _id: 'i1', votes: [] });
+    const req = { params: { id: 'i1' }, body: { score: 5 }, user: { id: 'u1', role: 'staff', departmentId: 'd1' } };
+    const res = makeResponse();
+
+    await issueController.rateIssue(req, res, jest.fn());
+
+    expect(ratingService.rateIssue).toHaveBeenCalledWith('i1', 'u1', { score: 5 }, req.user);
+    expect(issueService.toIssueDetail).toHaveBeenCalledWith({ _id: 'i1', votes: ['a', 'b'] }, req.user);
+    expect(res.json.mock.calls[0][0].data.issue).toEqual({ _id: 'i1', votes: [] });
+  });
+});
 
 const makeResponse = () => ({ json: jest.fn() });
 

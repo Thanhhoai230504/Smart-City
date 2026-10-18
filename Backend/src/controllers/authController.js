@@ -238,6 +238,13 @@ const googleIdTokenLogin = async (req, res, next) => {
 
 const googleCallback = async (req, res) => {
   try {
+    // Tài khoản bị khoá: báo đúng lý do và không tạo phiên. Trước đây vẫn ghi phiên
+    // đăng nhập + cookie refresh, chỉ bị chặn ở bước /auth/refresh ngay sau đó.
+    if (req.user?.isActive === false) {
+      const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+      return res.redirect(`${clientUrl}/login?error=account_locked`);
+    }
+
     const result = await authService.generateTokensForUser(req.user);
 
     setRefreshCookie(res, result.refreshToken);

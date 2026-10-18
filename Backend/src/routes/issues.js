@@ -51,10 +51,12 @@ const {
 const router = express.Router();
 const uploadIssueImages = uploadImages('images', Issue.MAX_ISSUE_IMAGES);
 
-// Danh sách công khai, nhưng nhận diện người gọi nếu có token: cán bộ chỉ
-// được thấy sự cố của đơn vị mình (service tự bó phạm vi theo req.user).
+// Danh sách công khai: ai gọi cũng nhận đúng bản của khách (không email). Trước đây
+// route này nhận diện token nên cán bộ xem danh sách, bản đồ công khai chỉ thấy phiếu
+// của đơn vị mình, còn trang quản trị mất email khi token vừa hết hạn. Việc cần quyền
+// (bó theo đơn vị, thông tin liên hệ) đi qua /issues/work.
 // @route   GET /api/issues
-router.get('/', optionalAuthMiddleware, getIssues);
+router.get('/', getIssues);
 
 // @route   GET /api/issues/nearby?lat=...&lng=...&radius=300
 router.get('/nearby', getNearbyIssues);

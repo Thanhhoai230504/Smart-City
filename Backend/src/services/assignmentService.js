@@ -313,7 +313,7 @@ const claimIssue = async (issueId, staffUser) => {
 
 /**
  * Kiểm tra một cán bộ có quyền tác động lên sự cố hay không.
- * Admin: toàn quyền. Staff: chỉ sự cố thuộc đơn vị mình.
+ * Admin: toàn quyền. Staff: chỉ sự cố thuộc đơn vị mình và đang đứng tên mình.
  * Tách riêng để cả controller và service khác dùng lại được cùng một luật.
  */
 const assertCanHandleIssue = (issue, user) => {
@@ -323,7 +323,19 @@ const assertCanHandleIssue = (issue, user) => {
   }
   const issueDept = issue.departmentId?._id || issue.departmentId;
   if (!issueDept || issueDept.toString() !== user.departmentId?.toString()) {
-    throw ApiError.forbidden('Sự cố này không thuộc đơn vị của bạn');
+    throw ApiError.forbiddenWithCode('Sự cố này không thuộc đơn vị của bạn', 'NOT_IN_DEPARTMENT');
+  }
+  // Màn làm việc của web và app chỉ cho người đang đứng tên phiếu cập nhật (nhận việc
+  // trước). Trước đây luật này chỉ có ở giao diện: cán bộ khác trong đơn vị gọi thẳng
+  // API vẫn đổi được trạng thái, thêm ảnh minh chứng cho phiếu người khác đang giữ.
+  const assignee = issue.assigneeId?._id || issue.assigneeId;
+  if (!assignee || assignee.toString() !== user.id?.toString()) {
+    throw ApiError.forbiddenWithCode(
+      assignee
+        ? 'Sự cố này đang do cán bộ khác phụ trách.'
+        : 'Hãy nhận việc trước khi cập nhật sự cố này.',
+      'NOT_ASSIGNEE'
+    );
   }
 };
 

@@ -8,7 +8,8 @@ const createIssueValidator = [
     .isLength({ max: 200 }).withMessage('Tiêu đề không quá 200 ký tự'),
   body('description')
     .trim()
-    .notEmpty().withMessage('Vui lòng nhập mô tả'),
+    .notEmpty().withMessage('Vui lòng nhập mô tả')
+    .isLength({ max: 2000 }).withMessage('Mô tả không quá 2000 ký tự'),
   body('category')
     .notEmpty().withMessage('Vui lòng chọn loại sự cố')
     .isIn(['pothole', 'garbage', 'streetlight', 'flooding', 'tree', 'other'])

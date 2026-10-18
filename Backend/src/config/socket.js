@@ -83,6 +83,19 @@ const initSocket = (httpServer) => {
   return io;
 };
 
+/**
+ * Ngắt mọi kết nối Socket.IO của một người dùng.
+ *
+ * Vai trò và phòng (`admins`) chỉ được xác định lúc bắt tay, nên tài khoản vừa bị hạ
+ * quyền, khoá hay xoá mà vẫn mở tab sẽ còn ở phòng cũ — quản trị viên bị hạ xuống người
+ * dùng vẫn nhận sự kiện của phòng `admins`. Ngắt để client kết nối lại và được xác thực
+ * lại theo quyền mới; tài khoản bị khoá thì không kết nối lại được.
+ */
+const disconnectUserSockets = (userId) => {
+  if (!io || !userId) return;
+  io.in(`user_${userId}`).disconnectSockets(true);
+};
+
 const getIO = () => {
   if (!io) {
     throw new Error('Socket.io not initialized');
@@ -90,4 +103,4 @@ const getIO = () => {
   return io;
 };
 
-module.exports = { initSocket, getIO, authenticateSocket };
+module.exports = { initSocket, getIO, authenticateSocket, disconnectUserSockets };

@@ -10,6 +10,7 @@ const {
   buildGoogleSignInReminderEmail,
 } = require('../utils/emailTemplates');
 const sessionService = require('./sessionService');
+const { disconnectUserSockets } = require('../config/socket');
 const {
   checkPasswordStrength,
   getLockUntil,
@@ -395,6 +396,7 @@ const resetPassword = async (token, newPassword) => {
   await user.save();
 
   await sessionService.revokeAllSessions(user._id);
+  disconnectUserSockets(user._id);
 
   return { id: user._id, email: user.email };
 };
@@ -462,6 +464,7 @@ const changePassword = async (userId, { currentPassword, newPassword }) => {
   // nên nếu tài khoản đã bị chiếm thì kẻ tấn công vẫn giữ quyền thêm 7 ngày —
   // đúng lúc người dùng tin rằng mình vừa khoá lại.
   await sessionService.revokeAllSessions(userId);
+  disconnectUserSockets(userId);
 };
 
 const generateTokensForUser = async (user, { deviceType, deviceName } = {}) => {

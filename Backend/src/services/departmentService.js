@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Issue = require('../models/Issue');
 const ApiError = require('../utils/apiError');
 const { getSlaHours } = require('../utils/slaConfig');
+const { disconnectUserSockets } = require('../config/socket');
 
 /**
  * Danh sách đơn vị. Người dân chỉ cần biết đơn vị nào phụ trách loại sự cố nào,
@@ -37,6 +38,21 @@ const createDepartment = async (data) => {
   });
 };
 
+/** Chặn vô hiệu hoá khi đơn vị còn việc dở — dùng chung cho nút Vô hiệu hoá và PUT. */
+const assertNoOpenIssues = async (departmentId) => {
+  const openIssues = await Issue.countDocuments({
+    departmentId,
+    isDeleted: false,
+    mergedInto: null,
+    status: { $in: ['reported', 'processing'] },
+  });
+  if (openIssues > 0) {
+    throw ApiError.badRequest(
+      `Đơn vị còn ${openIssues} sự cố chưa xử lý xong. Hãy chuyển sang đơn vị khác trước khi vô hiệu hoá.`
+    );
+  }
+};
+
 const updateDepartment = async (id, data) => {
   // Chỉ cho sửa các field nghiệp vụ; không nhận nguyên req.body để tránh
   // client ghi đè những field không mong muốn.
@@ -52,6 +68,12 @@ const updateDepartment = async (id, data) => {
       _id: { $ne: id },
     });
     if (duplicate) throw ApiError.badRequest(`Mã đơn vị "${updates.code}" đã tồn tại`);
+  }
+
+  // Tắt đơn vị qua PUT phải qua đúng bước kiểm như nút Vô hiệu hoá. Trước đây chỉ
+  // DELETE kiểm "còn phiếu mở"; PUT { isActive: false } bỏ qua và để lại phiếu mồ côi.
+  if (updates.isActive === false || updates.isActive === 'false') {
+    await assertNoOpenIssues(id);
   }
 
   const department = await Department.findByIdAndUpdate(id, updates, {
@@ -70,17 +92,7 @@ const deactivateDepartment = async (id) => {
   const department = await Department.findById(id);
   if (!department) throw ApiError.notFound('Đơn vị không tồn tại');
 
-  const openIssues = await Issue.countDocuments({
-    departmentId: id,
-    isDeleted: false,
-    mergedInto: null,
-    status: { $in: ['reported', 'processing'] },
-  });
-  if (openIssues > 0) {
-    throw ApiError.badRequest(
-      `Đơn vị còn ${openIssues} sự cố chưa xử lý xong. Hãy chuyển sang đơn vị khác trước khi vô hiệu hoá.`
-    );
-  }
+  await assertNoOpenIssues(id);
 
   department.isActive = false;
   await department.save();
@@ -95,6 +107,24 @@ const getDepartmentStaff = async (departmentId) => {
     .select('name email createdAt')
     .sort('name')
     .lean();
+};
+
+/**
+ * Trả các phiếu đang mở mà một cán bộ đứng tên về hàng chờ của đơn vị, khi người đó
+ * không còn quyền xử lý chúng: rời/chuyển đơn vị, đổi vai trò, bị khoá. Trước đây phiếu
+ * vẫn đứng tên người cũ, mà chỉ người đứng tên mới được cập nhật (assertCanHandleIssue),
+ * nên phiếu treo tới khi quản trị viên tự phát hiện rồi giao lại.
+ * `keepDepartmentId`: chuyển sang đơn vị nào thì giữ lại phiếu của đơn vị đó.
+ */
+const releaseOpenAssignments = async (userId, { keepDepartmentId = null } = {}) => {
+  const filter = {
+    assigneeId: userId,
+    isDeleted: false,
+    status: { $in: ['reported', 'processing'] },
+  };
+  if (keepDepartmentId) filter.departmentId = { $ne: keepDepartmentId };
+  const result = await Issue.updateMany(filter, { $set: { assigneeId: null } });
+  return result?.modifiedCount || 0;
 };
 
 /**
@@ -118,6 +148,10 @@ const assignStaffToDepartment = async (userId, departmentId) => {
   }
 
   await user.save();
+  // Phiếu của đơn vị cũ trở về hàng chờ để cán bộ còn lại nhận; ngắt socket để client
+  // tải lại hồ sơ và hiện đúng giao diện của vai trò mới (xem config/socket.js).
+  await releaseOpenAssignments(user._id, { keepDepartmentId: user.departmentId });
+  disconnectUserSockets(user._id);
   return user;
 };
 
@@ -242,6 +276,7 @@ const suggestDepartment = async (category) => {
 };
 
 module.exports = {
+  releaseOpenAssignments,
   getDepartments,
   getDepartmentById,
   createDepartment,

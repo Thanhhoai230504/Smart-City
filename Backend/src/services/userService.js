@@ -4,6 +4,9 @@ const Issue = require('../models/Issue');
 const ApiError = require('../utils/apiError');
 const { getBadgesForCount } = require('../utils/badgeConfig');
 const { parsePagination } = require('../utils/pagination');
+const sessionService = require('./sessionService');
+const { releaseOpenAssignments } = require('./departmentService');
+const { disconnectUserSockets } = require('../config/socket');
 
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -73,8 +76,13 @@ const updateUserRole = async (targetId, role, currentUserId) => {
     throw ApiError.badRequest('Không thể tự đổi vai trò của chính mình.');
   }
 
-  const user = await User.findByIdAndUpdate(targetId, { role }, { new: true });
+  // 'user' và 'admin' không thuộc đơn vị nào (cán bộ chỉ được tạo qua gán đơn vị). Trước
+  // đây hạ cán bộ xuống người dùng vẫn giữ departmentId cũ, còn phiếu họ đứng tên thì treo.
+  const user = await User.findByIdAndUpdate(targetId, { role, departmentId: null }, { new: true });
   if (!user) throw ApiError.notFound('Không tìm thấy người dùng.');
+  await releaseOpenAssignments(user._id);
+  // HTTP đọc lại vai trò mỗi request, nhưng socket giữ vai trò lúc bắt tay.
+  disconnectUserSockets(user._id);
   return user;
 };
 
@@ -89,6 +97,14 @@ const toggleUserActive = async (targetId, currentUserId) => {
 
   user.isActive = !user.isActive;
   await user.save();
+  if (!user.isActive) {
+    // Khoá thì cắt luôn phiên và kết nối realtime. Trước đây chỉ đảo cờ: mở khoá lại
+    // trong vòng 7 ngày thì refresh token cũ dùng tiếp được, còn tab đang mở vẫn
+    // nhận thông báo qua socket.
+    await sessionService.revokeAllSessions(user._id);
+    await releaseOpenAssignments(user._id);
+    disconnectUserSockets(user._id);
+  }
   return user;
 };
 
