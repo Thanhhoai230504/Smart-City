@@ -40,8 +40,9 @@ import IssuePhotoComparison from './IssuePhotoComparison';
 import PreviousRounds from './PreviousRounds';
 import NearbyCameras from './NearbyCameras';
 import NearbyIssues from './NearbyIssues';
+import StaffIssueActions from './StaffIssueActions';
 import AssignIssueDialog from '../../components/AssignIssueDialog';
-import { canAssignIssue } from '../../utils/assignment';
+import { canAssignIssue, getStaffIssueAction } from '../../utils/assignment';
 import { getApiErrorCode, getApiErrorMessage } from '../../utils/apiError';
 import UpdateStatusDialog from '../StaffDashboard/UpdateStatusDialog';
 import { toast } from 'react-toastify';
@@ -206,7 +207,8 @@ const IssueDetailPage: React.FC = () => {
   const [loadFailure, setLoadFailure] = useState<IssueRequestFailure | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
 
-  // Đổi trạng thái (quản trị viên) — dùng chung hộp thoại với cổng cán bộ.
+  // Đổi trạng thái (quản trị viên, hoặc cán bộ đang đứng tên phiếu) — dùng chung hộp
+  // thoại với bàn làm việc của cán bộ.
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
 
   // Vote
@@ -356,6 +358,9 @@ const IssueDetailPage: React.FC = () => {
   const canChangeStatus = isAdmin
     && !issue.mergedInto
     && !['resolved', 'rejected'].includes(issue.status);
+  // Cán bộ: nhận việc / cập nhật ngay trên trang này (cùng luật với backend).
+  const staffAction = getStaffIssueAction(issue, user);
+  const statusDialogAllowed = canChangeStatus || staffAction.kind === 'update';
   // Cùng điều kiện với backend (utils/rating.ts): kể cả phiếu bị TỪ CHỐI, mà
   // trước đây web bỏ sót — người dân có phiếu bị từ chối không có kênh phản hồi.
   const canRate = canRateIssue(issue, user?._id);
@@ -513,6 +518,15 @@ const IssueDetailPage: React.FC = () => {
               <Typography color="text.secondary">{formatDate(issue.createdAt)}</Typography>
             </Stack>
           </Stack>
+
+          {/* Cán bộ xử lý ngay tại đây — đặt ở đầu trang, cạnh SĐT người báo cáo, để không
+              phải cuộn hay quay lại bàn làm việc. */}
+          <StaffIssueActions
+            issue={issue}
+            action={staffAction}
+            onOpenStatus={() => setStatusDialogOpen(true)}
+            onChanged={refreshIssue}
+          />
 
           <Divider sx={{ mb: 3, borderColor: '#DCE7EB' }} />
 
@@ -690,8 +704,8 @@ const IssueDetailPage: React.FC = () => {
           )}
 
           <UpdateStatusDialog
-            issue={canChangeStatus ? issue : null}
-            open={statusDialogOpen && canChangeStatus}
+            issue={statusDialogAllowed ? issue : null}
+            open={statusDialogOpen && statusDialogAllowed}
             onClose={() => setStatusDialogOpen(false)}
             onCompleted={handleStatusCompleted}
             onStale={handleStatusStale}
