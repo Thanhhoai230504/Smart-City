@@ -24,6 +24,7 @@ import {
 import PriorityBadge from '../../components/PriorityBadge';
 import SlaBadge from '../../components/SlaBadge';
 import ReopenedBadge from '../../components/ReopenedBadge';
+import IssueThumbnail from '../../components/IssueThumbnail';
 import UpdateStatusDialog from '../StaffDashboard/UpdateStatusDialog';
 import { getApiErrorMessage } from '../../utils/apiError';
 
@@ -270,6 +271,7 @@ const IssueManagement: React.FC<Props> = ({ onDataChange = () => undefined }) =>
       <TableContainer>
         <Table size="small">
           <TableHead><TableRow>
+            <TableCell sx={{ ...headCellSx, width: 84 }}>Ảnh</TableCell>
             {['Sự cố', 'Trạng thái', 'Ưu tiên', 'Đơn vị xử lý', 'Cán bộ', 'SLA', 'Đồng thuận', 'Ngày báo', 'Thao tác'].map(h => (
               <TableCell key={h} sx={headCellSx}>{h}</TableCell>
             ))}
@@ -277,18 +279,21 @@ const IssueManagement: React.FC<Props> = ({ onDataChange = () => undefined }) =>
           <TableBody>
             {loading ? [...Array(6)].map((_, i) => (
               <TableRow key={i} sx={{ '@keyframes shimmer': { '0%': { backgroundPosition: '-400px 0' }, '100%': { backgroundPosition: '400px 0' } }, '@keyframes fadeIn': { from: { opacity: 0, transform: 'translateY(4px)' }, to: { opacity: 1, transform: 'translateY(0)' } }, animation: `fadeIn 0.4s ease-out ${i * 0.08}s both` }}>
-                {[...Array(9)].map((_, j) => (
+                {[...Array(10)].map((_, j) => (
                   <TableCell key={j} sx={cellSx}>
-                    <Skeleton variant="rounded" height={j === 0 ? 34 : 20} width={j === 0 ? '88%' : '65%'} />
+                    {j === 0
+                      ? <Skeleton variant="rounded" width={52} height={52} />
+                      : <Skeleton variant="rounded" height={j === 1 ? 34 : 20} width={j === 1 ? '88%' : '65%'} />}
                   </TableCell>
                 ))}
               </TableRow>
             )) : issues.length === 0 ? (
-              <TableRow><TableCell colSpan={9} sx={{ ...cellSx, textAlign: 'center', py: 7 }}>
+              <TableRow><TableCell colSpan={10} sx={{ ...cellSx, textAlign: 'center', py: 7 }}>
                 <Typography color="text.secondary">Không tìm thấy sự cố phù hợp với bộ lọc.</Typography>
               </TableCell></TableRow>
             ) : issues.map(issue => (
               <TableRow key={issue._id} hover sx={{ '&:hover': { bgcolor: 'rgba(11,94,142,0.04)' } }}>
+                <TableCell sx={cellSx}><IssueThumbnail issue={issue} size={52} /></TableCell>
                 <TableCell sx={{ ...cellSx, minWidth: 260, maxWidth: 360 }}>
                   <Typography variant="body2" fontWeight={650} noWrap>{issue.title}</Typography>
                   <Typography variant="caption" color="text.secondary" noWrap display="block">{CATEGORY_LABELS[issue.category] || issue.category} · {issue.district || 'Chưa xác định địa bàn'}</Typography>

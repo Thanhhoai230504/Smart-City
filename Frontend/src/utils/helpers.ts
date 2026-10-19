@@ -59,3 +59,15 @@ export const cloudinarySized = (url: string, transform: string): string => (
     ? url.replace('/upload/', `/upload/${transform}/`)
     : url
 );
+
+/**
+ * Ảnh đại diện của phiếu: API danh sách chỉ trả `imageUrl` (không có `images`),
+ * API chi tiết trả thêm `images` — lấy cái nào có. Không có ảnh thì `null`.
+ */
+export const getIssueCoverUrl = (
+  issue: { imageUrl?: string | null; images?: { url: string }[] },
+): string | null => issue.imageUrl || issue.images?.[0]?.url || null;
+
+/** Ảnh vuông `size` px cắt giữa, xin gấp đôi số điểm ảnh cho màn hình mật độ cao. */
+export const issueThumbnailUrl = (url: string, size: number): string =>
+  cloudinarySized(url, `c_fill,w_${size * 2},h_${size * 2},q_auto,f_auto`);

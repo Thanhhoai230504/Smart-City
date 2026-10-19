@@ -57,6 +57,7 @@ import { formatDate } from '../../utils/helpers';
 import ReopenedBadge from '../../components/ReopenedBadge';
 import PriorityBadge from '../../components/PriorityBadge';
 import SlaBadge from '../../components/SlaBadge';
+import IssueThumbnail from '../../components/IssueThumbnail';
 import UpdateStatusDialog from './UpdateStatusDialog';
 import DepartmentEvaluationsPanel from './DepartmentEvaluationsPanel';
 import { SOCKET_RECONNECTED, useSocket } from '../../hooks/useSocket';
@@ -128,6 +129,8 @@ const cellSx = {
  * với "Trạng thái".
  */
 const WORK_TABLE_COLUMNS = {
+  // Ảnh hiện trường 56 px + đệm ô hai bên + viền màu ưu tiên.
+  photo: 84,
   priorityStatus: 184,
   sla: 216,
   assignee: 150,
@@ -878,6 +881,7 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
                 >
                   <TableHead>
                     <TableRow>
+                      <TableCell sx={{ ...headCellSx, width: WORK_TABLE_COLUMNS.photo }}>Ảnh</TableCell>
                       <TableCell sx={headCellSx}>Công việc</TableCell>
                       <TableCell sx={{ ...headCellSx, width: WORK_TABLE_COLUMNS.priorityStatus }}>
                         Ưu tiên · Trạng thái
@@ -896,16 +900,18 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
                     {loading ? (
                       Array.from({ length: 5 }).map((_, rowIndex) => (
                         <TableRow key={rowIndex}>
-                          {Array.from({ length: 5 }).map((__, cellIndex) => (
+                          {Array.from({ length: 6 }).map((__, cellIndex) => (
                             <TableCell key={cellIndex} sx={cellSx}>
-                              <Skeleton height={30} />
+                              {cellIndex === 0
+                                ? <Skeleton variant="rounded" width={56} height={56} />
+                                : <Skeleton height={30} />}
                             </TableCell>
                           ))}
                         </TableRow>
                       ))
                     ) : issues.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} align="center" sx={{ ...cellSx, py: 8 }}>
+                        <TableCell colSpan={6} align="center" sx={{ ...cellSx, py: 8 }}>
                           <AssignmentIndOutlined sx={{ fontSize: 44, color: 'text.disabled', mb: 1 }} />
                           <Typography color="text.secondary">
                             {emptyMessage}
@@ -952,6 +958,10 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
                               '&:hover': { bgcolor: '#F8FAFB' },
                             }}
                           >
+                            <TableCell sx={cellSx}>
+                              <IssueThumbnail issue={issue} size={56} />
+                            </TableCell>
+
                             <TableCell sx={cellSx}>
                               <Tooltip title={issue.title} placement="top-start" enterDelay={500}>
                                 <Typography variant="body2" fontWeight={700} noWrap>
@@ -1087,27 +1097,32 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({ embedded = false }) => 
                           component="article"
                           sx={{ position: 'relative', p: 2, borderLeft: `3px solid ${priorityColor}` }}
                         >
-                          <Stack direction="row" justifyContent="space-between" spacing={1} mb={0.5}>
-                            <Typography variant="body2" fontWeight={700}>
-                              {issue.title}
-                            </Typography>
-                            <PriorityBadge issue={issue} />
-                          </Stack>
-                          {(issue.reopenCount || 0) > 0 && (
-                            <Box mb={0.75}>
-                              <ReopenedBadge reopenCount={issue.reopenCount} lastReopenedAt={issue.lastReopenedAt} />
-                            </Box>
-                          )}
+                          <Stack direction="row" spacing={1.5} alignItems="flex-start" mb={1.25}>
+                            <IssueThumbnail issue={issue} size={56} />
+                            <Box flex={1} minWidth={0}>
+                              <Typography variant="body2" fontWeight={700} mb={0.75}>
+                                {issue.title}
+                              </Typography>
+                              {/* Nhãn nằm dưới tiêu đề: cạnh ảnh mà còn chung hàng với nhãn thì
+                                  tiêu đề chỉ còn ~130 px ở màn 375 px, vỡ 4–5 dòng. */}
+                              <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap mb={0.75}>
+                                <PriorityBadge issue={issue} />
+                                {(issue.reopenCount || 0) > 0 && (
+                                  <ReopenedBadge reopenCount={issue.reopenCount} lastReopenedAt={issue.lastReopenedAt} />
+                                )}
+                              </Stack>
 
-                          <Stack direction="row" spacing={0.5} alignItems="center" mb={1.25}>
-                            <LocationOn sx={{ fontSize: 14, color: 'text.secondary' }} />
-                            <Typography
-                              variant="caption"
-                              color="text.secondary"
-                              sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                            >
-                              {issue.location}
-                            </Typography>
+                              <Stack direction="row" spacing={0.5} alignItems="center">
+                                <LocationOn sx={{ fontSize: 14, color: 'text.secondary' }} />
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                  sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                                >
+                                  {issue.location}
+                                </Typography>
+                              </Stack>
+                            </Box>
                           </Stack>
 
                           <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap mb={1.5}>

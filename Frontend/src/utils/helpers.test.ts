@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { cloudinarySized, escapeHtml, formatDate, formatDateShort, timeAgo } from './helpers';
+import {
+  cloudinarySized, escapeHtml, formatDate, formatDateShort, getIssueCoverUrl, issueThumbnailUrl, timeAgo,
+} from './helpers';
 
 /**
  * `escapeHtml` là hàng rào chống XSS cho hai chỗ xuất báo cáo.
@@ -86,5 +88,33 @@ describe('cloudinarySized', () => {
   it('leaves images hosted elsewhere untouched', () => {
     const url = 'https://example.com/upload/a.jpg';
     expect(cloudinarySized(url, 'w_200')).toBe(url);
+  });
+});
+
+describe('getIssueCoverUrl', () => {
+  it('uses imageUrl, the only image field the list API returns', () => {
+    expect(getIssueCoverUrl({ imageUrl: 'https://res.cloudinary.com/demo/image/upload/a.jpg' }))
+      .toBe('https://res.cloudinary.com/demo/image/upload/a.jpg');
+  });
+
+  it('falls back to the first of images when imageUrl is missing', () => {
+    expect(getIssueCoverUrl({ imageUrl: null, images: [{ url: 'https://x/1.jpg' }, { url: 'https://x/2.jpg' }] }))
+      .toBe('https://x/1.jpg');
+  });
+
+  it('returns null for a report without photos', () => {
+    expect(getIssueCoverUrl({ imageUrl: null })).toBeNull();
+    expect(getIssueCoverUrl({ imageUrl: '', images: [] })).toBeNull();
+  });
+});
+
+describe('issueThumbnailUrl', () => {
+  it('asks Cloudinary for a centre-cropped square at twice the displayed size', () => {
+    expect(issueThumbnailUrl('https://res.cloudinary.com/demo/image/upload/v1/a.jpg', 56))
+      .toBe('https://res.cloudinary.com/demo/image/upload/c_fill,w_112,h_112,q_auto,f_auto/v1/a.jpg');
+  });
+
+  it('leaves images hosted elsewhere untouched', () => {
+    expect(issueThumbnailUrl('https://example.com/a.jpg', 56)).toBe('https://example.com/a.jpg');
   });
 });
