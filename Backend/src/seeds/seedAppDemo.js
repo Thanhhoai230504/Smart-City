@@ -176,7 +176,7 @@ const buildIssues = ({ dan, dan2, staff, staff2, admin, htgt, mtdt }, now) => {
     },
     {
       title: 'Rác tồn đọng ở chân cầu Rồng',
-      description: 'Rác sinh hoạt đổ trộm thành đống lớn, bốc mùi.',
+      description: 'Rác sinh hoạt đổ trộm thành đống lớn quanh trụ điện số HC-921/59, bốc mùi.',
       category: 'garbage',
       location: 'Chân cầu Rồng, Sơn Trà, Đà Nẵng',
       latitude: 16.0610, longitude: 108.2290,

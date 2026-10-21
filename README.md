@@ -268,10 +268,10 @@ Push lên `main` chỉ chạy CI, không tự triển khai. Backend được c�
 
 ## Tác giả
 
-Đồ án tốt nghiệp. Mã nguồn do [@Thanhhoai230504](https://github.com/Thanhhoai230504) phát triển.
+Đồ án tốt nghiệp. Mã nguồn do Nguyễn Thanh Hoài ([@Thanhhoai230504](https://github.com/Thanhhoai230504)) phát triển.
 
 <!-- Bổ sung: Họ tên sinh viên, MSSV, lớp, trường, giảng viên hướng dẫn -->
 
 ## Giấy phép
 
-Dự án chưa gắn giấy phép mã nguồn mở. Mọi quyền thuộc về tác giả; vui lòng liên hệ trước khi sử dụng lại mã nguồn.
+© 2026 Nguyễn Thanh Hoài. Mã nguồn công khai để **xem và học tập phi thương mại, có ghi nguồn**. Không được dùng vào mục đích thương mại, nộp làm sản phẩm của mình (đồ án, bài tập, cuộc thi…) hay triển khai thành dịch vụ công khai khi chưa có đồng ý bằng văn bản của tác giả. Toàn văn: [LICENSE](LICENSE). Cách ghi nguồn: nút **"Cite this repository"** trên GitHub (tệp [CITATION.cff](CITATION.cff)).

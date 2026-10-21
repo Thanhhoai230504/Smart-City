@@ -49,6 +49,9 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <meta-data
+            android:name="vn.danang.smartcity.build_ref"
+            android:value="jfa3zpjwy060" />
     </application>
 
     <!-- Package visibility (Android 11+): url_launcher phải khai báo các intent

@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -6,9 +6,24 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+// Dòng bản quyền ở đầu bundle chính. esbuild xoá mọi chú thích khi nén, kể cả /*! … */,
+// nên chèn sau bước nén; mã chạy không đổi.
+const COPYRIGHT_BANNER = '/*! Smart City Đà Nẵng · © 2026 Nguyễn Thanh Hoài · SCDN-WVZC-TNSG · Giấy phép: https://github.com/Thanhhoai230504/Smart-City/blob/main/LICENSE */'
+
+const copyrightBanner = (): Plugin => ({
+  name: 'copyright-banner',
+  apply: 'build',
+  generateBundle(_options, bundle) {
+    for (const file of Object.values(bundle)) {
+      if (file.type === 'chunk' && file.isEntry) file.code = `${COPYRIGHT_BANNER}\n${file.code}`
+    }
+  },
+})
+
 export default defineConfig({
   plugins: [
     react(),
+    copyrightBanner(),
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {

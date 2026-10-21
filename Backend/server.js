@@ -183,3 +183,5 @@ connectDB().catch((err) => {
 registerShutdownHandlers({ server, io, mongoose });
 
 module.exports = { app, server };
+
+// © 2026 Nguyễn Thanh Hoài — Smart City Đà Nẵng (SCDN-8KSZ-KM8H). Giấy phép: LICENSE ở thư mục gốc.

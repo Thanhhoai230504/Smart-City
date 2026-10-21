@@ -195,7 +195,7 @@ const seedData = async () => {
       },
       {
         title: 'Rác thải chất đống ven đường Hoàng Diệu',
-        description: 'Có một đống rác lớn chưa được thu gom ở ven đường Hoàng Diệu, gần ngã ba với đường Ông Ích Khiêm. Bốc mùi rất khó chịu.',
+        description: 'Có một đống rác lớn chưa được thu gom ở ven đường Hoàng Diệu, gần ngã ba với đường Ông Ích Khiêm. Rác dồn sát trụ điện số HC-921/59, bốc mùi rất khó chịu.',
         category: 'garbage',
         location: 'Đường Hoàng Diệu, Hải Châu, Đà Nẵng',
         status: 'processing',

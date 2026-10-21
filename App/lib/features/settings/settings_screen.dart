@@ -118,6 +118,7 @@ class SettingsScreen extends ConsumerWidget {
                 context: context,
                 applicationName: 'Smart City Đà Nẵng',
                 applicationVersion: info.version,
+                applicationLegalese: '© 2026 Nguyễn Thanh Hoài',
               ),
             ),
           ]),

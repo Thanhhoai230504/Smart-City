@@ -1,0 +1,113 @@
+GIẤY PHÉP SỬ DỤNG — SMART CITY ĐÀ NẴNG
+Phiên bản 1.0, ngày 21/10/2026
+
+Bản quyền © 2026 Nguyễn Thanh Hoài. Mọi quyền được bảo lưu, trừ các quyền được cho
+phép rõ ràng dưới đây.
+
+"Phần mềm" là toàn bộ mã nguồn, tài liệu, thiết kế giao diện, hình ảnh và dữ liệu mẫu do
+tác giả tạo ra trong kho mã này (máy chủ, web và ứng dụng di động), kể cả các bản đã
+build hay đã triển khai từ kho mã này.
+
+1. ĐƯỢC PHÉP (miễn phí), với điều kiện tuân thủ mục 2 và mục 3:
+   a) xem, đọc và nghiên cứu mã nguồn để học tập;
+   b) tải về, chạy và chỉnh sửa trên máy của mình để học tập, nghiên cứu hoặc đánh giá
+      (ví dụ: hội đồng chấm, giảng viên, nhà tuyển dụng);
+   c) trích dẫn hoặc dùng lại những đoạn mã ngắn trong bài viết, tài liệu học tập hoặc
+      dự án cá nhân phi thương mại, kèm ghi nguồn theo mục 2.
+
+2. GHI NGUỒN. Mọi trích dẫn, bản sao hay sản phẩm có dùng bất kỳ phần nào của Phần mềm
+   phải ghi rõ, ở nơi người xem dễ thấy:
+
+     Dựa trên Smart City Đà Nẵng — © 2026 Nguyễn Thanh Hoài
+     https://github.com/Thanhhoai230504/Smart-City
+
+   và giữ nguyên các dòng bản quyền, thông tin tác giả có trong Phần mềm.
+
+3. KHÔNG ĐƯỢC, nếu chưa có văn bản đồng ý của tác giả:
+   a) dùng Phần mềm hay bất kỳ phần nào của nó vào mục đích thương mại: bán, cho thuê,
+      cung cấp dịch vụ có thu phí, dùng trong sản phẩm hay hoạt động của tổ chức, doanh
+      nghiệp, kể cả khi không thu tiền trực tiếp;
+   b) nộp hoặc trình bày Phần mềm, hay phần đáng kể của nó, như sản phẩm của mình hoặc
+      của người khác: đồ án, khoá luận, bài tập, cuộc thi, hồ sơ năng lực, hồ sơ xin việc;
+   c) triển khai Phần mềm (nguyên bản hay đã sửa) thành dịch vụ công khai trên internet,
+      hoặc phát hành ứng dụng lên kho ứng dụng hay trang tải về;
+   d) xoá, sửa hoặc che các dòng bản quyền, thông tin tác giả và dấu nhận biết có trong
+      Phần mềm;
+   e) cấp lại Phần mềm cho người khác theo điều kiện khác với giấy phép này.
+
+4. Việc xem và tạo bản fork trên GitHub theo Điều khoản dịch vụ của GitHub không bị giấy
+   phép này hạn chế; mọi việc dùng bản fork ngoài GitHub vẫn theo giấy phép này.
+
+5. Thành phần của bên thứ ba (thư viện npm và pub, phông chữ, dữ liệu và ảnh nền bản đồ,
+   ảnh và video minh hoạ lấy từ nguồn khác...) thuộc chủ sở hữu tương ứng và theo giấy
+   phép riêng của chúng; giấy phép này không áp dụng cho các thành phần đó.
+
+6. Phần mềm được cung cấp "nguyên trạng", không kèm bất kỳ bảo đảm nào. Tác giả không
+   chịu trách nhiệm về thiệt hại phát sinh từ việc sử dụng Phần mềm.
+
+7. Vi phạm bất kỳ điều kiện nào thì mọi quyền ở mục 1 tự chấm dứt. Hành vi xâm phạm được
+   xử lý theo Luật Sở hữu trí tuệ Việt Nam và pháp luật nơi xảy ra vi phạm.
+
+8. Xin phép sử dụng ngoài phạm vi trên: liên hệ tác giả qua GitHub
+   https://github.com/Thanhhoai230504
+
+Bản tiếng Việt là bản chính; bản tiếng Anh dưới đây để tham khảo.
+
+--------------------------------------------------------------------------------
+
+SMART CITY ĐÀ NẴNG LICENSE
+Version 1.0, 21 October 2026
+
+Copyright © 2026 Nguyễn Thanh Hoài. All rights reserved, except as expressly permitted
+below.
+
+"Software" means all source code, documentation, user interface designs, images and
+sample data created by the author in this repository (server, web and mobile app),
+including any build or deployment made from it.
+
+1. PERMITTED (free of charge), subject to sections 2 and 3:
+   a) viewing, reading and studying the source code for learning;
+   b) downloading, running and modifying it on your own machine for learning, research
+      or evaluation (for example by examiners, teachers or employers);
+   c) quoting or reusing short code excerpts in articles, learning materials or
+      personal non-commercial projects, with attribution as in section 2.
+
+2. ATTRIBUTION. Any quotation, copy or work using any part of the Software must state,
+   where viewers can easily see it:
+
+     Based on Smart City Đà Nẵng — © 2026 Nguyễn Thanh Hoài
+     https://github.com/Thanhhoai230504/Smart-City
+
+   and must keep the copyright and authorship notices contained in the Software.
+
+3. NOT PERMITTED without the author's written consent:
+   a) any commercial use of the Software or any part of it: selling, renting, paid
+      services, or use in the products or operations of an organisation or business,
+      even without direct charge;
+   b) submitting or presenting the Software, or a substantial part of it, as your own or
+      someone else's work: theses, coursework, competitions, portfolios, job
+      applications;
+   c) deploying the Software (original or modified) as a public internet service, or
+      publishing the app to an app store or download site;
+   d) removing, altering or hiding copyright notices, authorship information or
+      identification marks contained in the Software;
+   e) sublicensing the Software under terms different from this license.
+
+4. Viewing and forking on GitHub under GitHub's Terms of Service is not restricted by
+   this license; any use of a fork outside GitHub remains subject to this license.
+
+5. Third-party components (npm and pub packages, fonts, map data and tiles, images and
+   videos from other sources, etc.) belong to their respective owners and are governed
+   by their own licenses; this license does not apply to them.
+
+6. The Software is provided "as is", without warranty of any kind. The author is not
+   liable for any damage arising from its use.
+
+7. Any breach automatically terminates the rights granted in section 1. Infringement is
+   handled under the Intellectual Property Law of Vietnam and the law of the place
+   where it occurs.
+
+8. For permission beyond this license, contact the author via GitHub:
+   https://github.com/Thanhhoai230504
+
+The Vietnamese text prevails; the English text is for reference.

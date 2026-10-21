@@ -45,3 +45,5 @@ Future<void> main() async {
 
   runApp(UncontrolledProviderScope(container: container, child: const SmartCityApp()));
 }
+
+// © 2026 Nguyễn Thanh Hoài — Smart City Đà Nẵng (SCDN-P1FZ-D2CQ). Giấy phép: LICENSE ở thư mục gốc.

@@ -2,6 +2,8 @@
   "name": "smart-city-dashboard-backend",
   "version": "1.0.0",
   "description": "Backend API for Smart City Dashboard - Urban monitoring and management system",
+  "author": "Nguyễn Thanh Hoài",
+  "license": "SEE LICENSE IN ../LICENSE",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -29,8 +31,6 @@
     "express",
     "mongodb"
   ],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "axios": "^1.6.7",

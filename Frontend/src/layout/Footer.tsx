@@ -162,7 +162,7 @@ const Footer: React.FC = () => (
         alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between',
       }}>
         <Typography sx={{ color: CHROME.muted, fontSize: 13 }}>
-          © {new Date().getFullYear()} Smart City Đà Nẵng · Hệ thống quản lý đô thị thông minh
+          © 2026 Nguyễn Thanh Hoài · Smart City Đà Nẵng · Hệ thống quản lý đô thị thông minh
         </Typography>
         <Stack direction="row" alignItems="center" spacing={2} useFlexGap flexWrap="wrap" sx={{ rowGap: 1 }}>
           <Typography sx={{ color: CHROME.muted, fontSize: 13 }}>Dữ liệu được cập nhật theo thời gian thực</Typography>

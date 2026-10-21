@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "Nếu bạn trích dẫn hoặc dùng lại một phần dự án, vui lòng ghi nguồn như dưới đây (xem LICENSE). / If you cite or reuse part of this project, please cite it as below (see LICENSE)."
+title: "Smart City Đà Nẵng — Hệ thống phản ánh và quản lý sự cố đô thị"
+type: software
+authors:
+  - family-names: "Nguyễn"
+    given-names: "Thanh Hoài"
+version: "1.0"
+date-released: "2026-10-21"
+repository-code: "https://github.com/Thanhhoai230504/Smart-City"
+url: "https://smartcitydn.io.vn"
+license-url: "https://github.com/Thanhhoai230504/Smart-City/blob/main/LICENSE"
+keywords:
+  - smart city
+  - Đà Nẵng
+  - phản ánh hiện trường
+  - quản lý sự cố đô thị
